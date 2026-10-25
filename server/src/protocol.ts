@@ -31,6 +31,7 @@ import type { Activity, AgentAccount, AgentCatalog, AgentStatus, KitaSessionEven
 import type { AppRegistry, Apps, ChangeEvent, Health } from './types.js'
 
 // 客户端收发的全部 JSON：pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 protocol-id.ts。
+// 挂上的每个路由都登记在 Http、Sse 或 WebSockets 里，protocol.test.ts 检查。
 // http 的 request 是 JSON 请求体（请求体是文件本身时没有），成功时：有 response 的返回这个 JSON，
 // file 是响应体为文件本身（图片、音频、日志……），两样都没有的是 204、没有响应体。出错时（4xx、5xx）所有接口的响应体都是 error
 export type Protocol = {
@@ -53,14 +54,14 @@ export type Http = {
   'GET /api/kita/sessions/:id/events': { response: { events: PageEvent[] } }
   // seq 是 tool_call 事件的 seq
   'GET /api/kita/sessions/:id/calls/:seq': { response: CallDetail }
-  // ?info=1 时
-  'GET /api/kita/sessions/:id/files/:file': { response: FileInfo }
+  // ?info=1 时是 response；?name= 是下载时的文件名
+  'GET /api/kita/sessions/:id/files/:file': { response: FileInfo; file: '*/*' }
   'GET /api/kita/activity': { response: { activity: Activity[] } }
   'GET /api/kita/profile': { response: { profile: Profile } }
   'PUT /api/kita/profile/description': { request: { description: string } }
   'POST /api/kita/profile/photos': { response: { file: string } }
-  // ?info=1 时
-  'GET /api/kita/profile/photos/:file': { response: FileInfo }
+  // ?info=1 时是 response
+  'GET /api/kita/profile/photos/:file': { response: FileInfo; file: 'image/*' }
   'DELETE /api/kita/profile/photos/:file': {}
   'PUT /api/kita/profile/avatar': { request: { file: string } }
   'GET /api/kita/memories': { response: { memories: Memory[] } }
@@ -83,6 +84,9 @@ export type Http = {
   'POST /api/apps/builds/:id/cancel': { response: BuildsSnapshot }
   'POST /api/apps/builds/:id/retry': { response: BuildsSnapshot }
   'POST /api/apps/builds/:id/install': { response: InstallLink }
+  // 完整的日志
+  'GET /api/apps/builds/:id/log': { file: 'text/plain' }
+  'GET /api/apps/builds/:id/artifacts/:name': { file: 'application/octet-stream' }
 
   'GET /api/apps/code/projects': { response: { projects: Project[] } }
   'POST /api/apps/code/projects': { request: RepositoryBody; response: { project: Project } }
@@ -111,8 +115,8 @@ export type Http = {
   'GET /api/apps/devices/:id/screenshot': { file: 'image/*' }
 
   'GET /api/apps/files': { response: Directory }
-  // ?info=1 时
-  'GET /api/apps/files/download': { response: FileInfo }
+  // ?path= 是文件；?info=1 时是 response；?name= 是下载时的文件名
+  'GET /api/apps/files/download': { response: FileInfo; file: '*/*' }
   'POST /api/apps/files/directories': { request: FileName }
   'POST /api/apps/files/rename': { request: FileName }
   'POST /api/apps/files/copy': { request: FileTransfer; response: FileResults }
@@ -138,6 +142,8 @@ export type Http = {
   'POST /api/apps/music/queue': { request: QueueMutation; response: QueueSnapshot }
   'GET /api/apps/music/providers': { response: { providers: ProviderInfo[] } }
   'PATCH /api/apps/music/providers/:provider/settings': { request: ProviderSettings; response: ProviderInfo }
+  // ?id= 是曲目的 id，支持 Range
+  'GET /api/apps/music/providers/:provider/stream': { file: 'audio/*' }
   // operation 是 search、resolve、playlist、recommendations 时是 CatalogPage
   'GET /api/apps/music/providers/:provider/:operation': { response: CatalogPage | Lyrics | PlaybackSource }
 

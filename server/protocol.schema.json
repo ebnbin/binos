@@ -205,10 +205,15 @@
           "properties": {
             "response": {
               "$ref": "#/definitions/FileInfo"
+            },
+            "file": {
+              "type": "string",
+              "const": "*/*"
             }
           },
           "required": [
-            "response"
+            "response",
+            "file"
           ],
           "additionalProperties": false
         },
@@ -304,10 +309,15 @@
           "properties": {
             "response": {
               "$ref": "#/definitions/FileInfo"
+            },
+            "file": {
+              "type": "string",
+              "const": "image/*"
             }
           },
           "required": [
-            "response"
+            "response",
+            "file"
           ],
           "additionalProperties": false
         },
@@ -612,6 +622,32 @@
           },
           "required": [
             "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/builds/:id/log": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "const": "text/plain"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/builds/:id/artifacts/:name": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "const": "application/octet-stream"
+            }
+          },
+          "required": [
+            "file"
           ],
           "additionalProperties": false
         },
@@ -976,10 +1012,15 @@
           "properties": {
             "response": {
               "$ref": "#/definitions/FileInfo"
+            },
+            "file": {
+              "type": "string",
+              "const": "*/*"
             }
           },
           "required": [
-            "response"
+            "response",
+            "file"
           ],
           "additionalProperties": false
         },
@@ -1294,6 +1335,19 @@
           ],
           "additionalProperties": false
         },
+        "GET /api/apps/music/providers/:provider/stream": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string",
+              "const": "audio/*"
+            }
+          },
+          "required": [
+            "file"
+          ],
+          "additionalProperties": false
+        },
         "GET /api/apps/music/providers/:provider/:operation": {
           "type": "object",
           "properties": {
@@ -1421,6 +1475,8 @@
         "POST /api/apps/builds/:id/cancel",
         "POST /api/apps/builds/:id/retry",
         "POST /api/apps/builds/:id/install",
+        "GET /api/apps/builds/:id/log",
+        "GET /api/apps/builds/:id/artifacts/:name",
         "GET /api/apps/code/projects",
         "POST /api/apps/code/projects",
         "PUT /api/apps/code/projects/:project/repository",
@@ -1466,6 +1522,7 @@
         "POST /api/apps/music/queue",
         "GET /api/apps/music/providers",
         "PATCH /api/apps/music/providers/:provider/settings",
+        "GET /api/apps/music/providers/:provider/stream",
         "GET /api/apps/music/providers/:provider/:operation",
         "GET /api/apps/system/status",
         "POST /api/apps/system/refresh",
