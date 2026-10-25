@@ -147,7 +147,7 @@ export function searchContent(query: string): SearchResults {
   const results: SearchResult[] = []
   let total = 0
   if (!needle) return { results, total }
-  const add = (id: number, text: string, kind: 'title' | 'input' | 'text', item?: number) => {
+  const add = (id: number, text: string, kind: 'title' | 'input' | 'text', seq?: number) => {
     const at = text.toLowerCase().indexOf(needle)
     if (at < 0) return
     total++
@@ -155,7 +155,7 @@ export function searchContent(query: string): SearchResults {
     const session = readSession(id)
     results.push({
       id, title: sessionTitle(session), archived: Boolean(session.archived), kind,
-      ...(item !== undefined && { item }),
+      ...(seq !== undefined && { seq }),
       before: (at > 50 ? '…' : '') + text.slice(Math.max(0, at - 50), at),
       match: text.slice(at, at + needle.length),
       after: text.slice(at + needle.length, at + needle.length + 100) + (text.length > at + needle.length + 100 ? '…' : ''),
@@ -165,7 +165,7 @@ export function searchContent(query: string): SearchResults {
   for (const id of ids) {
     add(id, sessionTitle(readSession(id)), 'title')
     threadOf(id).entries().forEach((item, index) => {
-      if (item.type === 'input' || (item.type === 'text' && !item.parent)) add(id, item.text, item.type, index)
+      if (item.type === 'input' || (item.type === 'text' && !item.parent)) add(id, item.text, item.type, index + 1)
     })
   }
   return { results, total }

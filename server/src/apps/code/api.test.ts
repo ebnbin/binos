@@ -32,13 +32,24 @@ beforeAll(() => {
   writeFileSync(path.join(root, 'Library', 'secret.png'), 'secret')
 })
 
-const post = (url: string, body: string, contentType: string) =>
-  api.request(url, { method: 'POST', body, headers: { 'Content-Type': contentType } })
+const post = (url: string, body: string, contentType: string, method = 'POST') =>
+  api.request(url, { method, body, headers: { 'Content-Type': contentType } })
 
 describe('api', () => {
   it('写操作只接受 JSON', async () => {
-    expect((await post('/api/apps/code/sessions', 'text=hi', 'application/x-www-form-urlencoded')).status).toBe(415)
+    const form = await post('/api/apps/code/sessions', 'text=hi', 'application/x-www-form-urlencoded')
+    expect(form.status).toBe(415)
+    expect(await form.json()).toMatchObject({ error: { code: 'unsupported-media-type' } })
     expect((await post('/api/apps/code/sessions/1/stop', '', 'text/plain')).status).toBe(415)
+  })
+
+  it('出错和没有的接口都返回统一格式的 JSON', async () => {
+    const missing = await api.request('/api/apps/code/nothing')
+    expect(missing.status).toBe(404)
+    expect(await missing.json()).toMatchObject({ error: { code: 'not-found' } })
+    const malformed = await post('/api/apps/code/sessions', '{', 'application/json')
+    expect(malformed.status).toBe(400)
+    expect(await malformed.json()).toMatchObject({ error: { code: 'invalid-input' } })
   })
 
   it('附件超过上限时拒绝，不留下文件', async () => {
@@ -148,7 +159,7 @@ describe('全局内容搜索', () => {
       { type: 'text', time: time(), text: 'Needle 子任务', parent: 'child' },
     ])
     expect(searchContent('needle')).toEqual({ total: 1, results: [expect.objectContaining({
-      id, archived: true, item: 2, kind: 'text', before: '前文 ', match: 'Needle', after: ' 后文',
+      id, archived: true, seq: 3, kind: 'text', before: '前文 ', match: 'Needle', after: ' 后文',
     })] })
     const res = await api.request('/api/apps/code/search?q=needle')
     expect(res.status).toBe(200)
@@ -198,7 +209,7 @@ describe('项目仓库', () => {
     vi.mocked(prepareRepository).mockRejectedValueOnce(new RepositoryError('无法访问仓库'))
     const response = await post('/api/apps/code/projects', JSON.stringify({ name: '失败', repository: 'example/private', create: true }), 'application/json')
     expect(response.status).toBe(400)
-    expect(await response.json()).toEqual({ error: '无法访问仓库' })
+    expect(await response.json()).toEqual({ error: { code: 'invalid-input', message: '无法访问仓库' } })
     expect(await (await api.request('/api/apps/code/projects')).json()).toEqual(before)
   })
 
@@ -207,11 +218,11 @@ describe('项目仓库', () => {
     const file = path.join(root, 'Library/Apps/code/projects.json')
     writeFileSync(file, JSON.stringify([...listProjects(), { id: 'legacy', name: '旧项目' }]))
     const response = await post('/api/apps/code/sessions', JSON.stringify({ text: '开发', project: 'legacy' }), 'application/json')
-    expect(await response.json()).toEqual({ error: '请先为这个项目关联 GitHub 仓库' })
-    const connected = await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'example/legacy' }), 'application/json')
+    expect(await response.json()).toEqual({ error: { code: 'invalid-input', message: '请先为这个项目关联 GitHub 仓库' } })
+    const connected = await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'example/legacy' }), 'application/json', 'PUT')
     expect(connected.status).toBe(200)
     expect(projectDirectory('legacy')).toBe(path.join(root, 'Library/Apps/code/repositories/legacy/main'))
-    expect((await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'other/repo' }), 'application/json')).status).toBe(400)
+    expect((await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'other/repo' }), 'application/json', 'PUT')).status).toBe(400)
   })
 })
 

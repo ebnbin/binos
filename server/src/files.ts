@@ -2,6 +2,7 @@ import { createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import type { Context } from 'hono'
+import { notFound } from './errors.js'
 
 // 本机文件可能包含可执行内容，只有这些在页面里直接打开，其余一律下载：HTML、SVG 之类在这个域名下打开的话，里面的脚本就能以你的身份操作
 const inlineTypes: Record<string, string> = {
@@ -35,7 +36,7 @@ export function serveFile(c: Context, filePath: string, immutable = false) {
   const name = c.req.query('name')
   const disposition = (inline && !name ? 'inline' : 'attachment') + (name ? `; filename*=UTF-8''${encodeURIComponent(name)}` : '')
   const info = statSync(filePath)
-  if (!info.isFile()) return c.text('Not Found', 404)
+  if (!info.isFile()) throw notFound('文件不存在')
   if (c.req.query('info') === '1') {
     return c.json({ size: info.size, modified: info.mtime.toISOString(), type: inline || 'application/octet-stream' } satisfies FileInfo)
   }

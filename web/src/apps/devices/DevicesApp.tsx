@@ -4,7 +4,7 @@ import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
 import type { Device, Platform } from '@binos/server/apps/devices/types'
 import type { WindowContext } from '../types.ts'
 import { onChange } from '../../events.ts'
-import { acquireDevices, cancelDevices, captureDevice, controlDevice, discoverDevices, readDevices, releaseDevices } from './api.ts'
+import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, releaseDevices } from './api.ts'
 import { Select } from '../../ui/Select.tsx'
 import styles from './DevicesApp.module.css'
 
@@ -26,10 +26,10 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
     catch (error) { if (latest.current === version) setError(error instanceof Error ? error.message : '读取失败') }
   }, [])
   useEffect(() => {
+    // 设备、租约、排队和操作记录变了后端发 devices 通知；重新连上时也重读
     const initial = setTimeout(() => void load(), 0)
-    const timer = setInterval(() => { if (!document.hidden) void load() }, 5000)
     const stop = onChange((event) => { if (event === null || event.type === 'devices') void load() })
-    return () => { clearTimeout(initial); clearInterval(timer); stop() }
+    return () => { clearTimeout(initial); stop() }
   }, [load])
   async function act(operation: () => Promise<unknown>) {
     setBusy(true)
@@ -106,12 +106,13 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
 function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: DevicesSnapshot; ctx: WindowContext; busy: boolean; act: (operation: () => Promise<unknown>) => Promise<void> }) {
   const [confirmDestroy, setConfirmDestroy] = useState(false)
   const [capture, setCapture] = useState<Awaited<ReturnType<typeof captureDevice>>>()
+  useEffect(() => () => { if (capture) URL.revokeObjectURL(capture.url) }, [capture])
   const lease = data.leases.find((item) => item.devices.includes(device.id))
   const session = lease && data.owners[lease.owner]
   return (
     <article className={styles.card}>
       <div className={styles.cardTitle}><span className={styles.cardIcon}><Smartphone size={18} strokeWidth={1.75} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
-      {capture ? <img className={styles.screenshot} src={`data:${capture.mime};base64,${capture.image}`} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><Smartphone size={40} strokeWidth={1.25} /><span>按需查看设备画面</span></div>}
+      {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><Smartphone size={40} strokeWidth={1.25} /><span>按需查看设备画面</span></div>}
       {capture && <p className={styles.caption}>截图于 {moment(capture.at)} · 非实时画面</p>}
       <dl className={styles.details}><div><dt>设备</dt><dd>{device.id}</dd></div><div><dt>占用</dt><dd>{session && ctx.openApplication ? <button className={styles.link} onClick={() => ctx.openApplication?.('code', `/${session.session}`)}>{session.title || `会话 ${session.session}`}</button> : lease ? ownerName(lease.owner) : '无'}</dd></div>{lease && <><div><dt>用途</dt><dd>{lease.reason || '未填写'}</dd></div><div><dt>开始</dt><dd>{moment(lease.createdAt)}</dd></div></>}</dl>
       {device.error && <p className={styles.error}>{device.error}</p>}
@@ -119,7 +120,7 @@ function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: De
         <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => setCapture(await captureDevice(device.id)))}><Camera size={14} strokeWidth={2} />截图</button>
         {device.status !== 'destroying' && <button className={styles.destructive} disabled={busy} onClick={() => {
           if (!confirmDestroy) { setConfirmDestroy(true); return }
-          void act(() => controlDevice(device.id, 'destroy'))
+          void act(() => destroyDevice(device.id))
         }}><Trash2 size={14} strokeWidth={2} />{confirmDestroy ? lease ? '确认中断租约并销毁' : '确认销毁设备' : lease ? '强制回收' : '销毁设备'}</button>}
         {confirmDestroy && <button className={styles.button} disabled={busy} onClick={() => setConfirmDestroy(false)}>取消</button>}
       </div>

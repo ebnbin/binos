@@ -1,15 +1,14 @@
-import { randomUUID } from 'node:crypto'
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { streamSSE } from 'hono/streaming'
+import { errorHandler, forbidden, notFound } from '../../errors.js'
 import { isCrossSite } from '../../websocket-origin.js'
 import { connectTerminal, parseMessage } from './connection.js'
-import type { TerminalServerMessage, TerminalStreamMessage } from './connection.js'
+import type { TerminalServerMessage } from './connection.js'
 import { createSession, hasSession, listSessions, runTmux, tmux } from './sessions.js'
+import { checkTerminals } from './watch.js'
 
 type Connection = ReturnType<typeof connectTerminal>
-const streams = new Map<string, Connection>()
 const counts = new Map<string, number>()
 const acquire = (id: string) => {
   const count = counts.get(id) ?? 0
@@ -23,22 +22,28 @@ const acquire = (id: string) => {
 }
 
 export const terminalApi = new Hono()
-  .onError((error, c) => c.json({ error: error.message }, 400))
+  // 终端操作的错误是给用户看的原因
+  .onError(errorHandler([400, 'invalid-input']))
   .use(bodyLimit({ maxSize: 128 * 1024 }))
   .get('/', async (c) => c.json({ available: !!tmux, sessions: await listSessions() }))
-  .post('/sessions', async (c) => c.json(await createSession(), 201))
+  .post('/sessions', async (c) => {
+    const session = await createSession()
+    await checkTerminals()
+    return c.json(session, 201)
+  })
   .use('/sessions/:id/*', async (c, next) => {
-    if (!(await hasSession(c.req.param('id')!))) return c.json({ error: '终端会话已结束' }, 404)
+    if (!(await hasSession(c.req.param('id')!))) throw notFound('终端会话已结束')
     await next()
   })
   .delete('/sessions/:id', async (c) => {
     const id = c.req.param('id')
-    if (!(await hasSession(id))) return c.json({ error: '终端会话已结束' }, 404)
+    if (!(await hasSession(id))) throw notFound('终端会话已结束')
     await runTmux(['kill-session', '-t', id])
-    return c.json({ ok: true })
+    await checkTerminals()
+    return c.body(null, 204)
   })
   .get('/sessions/:id/socket', async (c, next) => {
-    if (isCrossSite(c)) return c.text('Forbidden', 403)
+    if (isCrossSite(c)) throw forbidden('不能从别的网站连接')
     return upgradeWebSocket(() => {
       let connection: Connection | undefined
       let release: (() => void) | undefined
@@ -79,47 +84,4 @@ export const terminalApi = new Hono()
         },
       }
     })(c, next)
-  })
-  // 旧版正式后端尚未支持 WebSocket 预览转发时，通过 SSE 和 POST 保持终端可用。
-  .get('/sessions/:id/stream', (c) => {
-    const release = acquire(c.req.param('id'))
-    return streamSSE(c, async (stream) => {
-      const token = randomUUID()
-      let connection: Connection | undefined
-      let finish: () => void = () => {}
-      const done = new Promise<void>((resolve) => {
-        finish = resolve
-      })
-      const dispose = () => {
-        streams.delete(token)
-        connection?.dispose()
-        finish()
-      }
-      stream.onAbort(dispose)
-      try {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'connection', id: token } satisfies TerminalStreamMessage) })
-        connection = connectTerminal(
-          c.req.param('id'),
-          (message) => {
-            void stream.writeSSE({ data: JSON.stringify(message) }).catch(dispose)
-          },
-          finish,
-        )
-        streams.set(token, connection)
-        await done
-      } catch (error) {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'error', message: String(error) } satisfies TerminalStreamMessage) }).catch(() => {})
-      } finally {
-        dispose()
-        release()
-      }
-    })
-  })
-  .post('/connections/:token', async (c) => {
-    const connection = streams.get(c.req.param('token'))
-    if (!connection) return c.json({ error: '连接已断开' }, 404)
-    const message = parseMessage(await c.req.json())
-    if (!message) return c.json({ error: 'Invalid message' }, 400)
-    connection.receive(message)
-    return c.json({ ok: true })
   })

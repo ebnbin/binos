@@ -25,11 +25,11 @@ describe('app 注册表', () => {
     const { write, read, onChange } = await load()
     const events: unknown[] = []
     const off = onChange((event) => events.push(event))
-    expect((await write([{ ...app, name: ' A ' }])).status).toBe(200)
+    expect((await write([{ ...app, name: ' A ' }])).status).toBe(204)
     off()
     expect(events).toEqual([{ type: 'apps' }])
-    expect(await read()).toEqual({ external: [app] })
-    expect(await (await load()).read()).toEqual({ external: [app] })
+    expect(await read()).toMatchObject({ external: [app] })
+    expect(await (await load()).read()).toMatchObject({ external: [app] })
   })
 
   it('写入文件失败时，注册表保持原样', async () => {

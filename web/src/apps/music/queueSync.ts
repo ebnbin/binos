@@ -1,3 +1,4 @@
+import { applyQueueOperation } from '@binos/server/apps/music/queue-operation'
 import type { QueueMutation, QueueOperation, QueueSnapshot, Track } from '@binos/server/apps/music/types'
 
 export class QueueSync {
@@ -23,16 +24,8 @@ export class QueueSync {
     if (this.closed) return
     if (snapshot.revision >= this.snapshot.revision) this.snapshot = snapshot
     snapshot = this.snapshot
-    let tracks = [...snapshot.tracks]
-    for (const { operation: op } of this.pending) {
-      if (op.type === 'clear') tracks = []
-      else if (op.type === 'remove') tracks = tracks.filter(t => t.ref.provider !== op.ref.provider || t.ref.id !== op.ref.id)
-      else if (op.type === 'add' || snapshot.revision === 0) {
-        const keys = new Set(tracks.map(t => JSON.stringify([t.ref.provider, t.ref.id])))
-        for (const track of op.tracks) if (!keys.has(JSON.stringify([track.ref.provider, track.ref.id])) && tracks.length < 500) { tracks.push(track); keys.add(JSON.stringify([track.ref.provider, track.ref.id])) }
-      }
-    }
-    this.apply(tracks)
+    // 还没被服务端确认的操作先在本地生效
+    this.apply(this.pending.reduce((tracks, { operation }) => applyQueueOperation(tracks, operation, snapshot.revision === 0), snapshot.tracks))
   }
   refresh = async () => {
     try {

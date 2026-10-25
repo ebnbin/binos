@@ -26,7 +26,7 @@ describe('播放器指令生命周期', () => {
     expect(messages).toHaveLength(1)
     const other = players.connect('Other', () => {}, () => {})
     expect(() => players.report(other, { state, result: { id: 'pause-1' } })).toThrow('播放器请求无效')
-    expect((await api.request(`/players/${id}/report`, json({ state: { ...state, status: 'paused' }, result: { id: 'pause-1' } }))).status).toBe(200)
+    expect((await api.request(`/players/${id}/report`, json({ state: { ...state, status: 'paused' }, result: { id: 'pause-1' } }))).status).toBe(204)
     expect(await (await api.request('/commands/pause-1')).json()).toMatchObject({ status: 'succeeded', state: { status: 'paused' } })
     expect((await api.request(`/players/${id}/commands`, json({ id: 'pause-1', command: { type: 'pause' } }))).status).toBe(200)
     expect((await api.request(`/players/${id}/commands`, json({ id: 'pause-1', command: { type: 'play' } }))).status).toBe(409)

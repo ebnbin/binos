@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { commandOutput, isoFromSeconds, parseJson, readText } from '../../cli.js'
 import { saveLimits } from '../../limits.js'
+import type { CodexAuth } from '../../types.js'
 import type { Driver } from '../types.js'
 import { askCodex, codexCatalog, codexLimits } from './app-server.js'
 import type { RateLimits } from './app-server.js'
@@ -31,6 +32,10 @@ export const codex: Driver = {
   },
   account,
   auth: codexAuth,
+  // 只在回答时认证失败过才要处理：没登录过 Codex 也照样能用别的 agent
+  attention: (auth) => ((auth as CodexAuth).broken ? { attention: { reason: 'login-broken', usable: false } } : {}),
+  // gpt-6.1-sol → GPT-6.1-Sol
+  modelName: (model) => (model.startsWith('gpt-') ? model.split('-').map((part, i) => (i === 0 ? 'GPT' : part[0].toUpperCase() + part.slice(1))).join('-') : undefined),
   api: codexApi,
   authFailed: codexAuthFailed,
 }

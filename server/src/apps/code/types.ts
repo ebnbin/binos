@@ -36,8 +36,9 @@ export type SessionSummary = {
   archived: boolean
   context?: Context
   agent: AgentId
-  // 最近一轮用的模型和思考程度
+  // 最近一轮用的模型、它的显示名和思考程度
   model?: string
+  modelName?: string
   effort?: string
   // 开始过几轮
   turns: number
@@ -56,7 +57,7 @@ export type CodeUsage = { resetsAt: number; week?: number }
 // 新建 session 或发出消息后：kitaSession 是页面显示对话内容用的
 export type SessionRef = { id: number; kitaSession: string }
 
-// 搜索命中的一处：item 是命中的条目在对话里的位置，标题命中时没有；before、match、after 是命中处和前后的文字
-export type SearchResult = { id: number; title: string; archived: boolean; item?: number; kind: 'title' | 'input' | 'text'; before: string; match: string; after: string }
+// 搜索命中的一处：seq 是命中的条目在 kitaSession 里的位置，标题命中时没有；before、match、after 是命中处和前后的文字
+export type SearchResult = { id: number; title: string; archived: boolean; seq?: number; kind: 'title' | 'input' | 'text'; before: string; match: string; after: string }
 // results 最多 200 条，total 是一共命中多少处
 export type SearchResults = { results: SearchResult[]; total: number }

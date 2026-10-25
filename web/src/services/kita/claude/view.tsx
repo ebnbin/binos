@@ -5,34 +5,23 @@ import type { AgentView } from '../views.ts'
 import type { ClaudeLoginKind } from './api.ts'
 import { ClaudeLogin } from './Login.tsx'
 
-const day = 86_400_000
-// 完整登录剩不到这么多天时提醒重新登录，备用 token 剩不到这么多天时提醒更新
-const loginWarnDays = 7
-const backupWarnDays = 30
-
 // Claude 的两份登录（见 ClaudeAuth）：正在用哪份、各自什么时候到期，可以重新登录、生成备用 token
 export const claudeView: AgentView<ClaudeAuth> = {
-  attention(auth, now) {
-    if (!auth) {
-      return undefined
+  attention({ reason, usable, expiresAt }, now) {
+    const tone = usable ? 'warn' : 'bad'
+    const days = expiresAt ? daysLeft(expiresAt, now) : 0
+    switch (reason) {
+      case 'logged-out':
+        return { text: 'Claude 没有能用的登录', tone, action: '重新登录', fix: 'login' }
+      case 'login-broken':
+        return { text: usable ? 'Claude 的登录失效了，正在用备用 token' : 'Claude 的登录失效了', tone, action: '重新登录', fix: 'login' }
+      case 'login-expired':
+        return { text: usable ? 'Claude 的登录过期了，正在用备用 token' : 'Claude 的登录过期了', tone, action: '重新登录', fix: 'login' }
+      case 'login-expiring':
+        return { text: `Claude 的登录${days === 0 ? '今天' : `还有 ${days} 天`}到期`, tone, action: '重新登录', fix: 'login' }
+      case 'backup-expiring':
+        return { text: `Claude 的备用 token ${days === 0 ? '今天' : `还有 ${days} 天`}到期`, tone, action: '更新', fix: 'token' }
     }
-    if (auth.mode === 'none') {
-      return { text: 'Claude 没有能用的登录', tone: 'bad', action: '重新登录', fix: 'login' }
-    }
-    if (auth.mode === 'token') {
-      const text = auth.login?.broken ? 'Claude 的登录失效了，正在用备用 token' : 'Claude 的登录过期了，正在用备用 token'
-      return { text, tone: 'warn', action: '重新登录', fix: 'login' }
-    }
-    const loginExpiry = auth.login?.expiresAt
-    if (loginExpiry && Date.parse(loginExpiry) - now < loginWarnDays * day) {
-      const days = daysLeft(loginExpiry, now)
-      return { text: `Claude 的登录${days === 0 ? '今天' : `还有 ${days} 天`}到期`, tone: 'warn', action: '重新登录', fix: 'login' }
-    }
-    const backupExpiry = auth.backup?.expiresAt
-    if (backupExpiry && Date.parse(backupExpiry) - now < backupWarnDays * day) {
-      return { text: `Claude 的备用 token 还有 ${daysLeft(backupExpiry, now)} 天到期`, tone: 'warn', action: '更新', fix: 'token' }
-    }
-    return undefined
   },
 
   authRows(auth, now) {
@@ -66,14 +55,4 @@ export const claudeView: AgentView<ClaudeAuth> = {
       : [],
 
   Login: ({ fix, onClose }) => <ClaudeLogin kind={fix as ClaudeLoginKind} onClose={onClose} />,
-
-  // claude-opus-5-5 → Opus 5.5
-  modelName(model) {
-    const match = /^claude-([a-z]+)-(\d+)(?:-(\d+))?/.exec(model)
-    if (!match) {
-      return model
-    }
-    const [, family, major, minor] = match
-    return `${family[0].toUpperCase()}${family.slice(1)} ${minor ? `${major}.${minor}` : major}`
-  },
 }

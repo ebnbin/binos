@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import { promisify } from 'node:util'
+import { ApiException } from '../../errors.js'
 import { appDir } from '../../paths.js'
 
 const execute = promisify(execFile)
@@ -37,7 +38,7 @@ export function terminalEnv(): NodeJS.ProcessEnv {
 }
 
 export async function runTmux(args: string[]) {
-  if (!tmux) throw new Error('宿主 Mac 尚未安装 tmux，请在 Mac Terminal 中运行 brew install tmux')
+  if (!tmux) throw new ApiException(503, 'unavailable', '宿主 Mac 尚未安装 tmux，请在 Mac Terminal 中运行 brew install tmux')
   return (await execute(tmux, ['-L', socketName, '-f', '/dev/null', ...args], { env: terminalEnv(), timeout: 5000, maxBuffer: 1024 * 1024 })).stdout
 }
 
@@ -64,11 +65,11 @@ export async function listSessions(): Promise<TerminalSession[]> {
 
 let creating = false
 export async function createSession() {
-  if (creating) throw new Error('正在创建终端，请稍后重试')
+  if (creating) throw new ApiException(409, 'busy', '正在创建终端，请稍后重试')
   creating = true
   const id = `terminal-${randomUUID()}`
   try {
-    if ((await listSessions()).length >= 16) throw new Error('最多保留 16 个终端，请先结束不用的会话')
+    if ((await listSessions()).length >= 16) throw new ApiException(409, 'capacity', '最多保留 16 个终端，请先结束不用的会话')
     // Detached tmux server 自成进程组，后端重启不会结束其中的 shell。
     const shell = os.userInfo().shell || '/bin/zsh'
     await runTmux([

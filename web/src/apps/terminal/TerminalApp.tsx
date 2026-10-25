@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import type { TerminalSession } from '@binos/server/apps/terminal/types'
+import { onChange } from '../../events.ts'
 import type { WindowContext } from '../types.ts'
 import { openTerminal, terminalRequest } from './transport.ts'
 import type { TerminalTransport } from './transport.ts'
@@ -30,10 +31,10 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
       setError(String(e))
     }
   }, [])
+  // 终端会话新建或结束时后端发 terminal 通知；重新连上时也重读，补上可能漏掉的通知
   useEffect(() => {
     queueMicrotask(() => void load())
-    const timer = setInterval(() => void load(), 5000)
-    return () => clearInterval(timer)
+    return onChange((event) => (event === null || event.type === 'terminal') && void load())
   }, [load])
   useEffect(() => setTitle(session ? session.cwd : ''), [session, setTitle])
   const create = async () => {

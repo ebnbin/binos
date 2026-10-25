@@ -107,6 +107,7 @@ export const youtubeMusic: MusicProvider = {
     return { id: 'youtube-music', name: 'YouTube Music', description: '音乐曲库搜索、推荐和歌词；纯音频播放，无需开发者密钥。',
       input: { references: youtubeInputRules },
       capabilities: { search: available, resolve: available, playlist: available, playback: available, recommendations: available, lyrics: available },
+      stream: { provider: 'youtube-music' },
       configuration: { fields: [
         { id: 'cookie', label: '账号会话（可选）', description: '仅在需要账号访问时配置浏览器 Cookie；保存在服务端，不会读取或显示已有值。', secret: true, configured: Boolean(settings.cookie) },
         { id: 'poToken', label: '访问验证令牌（可选）', description: '仅在音乐来源要求额外验证时配置 PO Token；不能替代账号登录。', secret: true, configured: Boolean(settings.poToken) },

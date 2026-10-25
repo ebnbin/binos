@@ -1,4 +1,5 @@
-import type { AgentId, Attachment, Entry, Live, Status } from '@binos/server/services/kita/types'
+import type { PageEvent } from '@binos/server/services/kita/journal'
+import type { Attachment, Entry, Live, Status } from '@binos/server/services/kita/types'
 import { ChevronRight } from 'lucide-react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
@@ -6,16 +7,15 @@ import { Alert } from '../../../ui/Alert.tsx'
 import { CopyButton } from '../../../ui/CopyButton.tsx'
 import { formatDuration, formatTokens, useNow } from '../../../ui/format.ts'
 import { formatClock, formatDivider, formatFull, sameDay } from '../../../ui/time.ts'
-import { modelName } from '../views.ts'
 import { AttachmentList } from './Attachments.tsx'
 import { Markdown } from './Markdown.tsx'
 import { SubagentCall } from './SubagentCall.tsx'
 import { Thinking } from './Thinking.tsx'
 import { ToolCall } from './ToolCall.tsx'
 import { callStatus, fileChanges, isFileEdit, toolLabel } from './tools.ts'
-import type { CallState, ToolCall as ToolCallEntry, ToolCategory, ToolResult } from './tools.ts'
+import type { CallState, ToolCategory, ToolResult } from './tools.ts'
 import { splitTurns } from './transcript-index.ts'
-import type { IndexedEntry, Turn } from './transcript-index.ts'
+import type { Turn } from './transcript-index.ts'
 import styles from './Transcript.module.css'
 import { TurnChanges } from './TurnChanges.tsx'
 
@@ -42,12 +42,11 @@ type Step =
   | { kind: 'tool'; key: string; time: string; state: CallState }
   | { kind: 'subagent'; key: string; time: string; state: CallState }
 
-// 工具结果和子 agent 的条目按所属调用关联
+// 工具结果和子 agent 的条目按所属调用的 itemId 关联
 type Context = {
   thread: string
-  agent: AgentId | undefined
-  results: Map<ToolCallEntry, ToolResult>
-  children: Map<ToolCallEntry, IndexedEntry[]>
+  results: Map<string, ToolResult>
+  children: Map<string, PageEvent[]>
   live: Live | null
   now: number
 }
@@ -56,7 +55,7 @@ type Context = {
 const dividerGap = 30 * 60 * 1000
 
 // lastTime：上一条的时间，一轮开始时离它太久或者跨了天，就先显示一条时间
-function buildBlocks(entries: IndexedEntry[], context: Context, lastTime?: string): Block[] {
+function buildBlocks(entries: PageEvent[], context: Context, lastTime?: string): Block[] {
   const blocks: Block[] = []
   const addStep = (step: Step) => {
     const last = blocks.at(-1)
@@ -70,8 +69,8 @@ function buildBlocks(entries: IndexedEntry[], context: Context, lastTime?: strin
   let replies: string[] = []
   let edits: CallState[] = []
   let current = lastTime === undefined ? undefined : new Date(lastTime)
-  for (const { item, index } of entries) {
-    const key = String(index)
+  for (const { data: item, seq, itemId } of entries) {
+    const key = String(seq)
     const previous = current
     current = new Date(item.time)
     switch (item.type) {
@@ -105,7 +104,7 @@ function buildBlocks(entries: IndexedEntry[], context: Context, lastTime?: strin
         }
         break
       case 'tool_call': {
-        const state = { call: item, index, result: context.results.get(item), live: context.live !== null }
+        const state = { call: item, seq, itemId: itemId ?? '', result: context.results.get(itemId ?? ''), live: context.live !== null }
         edits.push(...editCalls(state, context))
         addStep({ kind: item.tool.kind === 'subagent' ? 'subagent' : 'tool', key, time: item.time, state })
         break
@@ -126,8 +125,8 @@ function editCalls(state: CallState, context: Context): CallState[] {
   if (isFileEdit(state.call)) {
     return [state]
   }
-  return (context.children.get(state.call) ?? []).flatMap(({ item, index }) =>
-    item.type === 'tool_call' ? editCalls({ call: item, index, result: context.results.get(item), live: state.live }, context) : [],
+  return (context.children.get(state.itemId) ?? []).flatMap(({ data, seq, itemId }) =>
+    data.type === 'tool_call' ? editCalls({ call: data, seq, itemId: itemId ?? '', result: context.results.get(itemId ?? ''), live: state.live }, context) : [],
   )
 }
 
@@ -135,7 +134,6 @@ function editCalls(state: CallState, context: Context): CallState[] {
 // previousTime：上一轮最后一条的时间
 const TurnSection = memo(function TurnSection({
   thread,
-  agent,
   turn,
   previousTime,
   live,
@@ -143,27 +141,26 @@ const TurnSection = memo(function TurnSection({
   tail,
 }: {
   thread: string
-  agent: AgentId | undefined
   turn: Turn
   previousTime: string | undefined
   live: Live | null
   now: number
   tail?: ReactNode
 }) {
-  const context: Context = { thread, agent, results: turn.results, children: turn.children, live, now }
+  const context: Context = { thread, results: turn.results, children: turn.children, live, now }
   const blocks = buildBlocks(turn.main, context, previousTime)
   if (!blocks.length && !tail) {
     return null
   }
   return (
-    <section className={styles.turn} data-turn={turn.start}>
+    <section className={styles.turn} data-turn={turn.id}>
       {renderBlocks(blocks, context, tail === undefined ? undefined : blocks.at(-1))}
       {tail}
     </section>
   )
 })
 
-function Timeline({ entries, context }: { entries: IndexedEntry[]; context: Context }) {
+function Timeline({ entries, context }: { entries: PageEvent[]; context: Context }) {
   const blocks = buildBlocks(entries, context)
   return renderBlocks(blocks, context, blocks.at(-1))
 }
@@ -212,7 +209,7 @@ function renderBlocks(blocks: Block[], context: Context, last: Block | undefined
           </div>
         )
       case 'turn_end':
-        return <TurnEnd key={block.key} thread={thread} agent={context.agent} item={block.item} reply={block.reply} edits={block.edits} />
+        return <TurnEnd key={block.key} thread={thread} item={block.item} reply={block.reply} edits={block.edits} />
     }
   })
 }
@@ -225,7 +222,7 @@ function StepView({ step, context }: { step: Step; context: Context }) {
     case 'tool':
       return <ToolCall thread={thread} state={step.state} now={context.now} />
     case 'subagent': {
-      const children = context.children.get(step.state.call)
+      const children = context.children.get(step.state.itemId)
       return (
         <SubagentCall
           thread={thread}
@@ -313,14 +310,14 @@ function compactText({ trigger, preTokens, postTokens }: CompactItem) {
 }
 
 // 一轮的结尾：停止、出错，以及这一轮的统计
-function TurnEnd({ thread, agent, item, reply, edits }: { thread: string; agent: AgentId | undefined; item: TurnEndItem; reply: string; edits: CallState[] }) {
+function TurnEnd({ thread, item, reply, edits }: { thread: string; item: TurnEndItem; reply: string; edits: CallState[] }) {
   const files = fileChanges(edits)
-  const { durationMs, outputTokens, context, model, outcome, error } = item
+  const { durationMs, outputTokens, context, model, modelName, outcome, error } = item
   const stats = [
     `用时 ${formatDuration(durationMs)}`,
     outputTokens !== undefined && `输出 ${formatTokens(outputTokens)} token`,
     context && `上下文 ${Math.round((context.tokens / context.window) * 100)}%`,
-    model && (agent ? modelName(agent, model) : model),
+    modelName ?? model,
   ].filter(Boolean)
   const changes = files.length > 0 && <TurnChanges thread={thread} files={files} />
   if (outcome === 'stopped') {
@@ -379,27 +376,23 @@ function formatElapsed(ms: number) {
 const olderMargin = 1500
 
 // 一轮在滚动内容里的位置，用它的第一条（时间分隔线下面）定位，补读后分隔线的有无不影响
-function turnTop(scroller: HTMLElement, turn: number) {
+function turnTop(scroller: HTMLElement, turn: string) {
   const section = scroller.querySelector(`[data-turn="${turn}"]`)
   const target = section?.querySelector('[data-thread-item]') ?? section
   return target && target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop
 }
 
-// thread 的内容：按轮分节，回答进行中的临时内容接在最后。items 是从 offset 开始的条目，
-// offset 大于 0 时滚到离顶部不远处由 loadOlder 补读更早的轮；scrollRef 是对话滚动的那一层
+// thread 的内容：按轮分节，回答进行中的临时内容接在最后。events 是连续的一段，
+// 第一条的 seq 大于 1 时滚到离顶部不远处由 loadOlder 补读更早的轮；scrollRef 是对话滚动的那一层
 export function Transcript({
   thread,
-  agent,
-  items,
-  offset,
+  events,
   live,
   scrollRef,
   loadOlder,
 }: {
   thread: string
-  agent: AgentId | undefined
-  items: Entry[]
-  offset: number
+  events: PageEvent[]
   live: Live | null
   scrollRef: RefObject<HTMLElement | null>
   loadOlder: () => void
@@ -407,13 +400,14 @@ export function Transcript({
   const now = useNow(live !== null)
   const [split] = useState(() => {
     let previous: Turn[] = []
-    return (items: Entry[], offset: number) => (previous = splitTurns(items, previous, offset))
+    return (events: PageEvent[]) => (previous = splitTurns(events, previous))
   })
-  const turns = useMemo(() => split(items, offset), [split, items, offset])
+  const turns = useMemo(() => split(events), [split, events])
   const current = turns.at(-1)
-  const runningTool = current?.main.findLast(({ item }) => item.type === 'tool_call' && !current.results.has(item))?.item
+  const runningTool = current?.main.findLast(({ data, itemId }) => data.type === 'tool_call' && !current.results.has(itemId ?? ''))?.data
+  const firstSeq = events[0]?.seq ?? 1
   // 这一轮从 mode 为 start 的 input 开始
-  const first = current?.first
+  const first = current?.first.data
   const turnStart = first?.type === 'input' && first.mode === 'start' ? first.time : undefined
 
   const sentinel = useRef<HTMLDivElement>(null)
@@ -429,11 +423,11 @@ export function Transcript({
     })
     observer.observe(sentinel.current)
     return () => observer.disconnect()
-  }, [scrollRef, loadOlder, offset])
+  }, [scrollRef, loadOlder, firstSeq])
 
   // 前面补上更早的轮后，原来第一轮在内容里的位置往下移了，滚动跟着移同样的距离，正在看的内容不动
-  const anchor = useRef<{ turn: number; top: number }>(undefined)
-  const firstTurn = turns[0]?.start
+  const anchor = useRef<{ turn: string; top: number }>(undefined)
+  const firstTurn = turns[0]?.id
   useLayoutEffect(() => {
     const scroller = scrollRef.current
     if (!scroller || firstTurn === undefined) {
@@ -462,7 +456,7 @@ export function Transcript({
   )
   return (
     <>
-      {offset > 0 && (
+      {firstSeq > 1 && (
         <div ref={sentinel} className={styles.older}>
           正在读取更早的消息
         </div>
@@ -471,11 +465,10 @@ export function Transcript({
         const last = index === turns.length - 1
         return (
           <TurnSection
-            key={turn.start}
+            key={turn.id}
             thread={thread}
-            agent={agent}
             turn={turn}
-            previousTime={turns[index - 1]?.main.at(-1)?.item.time}
+            previousTime={turns[index - 1]?.main.at(-1)?.data.time}
             live={last ? live : null}
             now={last ? now : 0}
             tail={last ? tail : undefined}

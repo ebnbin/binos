@@ -79,7 +79,7 @@ describe.skipIf(!tmux)('宿主终端会话', () => {
         expect((await connect(origin)).status).toBe(403)
       }
       expect((await connect()).status).not.toBe(403)
-      expect((await terminalApi.request('/sessions/invalid/stream')).status).toBe(404)
+      expect((await terminalApi.request('/sessions/invalid/socket')).status).toBe(404)
     } finally {
       await runTmux(['kill-session', '-t', session.id])
     }

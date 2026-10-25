@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono'
 import { Jwt } from 'hono/utils/jwt'
 import { readFileSync } from 'node:fs'
+import { ApiException } from './errors.js'
 import { accessPath, isTestInstance } from './paths.js'
 
 type AccessConfig = {
@@ -17,6 +18,8 @@ function accessConfig(): AccessConfig {
   return loaded
 }
 
+const unauthorized = () => new ApiException(401, 'unauthorized', '登录已失效，请重新登录')
+
 // 测试实例只监听本机，前面没有 Cloudflare Access，不校验；预览也是测试实例，经正式版转发时已由正式版校验
 export const requireOwner: MiddlewareHandler = async (c, next) => {
   if (isTestInstance) {
@@ -24,7 +27,7 @@ export const requireOwner: MiddlewareHandler = async (c, next) => {
   }
   const token = c.req.header('Cf-Access-Jwt-Assertion')
   if (!token) {
-    return c.text('Unauthorized', 401)
+    throw unauthorized()
   }
   const { teamDomain, aud, ownerEmail } = accessConfig()
   try {
@@ -34,10 +37,10 @@ export const requireOwner: MiddlewareHandler = async (c, next) => {
       verification: { iss: teamDomain, aud },
     })
     if (payload.email !== ownerEmail) {
-      return c.text('Forbidden', 403)
+      throw new ApiException(403, 'forbidden', '这个账号不能使用 binOS')
     }
-  } catch {
-    return c.text('Unauthorized', 401)
+  } catch (error) {
+    throw error instanceof ApiException ? error : unauthorized()
   }
   await next()
 }

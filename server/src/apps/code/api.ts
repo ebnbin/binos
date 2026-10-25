@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
+import { ApiException, badRequest, conflict, notFound } from '../../errors.js'
 import { notifyChange } from '../../events.js'
 import { isPriced } from '../../services/kita/index.js'
 import { agentIds } from '../../services/kita/types.js'
@@ -8,26 +9,26 @@ import { queueMessage, sendMessage, sendQueued, stopSession, unqueueMessage } fr
 import type { MessageOptions } from './messages.js'
 import { pullRequests } from './pull-requests.js'
 import { connectProject, createProject, listProjects, projectExists } from './projects.js'
-import { parseRepository, RepositoryError } from './repositories.js'
+import { parseRepository } from './repositories.js'
 import { readQueue } from './queue.js'
 import { listSessions, readSession, searchContent, searchSessions, sessionExists, sessionTitle, setUserState, threadOf } from './sessions.js'
 import type { MessageBody, RepositoryBody, SessionEdit, SessionRef, SessionSummary, Upload } from './types.js'
-import { parseUploads, saveUpload, UploadTooLarge } from './uploads.js'
+import { parseUploads, saveUpload } from './uploads.js'
 import { codeUsage, sessionUsage } from './usage.js'
 
-const sessionParam = validator('param', (value: Record<string, string>, c) => {
+const sessionParam = validator('param', (value: Record<string, string>) => {
   const id = Number(value.id)
   if (!sessionExists(id)) {
-    return c.text('Not Found', 404)
+    throw notFound('对话不存在')
   }
   return { id }
 })
 
 // 排队的一条消息
-const queueParam = validator('param', (value: Record<string, string>, c) => {
+const queueParam = validator('param', (value: Record<string, string>) => {
   const id = Number(value.id)
   if (!sessionExists(id)) {
-    return c.text('Not Found', 404)
+    throw notFound('对话不存在')
   }
   return { id, item: value.item ?? '' }
 })
@@ -39,7 +40,7 @@ const isName = (value: unknown): value is string => typeof value === 'string' &&
 // attachments 的 file 是上传后拿到的文件名；有附件时可以不写字。
 // interrupt：正在回答时先打断正在做的事；queue：正在回答时排到这一轮答完之后；agent：新的 session 用哪个 agent，不给是默认的；
 // model、effort：开始新的一轮时用，不给就是 agent 的默认
-const messageBody = validator('json', (value, c) => {
+const messageBody = validator('json', (value) => {
   const body = value as { [K in keyof MessageBody]?: unknown } | null
   const attachments = parseUploads(body?.attachments)
   if (
@@ -51,7 +52,7 @@ const messageBody = validator('json', (value, c) => {
     (body.model !== undefined && !isName(body.model)) ||
     (body.effort !== undefined && !isName(body.effort))
   ) {
-    return c.text('Bad Request', 400)
+    throw badRequest('消息无效：要有文字或附件，附件要先上传')
   }
   const message: { text: string; attachments: Upload[]; queue?: true } & MessageOptions = {
     ...(typeof body.project === 'string' && { project: body.project }),
@@ -66,17 +67,17 @@ const messageBody = validator('json', (value, c) => {
   return message
 })
 
-const repositoryBody = validator('json', (value, c) => {
+const repositoryBody = validator('json', (value) => {
   const body = value as { [K in keyof RepositoryBody]?: unknown } | null
   const name = typeof body?.name === 'string' ? body.name.replace(/\p{Cc}/gu, ' ').trim() : ''
   const repository = typeof body?.repository === 'string' ? parseRepository(body.repository) : undefined
   if (!name || name.length > 100 || !repository || (body?.create !== undefined && typeof body.create !== 'boolean')) {
-    return c.json({ error: '请填写项目名称和 GitHub 仓库（owner/name）' }, 400)
+    throw badRequest('请填写项目名称和 GitHub 仓库（owner/name）')
   }
   return { name, repository, create: body?.create === true }
 })
 
-const editBody = validator('json', (value, c) => {
+const editBody = validator('json', (value) => {
   const body = value as { [K in keyof SessionEdit]?: unknown } | null
   const title = typeof body?.title === 'string' ? body.title.replace(/\p{Cc}/gu, ' ').trim().slice(0, 200) : undefined
   if (
@@ -85,7 +86,7 @@ const editBody = validator('json', (value, c) => {
     (body.pinned !== undefined && typeof body.pinned !== 'boolean') ||
     (body.archived !== undefined && typeof body.archived !== 'boolean')
   ) {
-    return c.text('Bad Request', 400)
+    throw badRequest()
   }
   const edit: SessionEdit = {
     ...(title && { title }),
@@ -115,6 +116,7 @@ async function summary(id: number): Promise<SessionSummary> {
     ...(thread.context && { context: thread.context }),
     agent: thread.agent,
     ...(thread.model && { model: thread.model }),
+    ...(thread.modelName && { modelName: thread.modelName }),
     ...(thread.effort && { effort: thread.effort }),
     turns: thread.turns,
     priced: isPriced(thread.agent),
@@ -131,40 +133,26 @@ function isUnread(id: number) {
   return state === 'idle' && Boolean(readAt && repliedAt && repliedAt > readAt)
 }
 
-const toResult = (id: number | undefined) => (id === undefined ? ({ error: 'unavailable' } as const) : ({ id, kitaSession: readSession(id).kitaSession } satisfies SessionRef))
-
-async function send(sessionId: number | undefined, text: string, attachments: Upload[], options: MessageOptions) {
-  try {
-    return toResult(await sendMessage(sessionId, text, attachments, options))
-  } catch (error) {
-    if (error instanceof RepositoryError) return { error: error.message }
-    throw error
-  }
+// 消息没能交给 agent 时是 503 unavailable
+function toResult(id: number | undefined): SessionRef {
+  if (id === undefined) throw new ApiException(503, 'unavailable', '消息没能交给 agent，稍后再试')
+  return { id, kitaSession: readSession(id).kitaSession }
 }
 
 export const codeApi = new Hono()
   .get('/projects', (c) => c.json({ projects: listProjects() }))
   .post('/projects', repositoryBody, async (c) => {
     const { name, repository, create } = c.req.valid('json')
-    try {
-      const project = await createProject(name, repository, create)
-      notifyChange({ type: 'project' })
-      return c.json({ project }, 201)
-    } catch (error) {
-      if (error instanceof RepositoryError) return c.json({ error: error.message }, 400)
-      throw error
-    }
+    const project = await createProject(name, repository, create)
+    notifyChange({ type: 'project' })
+    return c.json({ project }, 201)
   })
-  .post('/projects/:project/repository', repositoryBody, async (c) => {
+  // 给还没有仓库的项目关联 GitHub 仓库
+  .put('/projects/:project/repository', repositoryBody, async (c) => {
     const { repository, create } = c.req.valid('json')
-    try {
-      const project = await connectProject(c.req.param('project'), repository, create)
-      notifyChange({ type: 'project' })
-      return c.json({ project }, 200)
-    } catch (error) {
-      if (error instanceof RepositoryError) return c.json({ error: error.message }, 400)
-      throw error
-    }
+    const project = await connectProject(c.req.param('project'), repository, create)
+    notifyChange({ type: 'project' })
+    return c.json({ project }, 200)
   })
   .get('/search', (c) => c.json(searchContent(c.req.query('q') ?? '')))
   // q：只要标题、用户的话或回复的文字里含有它的。按最近有动静的排在前面
@@ -177,13 +165,15 @@ export const codeApi = new Hono()
     )
     return c.json({ sessions })
   })
+  // 一个对话的概况：收到带 id 的 session 通知时只读这一个
+  .get('/sessions/:id', sessionParam, async (c) => c.json(await summary(c.req.valid('param').id)))
   // 这 7 天 binOS 大约用了周额度的多少，能折算花费的 agent 的一轮结束时会变（随会话的通知重新读取）
   .get('/usage', (c) => c.json({ usage: codeUsage() ?? null }))
   // 请求体就是文件本身，原来的文件名 URL 编码后放在 X-File-Name 里
   .post('/uploads', async (c) => {
     const body = c.req.raw.body
     if (!body || c.req.header('Content-Type') !== 'application/octet-stream') {
-      return c.text('Bad Request', 400)
+      throw new ApiException(415, 'unsupported-media-type', '请求体要是文件本身（application/octet-stream）')
     }
     let name = ''
     try {
@@ -191,44 +181,35 @@ export const codeApi = new Hono()
     } catch {
       // 文件名解不开就当没有
     }
-    try {
-      return c.json({ file: await saveUpload(body, name) }, 200)
-    } catch (error) {
-      if (error instanceof UploadTooLarge) {
-        return c.text('Payload Too Large', 413)
-      }
-      throw error
-    }
+    return c.json({ file: await saveUpload(body, name) }, 200)
   })
   .post('/sessions', messageBody, async (c) => {
     const { text, attachments, queue: _queue, ...options } = c.req.valid('json')
-    const result = await send(undefined, text, attachments, { ...options, interrupt: false })
-    return 'id' in result ? c.json(result, 200) : c.json(result, 503)
+    return c.json(toResult(await sendMessage(undefined, text, attachments, { ...options, interrupt: false })), 200)
   })
   // 正在回答时交给 agent 或者排队，没在回答时开始新的一轮
   .post('/sessions/:id/messages', sessionParam, messageBody, async (c) => {
     const { text, attachments, queue, ...options } = c.req.valid('json')
     const id = c.req.valid('param').id
-    const result = queue ? toResult(await queueMessage(id, text, attachments, options)) : await send(id, text, attachments, options)
-    return 'id' in result ? c.json(result, 200) : c.json(result, 503)
+    return c.json(toResult(await (queue ? queueMessage : sendMessage)(id, text, attachments, options)), 200)
   })
-  // 撤回排队的消息，返回它的文字放回输入框；已经发出去了时 404
-  .post('/sessions/:id/queue/:item/withdraw', queueParam, (c) => {
+  // 撤回排队的消息，返回它的文字放回输入框
+  .delete('/sessions/:id/queue/:item', queueParam, (c) => {
     const { id, item } = c.req.valid('param')
     const text = unqueueMessage(id, item)
-    return text === undefined ? c.json({ error: 'gone' } as const, 404) : c.json({ text }, 200)
+    if (text === undefined) throw new ApiException(410, 'gone', '这条消息已经发出去了')
+    return c.json({ text }, 200)
   })
   // 现在就发一条排队的消息：只在没在回答时（被停止或出错后）
   .post('/sessions/:id/queue/:item/send', queueParam, async (c) => {
     const { id, item } = c.req.valid('param')
     if (threadOf(id).state() !== 'idle') {
-      return c.json({ error: 'answering' } as const, 409)
+      throw new ApiException(409, 'answering', '正在回答，答完后会自动发出')
     }
-    const result = toResult(await sendQueued(id, item))
-    return 'id' in result ? c.json(result, 200) : c.json(result, 503)
+    return c.json(toResult(await sendQueued(id, item)), 200)
   })
-  // 改名、置顶、归档是用户的整理，记在 session.json
-  .post('/sessions/:id/edit', sessionParam, editBody, (c) => {
+  // 改名、置顶、归档是用户的整理，记在 session.json。返回改过的概况
+  .patch('/sessions/:id', sessionParam, editBody, async (c) => {
     const id = c.req.valid('param').id
     const { title, pinned, archived } = c.req.valid('json')
     if (title) {
@@ -241,7 +222,7 @@ export const codeApi = new Hono()
       setUserState(id, { archived: archived || undefined })
     }
     notifyChange({ type: 'session', id })
-    return c.json({ ok: true }, 200)
+    return c.json(await summary(id), 200)
   })
   // 页面正在显示这个 session：记为已读。原本有未读时才通知各个页面，否则页面收到通知重新读取，又会来标记，来回不停
   .post('/sessions/:id/read', sessionParam, (c) => {
@@ -251,13 +232,13 @@ export const codeApi = new Hono()
     if (wasUnread) {
       notifyChange({ type: 'session', id })
     }
-    return c.json({ ok: true }, 200)
+    return c.body(null, 204)
   })
   .post('/sessions/:id/stop', sessionParam, (c) => {
     if (!stopSession(c.req.valid('param').id)) {
-      return c.text('Not Found', 404)
+      throw conflict('没在回答')
     }
-    return c.json({ ok: true }, 200)
+    return c.body(null, 204)
   })
 
 export type CodeApi = typeof codeApi

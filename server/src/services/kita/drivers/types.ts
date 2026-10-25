@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 import type { HostAgent } from '../host/protocol.js'
-import type { AgentAccount, AgentAuths, AgentCatalog, AgentId, Entry, Limits, Live, LiveEvent, Tokens } from '../types.js'
+import type { AgentAccount, AgentAttention, AgentAuths, AgentCatalog, AgentId, Entry, Limits, Live, LiveEvent, Tokens, ToolDetail } from '../types.js'
 
 // agentSession：接着 agent 那边的这个会话，没有就开一个新的；model、effort 没有时用 agent 自己的默认；instructions：追加的系统提示
 export type Launch = { agentSession?: string; model?: string; effort?: string; instructions: string }
@@ -10,6 +10,8 @@ export type DecoderOptions = { filesDir: string; agentSession: string | undefine
 
 // 解码器产出的条目：agent 进程输出的内容，不含 thread 自己记的 thread、input
 export type DecodedItem = Exclude<Entry, { type: 'session' | 'input' }>
+
+export type ToolResultEntry = Extract<Entry, { type: 'tool_result' }>
 
 // 把 agent 进程的原始输出逐行转成条目和临时内容的变化，跨越 agent 进程里的多轮。
 // answered 是这一轮答完了、之后还没有新的动静：插的话会让它接着答，没人插话这一轮就结束了
@@ -47,6 +49,12 @@ export type Driver = {
   account(env: NodeJS.ProcessEnv): Promise<Omit<AgentAccount, 'agent' | 'running'>>
   // 登录的状况，每次读取时现查，变了就通知页面
   auth(): AgentAuths[AgentId]
+  // 登录要用户处理的事；changesAt 是到了这个时间（毫秒时间戳）结果会变，比如该提醒快到期了
+  attention(auth: AgentAuths[AgentId], now: number): { attention?: AgentAttention; changesAt?: number }
+  // 模型的显示名，认不出时没有
+  modelName?(model: string): string | undefined
+  // 从工具结果的文字里认出的结构（tool_result 的 startLine、links 和对应的 output），认不出时没有
+  result?(tool: ToolDetail, result: ToolResultEntry): Partial<ToolResultEntry> | undefined
   // 这个 agent 自己的接口（比如在网页上登录），挂在 /api/kita/<id> 下
   api: Hono<any, any, any>
   // 启动时另加的环境变量，每次启动时现定（比如换用哪份登录）
