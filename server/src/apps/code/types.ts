@@ -1,7 +1,7 @@
 import type { AgentId, Context, Tokens } from '../../services/kita/types.js'
 
 // 新建 session 和发消息的请求体，各项的含义见 api.ts 里的 messageBody
-export type MessageBody = { project?: string; text: string; attachments?: Upload[]; interrupt?: boolean; queue?: boolean; agent?: AgentId; model?: string; effort?: string }
+export type MessageBody = { requestId?: string; project?: string; text: string; attachments?: Upload[]; interrupt?: boolean; queue?: boolean; agent?: AgentId; model?: string; effort?: string }
 // 新建项目、给项目关联仓库的请求体：repository 是 owner/name，create 是在 GitHub 上新建它
 export type RepositoryBody = { name: string; repository: string; create?: boolean }
 // 改名、置顶、归档，没给的项不动

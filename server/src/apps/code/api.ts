@@ -11,6 +11,7 @@ import { pullRequests } from './pull-requests.js'
 import { connectProject, createProject, listProjects, projectExists } from './projects.js'
 import { parseRepository } from './repositories.js'
 import { readQueue } from './queue.js'
+import { once } from './requests.js'
 import { listSessions, readSession, searchContent, searchSessions, sessionExists, sessionTitle, setUserState, threadOf } from './sessions.js'
 import type { MessageBody, RepositoryBody, SessionEdit, SessionRef, SessionSummary, Upload } from './types.js'
 import { parseUploads, saveUpload } from './uploads.js'
@@ -37,7 +38,7 @@ const isAgent = (value: unknown): value is AgentId => agentIds.includes(value as
 // 模型和思考程度是否适用于这个 agent，开始一轮时再看
 const isName = (value: unknown): value is string => typeof value === 'string' && /^[\w.-]{1,64}$/.test(value)
 
-// attachments 的 file 是上传后拿到的文件名；有附件时可以不写字。
+// requestId：页面给这次发送起的编号，重试时不变，见 requests.ts；attachments 的 file 是上传后拿到的文件名；有附件时可以不写字。
 // interrupt：正在回答时先打断正在做的事；queue：正在回答时排到这一轮答完之后；agent：新的 session 用哪个 agent，不给是默认的；
 // model、effort：开始新的一轮时用，不给就是 agent 的默认
 const messageBody = validator('json', (value) => {
@@ -50,11 +51,13 @@ const messageBody = validator('json', (value) => {
     (!body.text.trim() && !attachments.length) ||
     (body.agent !== undefined && !isAgent(body.agent)) ||
     (body.model !== undefined && !isName(body.model)) ||
-    (body.effort !== undefined && !isName(body.effort))
+    (body.effort !== undefined && !isName(body.effort)) ||
+    (body.requestId !== undefined && !isName(body.requestId))
   ) {
     throw badRequest('消息无效：要有文字或附件，附件要先上传')
   }
-  const message: { text: string; attachments: Upload[]; queue?: true } & MessageOptions = {
+  const message: { requestId?: string; text: string; attachments: Upload[]; queue?: true } & MessageOptions = {
+    ...(isName(body.requestId) && { requestId: body.requestId }),
     ...(typeof body.project === 'string' && { project: body.project }),
     text: body.text,
     attachments,
@@ -184,14 +187,14 @@ export const codeApi = new Hono()
     return c.json({ file: await saveUpload(body, name) }, 200)
   })
   .post('/sessions', messageBody, async (c) => {
-    const { text, attachments, queue: _queue, ...options } = c.req.valid('json')
-    return c.json(toResult(await sendMessage(undefined, text, attachments, { ...options, interrupt: false })), 200)
+    const { requestId, text, attachments, queue: _queue, ...options } = c.req.valid('json')
+    return c.json(await once(requestId, async () => toResult(await sendMessage(undefined, text, attachments, { ...options, interrupt: false }))), 200)
   })
   // 正在回答时交给 agent 或者排队，没在回答时开始新的一轮
   .post('/sessions/:id/messages', sessionParam, messageBody, async (c) => {
-    const { text, attachments, queue, ...options } = c.req.valid('json')
+    const { requestId, text, attachments, queue, ...options } = c.req.valid('json')
     const id = c.req.valid('param').id
-    return c.json(toResult(await (queue ? queueMessage : sendMessage)(id, text, attachments, options)), 200)
+    return c.json(await once(requestId, async () => toResult(await (queue ? queueMessage : sendMessage)(id, text, attachments, options))), 200)
   })
   // 撤回排队的消息，返回它的文字放回输入框
   .delete('/sessions/:id/queue/:item', queueParam, (c) => {
