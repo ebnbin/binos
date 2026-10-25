@@ -36,6 +36,14 @@ struct DevicesSnapshot: Decodable {
         let text: String
     }
 
+    // 系统里已有的模拟器，只读展示，不参与分配
+    struct Observed: Decodable, Hashable {
+        let platform: String
+        let name: String
+        let target: String
+        let state: String
+    }
+
     struct Owner: Decodable, Hashable {
         let session: Int
         let title: String
@@ -47,6 +55,9 @@ struct DevicesSnapshot: Decodable {
     let events: [Event]
     let capacity: Int
     let mode: String
+    let startedAt: Double
+    let observed: [Observed]
+    let discoveryErrors: [String]
     let owners: [String: Owner]
 }
 
@@ -59,6 +70,8 @@ struct DevicesView: View {
     // 手动申请的编号：排队时每 30 秒重新申请一次保活
     @AppStorage("devices/request") private var requestId = ""
     @State private var screenshot: (id: String, image: UIImage)?
+    @State private var busy = false
+    @State private var destroying: (device: DevicesSnapshot.Device, leased: Bool)?
     private let hub = EventHub.shared
 
     private var manualLease: DevicesSnapshot.Lease? { snapshot?.leases.first { $0.owner == "manual" } }
@@ -71,7 +84,8 @@ struct DevicesView: View {
                     LabeledContent("设备池", value: "\(snapshot.devices.count) / \(snapshot.capacity)")
                     LabeledContent("闲置", value: "\(snapshot.devices.count { $0.status == "free" })")
                     LabeledContent("租约", value: "\(snapshot.leases.count)")
-                    if snapshot.mode == "mock" { Text("模拟模式").foregroundStyle(.secondary) }
+                } footer: {
+                    if snapshot.mode == "mock" { Text("模拟设备预览 · 所有操作与正式设备隔离") }
                 }
                 Section("手动申请") {
                     if let lease = manualLease {
@@ -96,36 +110,30 @@ struct DevicesView: View {
                         }
                     }
                 }
-                Section("设备") {
-                    ForEach(snapshot.devices) { device in
-                        DeviceRow(device: device, lease: snapshot.leases.first { $0.devices.contains(device.id) }, owners: snapshot.owners) {
-                            Task { await capture(device.id) }
-                        }
-                    }
-                }
-                if !snapshot.queue.isEmpty {
-                    Section("排队") {
-                        ForEach(snapshot.queue) { item in
-                            VStack(alignment: .leading) {
-                                Text(item.reason)
-                                Text("\(item.platforms.joined(separator: " + ")) · \(item.phase)").font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-                Section("最近的操作") {
-                    ForEach(Array(snapshot.events.suffix(30).reversed().enumerated()), id: \.offset) { _, event in
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(event.text).font(.footnote)
-                            Text(Date(timeIntervalSince1970: event.time / 1000), format: .dateTime.hour().minute().second()).font(.caption2).foregroundStyle(.secondary)
-                        }
-                    }
-                }
+                devicesSection(snapshot)
+                queueSection(snapshot)
+                observedSection(snapshot)
+                eventsSection(snapshot)
             }
             if let error { Text(error).foregroundStyle(.red) }
         }
         .overlay { if snapshot == nil && error == nil { ProgressView() } }
         .navigationTitle("设备")
+        .toolbar {
+            Button("刷新设备", systemImage: "arrow.clockwise") { Task { await run { try await fetch() } } }
+                .disabled(busy)
+        }
+        .confirmationDialog(
+            destroying?.leased == true ? "强制回收 \(destroying?.device.name ?? "")" : "销毁 \(destroying?.device.name ?? "")",
+            isPresented: Binding(get: { destroying != nil }, set: { if !$0 { destroying = nil } }),
+            titleVisibility: .visible,
+            presenting: destroying
+        ) { target in
+            Button(target.leased ? "确认中断租约并销毁" : "确认销毁设备", role: .destructive) {
+                struct Body: Encodable { let operation: String }
+                Task { await post("/\(target.device.id)/control", body: Body(operation: "destroy")) }
+            }
+        }
         .sheet(isPresented: Binding(get: { screenshot != nil }, set: { if !$0 { screenshot = nil } })) {
             if let screenshot {
                 Image(uiImage: screenshot.image).resizable().scaledToFit().padding().presentationDetents([.large])
@@ -146,11 +154,97 @@ struct DevicesView: View {
         }
     }
 
+    private func devicesSection(_ snapshot: DevicesSnapshot) -> some View {
+        Section("设备") {
+            ForEach(snapshot.devices) { device in
+                let leased = snapshot.leases.contains { $0.devices.contains(device.id) }
+                DeviceRow(device: device, lease: snapshot.leases.first { $0.devices.contains(device.id) }, owners: snapshot.owners) {
+                    Task { await capture(device.id) }
+                }
+                .swipeActions { destroyButton(device, leased: leased) }
+                .contextMenu { destroyButton(device, leased: leased) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func destroyButton(_ device: DevicesSnapshot.Device, leased: Bool) -> some View {
+        if device.status != "destroying" {
+            Button(leased ? "强制回收" : "销毁设备", systemImage: "trash", role: .destructive) {
+                destroying = (device, leased)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func queueSection(_ snapshot: DevicesSnapshot) -> some View {
+        if !snapshot.queue.isEmpty {
+            Section("排队") {
+                ForEach(snapshot.queue) { item in
+                    let phase = item.phase == "preparing" ? "正在准备整组设备" : item.phase == "failed" ? item.error ?? "" : "等待容量"
+                    VStack(alignment: .leading) {
+                        Text(item.reason)
+                        Text("\(item.platforms.joined(separator: " + ")) · \(phase)").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private func observedSection(_ snapshot: DevicesSnapshot) -> some View {
+        Section {
+            ForEach(snapshot.observed, id: \.self) { item in
+                LabeledContent(item.name, value: "\(item.platform) · \(item.state)")
+            }
+            Button("只读发现", systemImage: "magnifyingglass") {
+                Task { await run { self.snapshot = try await API.shared.send("POST", "/api/apps/devices/discover") } }
+            }
+            .disabled(busy)
+            ForEach(snapshot.discoveryErrors, id: \.self) { text in
+                Text(text).font(.footnote).foregroundStyle(.red)
+            }
+        } header: {
+            Text("已有模拟器")
+        } footer: {
+            Text("这些设备不参与分配，也不会被清理或接管。")
+        }
+    }
+
+    private func eventsSection(_ snapshot: DevicesSnapshot) -> some View {
+        Section {
+            ForEach(Array(snapshot.events.suffix(30).reversed().enumerated()), id: \.offset) { _, event in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(event.text).font(.footnote)
+                    Text(Date(timeIntervalSince1970: event.time / 1000), format: .dateTime.hour().minute().second()).font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("最近的操作")
+        } footer: {
+            Text("独立设备管理服务 · 启动于 \(Date(timeIntervalSince1970: snapshot.startedAt / 1000), format: .dateTime.hour().minute())")
+        }
+    }
+
+    private func fetch() async throws {
+        snapshot = try await API.shared.get("/api/apps/devices")
+    }
+
     private func load() async {
         do {
-            snapshot = try await API.shared.get("/api/apps/devices")
+            try await fetch()
             error = nil
         } catch is CancellationError {
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func run(_ operation: () async throws -> Void) async {
+        busy = true
+        defer { busy = false }
+        do {
+            try await operation()
+            error = nil
         } catch {
             self.error = error.localizedDescription
         }
