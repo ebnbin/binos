@@ -68,15 +68,17 @@ describe.skipIf(!tmux)('宿主终端会话', () => {
     }
   }, 20_000)
 
-  it('拒绝跨站 WebSocket 和不存在的会话', async () => {
+  it('拒绝跨站 WebSocket 和不存在的会话，不带 Origin 的原生客户端不算跨站', async () => {
     const session = await createSession()
     try {
-      for (const origin of [undefined, 'https://other.example']) {
-        const response = await terminalApi.request(`http://localhost/sessions/${session.id}/socket`, {
+      const connect = (origin?: string) =>
+        terminalApi.request(`http://localhost/sessions/${session.id}/socket`, {
           headers: { host: 'localhost', ...(origin && { origin }), upgrade: 'websocket' },
         })
-        expect(response.status).toBe(403)
+      for (const origin of ['https://other.example', 'null']) {
+        expect((await connect(origin)).status).toBe(403)
       }
+      expect((await connect()).status).not.toBe(403)
       expect((await terminalApi.request('/sessions/invalid/stream')).status).toBe(404)
     } finally {
       await runTmux(['kill-session', '-t', session.id])

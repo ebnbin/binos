@@ -82,8 +82,10 @@ function end(id: string) {
   }
 }
 
+export type ClaudeLoginStart = { id: string; url: string }
+
 // 开始登录：返回这次登录的编号和授权链接
-export async function startClaudeLogin(kind: ClaudeLoginKind): Promise<{ id: string; url: string }> {
+export async function startClaudeLogin(kind: ClaudeLoginKind): Promise<ClaudeLoginStart> {
   const id = randomUUID()
   const tempDir = kind === 'token' ? mkdtempSync(path.join(tmpdir(), 'binos-claude-token-')) : undefined
   const command = kind === 'login' ? ['claude', 'auth', 'login'] : ['claude', 'setup-token']

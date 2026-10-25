@@ -10,7 +10,7 @@ import { isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { automatic, mock, repository, resultsDir, statePath, version, workDir } from './config.js'
 import { targetArtifacts, targetScripts, targets } from './types.js'
-import type { Artifact, Build, Request, Settings, Snapshot, Target } from './types.js'
+import type { Artifact, Build, BuildRequest, BuildsSnapshot, Settings, Target } from './types.js'
 const exec = promisify(execFile)
 const now = () => new Date().toISOString()
 const git = async (...args: string[]) => (await exec('git', args, { cwd: repository, timeout: 120_000, maxBuffer: 4 << 20 })).stdout.trim()
@@ -57,7 +57,7 @@ export class Manager {
     this.save()
   }
   private save() { writeFileSync(statePath + '.tmp', JSON.stringify(this.state, null, 2)); renameSync(statePath + '.tmp', statePath) }
-  snapshot(): Snapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }), ...(this.openPrs && { prs: [...this.openPrs].map(([number, title]) => ({ number, title })) }) } }
+  snapshot(): BuildsSnapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }), ...(this.openPrs && { prs: [...this.openPrs].map(([number, title]) => ({ number, title })) }) } }
   busy() { return this.ticking || this.polling || Boolean(this.active) }
   private enqueue(commit: string, targets: Target[], trigger: Build['trigger'], pr?: number, force = false) {
     for (const target of targets) {
@@ -70,7 +70,7 @@ export class Manager {
     }
     this.save()
   }
-  async request(request: Request) {
+  async request(request: BuildRequest) {
     switch (request.action) {
       case 'status': return this.snapshot()
       case 'handoff': if (this.ticking || this.polling) throw new Error('构建服务正在处理请求，请稍后更新'); return { ok: true }

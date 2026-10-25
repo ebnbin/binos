@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import type { Snapshot } from '../server/src/apps/builds/types.ts'
+import type { BuildsSnapshot } from '../server/src/apps/builds/types.ts'
 import { rootFromEnv, rootLayout } from '../server/src/layout.ts'
 import { previewUrl } from '../server/src/preview-info.ts'
 
@@ -52,7 +52,7 @@ if (git('status', '--porcelain')) {
 
 // 预览由构建服务的 Web 目标产出：让它马上检查 PR，等这个提交的 Web 构建结束
 const cli = path.join(binosDir, 'bin', 'binos')
-const builds = (...args: string[]) => JSON.parse(execFileSync(cli, ['builds', ...args], { encoding: 'utf8' })) as Snapshot
+const builds = (...args: string[]) => JSON.parse(execFileSync(cli, ['builds', ...args], { encoding: 'utf8' })) as BuildsSnapshot
 builds('poll')
 console.log(`等待构建服务构建 ${short(commit)} 的预览`)
 for (let i = 0; ; i++) {

@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import type { CDPSession, Page } from 'playwright-core'
 import { chromeContext, disconnectChrome } from './connection.js'
-import type { ClientMessage, ServerMessage } from './protocol.js'
+import type { BrowserClientMessage, BrowserServerMessage } from './protocol.js'
 
 const sessions = new Map<string, Session>()
 let opening = 0
 
 class Session {
   readonly id = randomUUID()
-  send: ((message: ServerMessage) => void) | undefined
+  send: ((message: BrowserServerMessage) => void) | undefined
   disconnect: ((replaced?: boolean) => void) | undefined
   expiry: ReturnType<typeof setTimeout> | undefined
   cdp!: CDPSession
@@ -134,7 +134,7 @@ class Session {
     await this.cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {})
   }
 
-  emit(message: ServerMessage) {
+  emit(message: BrowserServerMessage) {
     try { this.send?.(message) } catch { this.disconnect?.() }
   }
 
@@ -166,7 +166,7 @@ class Session {
     this.captureNext(true)
   }
 
-  async command(message: ClientMessage) {
+  async command(message: BrowserClientMessage) {
     switch (message.type) {
       case 'navigate':
         await this.page.goto(message.url, { waitUntil: 'commit', timeout: 20000 })
@@ -254,7 +254,7 @@ class Session {
   }
 }
 
-export async function connectBrowser(id: string | undefined, send: (message: ServerMessage) => void, close: (code?: number) => void) {
+export async function connectBrowser(id: string | undefined, send: (message: BrowserServerMessage) => void, close: (code?: number) => void) {
   let session = id ? sessions.get(id) : undefined
   session?.disconnect?.(true)
   if (!session) {
@@ -317,7 +317,7 @@ export async function connectBrowser(id: string | undefined, send: (message: Ser
   } catch (error) { dispose(); throw error }
   return {
     dispose,
-    receive(message: ClientMessage) {
+    receive(message: BrowserClientMessage) {
       if (disposed) return
       lastSeen = Date.now()
       if (message.type === 'close') {

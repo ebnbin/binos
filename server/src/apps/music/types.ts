@@ -1,3 +1,5 @@
+import type { PlayerCommand } from './commands.js'
+
 export type TrackRef = { provider: string; id: string }
 
 export type Track = {
@@ -51,7 +53,7 @@ export type PlayerSnapshot = { id: string; label: string; updatedAt: number; sta
 export type CommandResult = {
   id: string
   playerId: string
-  command: import('./commands.js').PlayerCommand
+  command: PlayerCommand
   status: 'pending' | 'succeeded' | 'failed'
   createdAt: number
   expiresAt: number
@@ -61,4 +63,5 @@ export type CommandResult = {
 export type PlayerMessage =
   | { type: 'connected'; playerId: string }
   | { type: 'command'; command: CommandResult }
+export type PlayerCommandRequest = { id: string; command: PlayerCommand }
 export type PlayerReport = { state: PlayerState; result?: { id: string; error?: string } }

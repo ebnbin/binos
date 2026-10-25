@@ -11,7 +11,7 @@ import { connectProject, createProject, listProjects, projectExists } from './pr
 import { parseRepository, RepositoryError } from './repositories.js'
 import { readQueue } from './queue.js'
 import { listSessions, readSession, searchContent, searchSessions, sessionExists, sessionTitle, setUserState, threadOf } from './sessions.js'
-import type { SessionSummary, Upload } from './types.js'
+import type { MessageBody, RepositoryBody, SessionEdit, SessionRef, SessionSummary, Upload } from './types.js'
 import { parseUploads, saveUpload, UploadTooLarge } from './uploads.js'
 import { codeUsage, sessionUsage } from './usage.js'
 
@@ -40,7 +40,7 @@ const isName = (value: unknown): value is string => typeof value === 'string' &&
 // interrupt：正在回答时先打断正在做的事；queue：正在回答时排到这一轮答完之后；agent：新的 session 用哪个 agent，不给是默认的；
 // model、effort：开始新的一轮时用，不给就是 agent 的默认
 const messageBody = validator('json', (value, c) => {
-  const body = value as { project?: unknown; text?: unknown; attachments?: unknown; interrupt?: unknown; queue?: unknown; agent?: unknown; model?: unknown; effort?: unknown } | null
+  const body = value as { [K in keyof MessageBody]?: unknown } | null
   const attachments = parseUploads(body?.attachments)
   if (
     (body?.project !== undefined && (typeof body.project !== 'string' || !projectExists(body.project))) ||
@@ -67,7 +67,7 @@ const messageBody = validator('json', (value, c) => {
 })
 
 const repositoryBody = validator('json', (value, c) => {
-  const body = value as { name?: unknown; repository?: unknown; create?: unknown } | null
+  const body = value as { [K in keyof RepositoryBody]?: unknown } | null
   const name = typeof body?.name === 'string' ? body.name.replace(/\p{Cc}/gu, ' ').trim() : ''
   const repository = typeof body?.repository === 'string' ? parseRepository(body.repository) : undefined
   if (!name || name.length > 100 || !repository || (body?.create !== undefined && typeof body.create !== 'boolean')) {
@@ -76,9 +76,8 @@ const repositoryBody = validator('json', (value, c) => {
   return { name, repository, create: body?.create === true }
 })
 
-// 改名、置顶、归档，没给的项不动
 const editBody = validator('json', (value, c) => {
-  const body = value as { title?: unknown; pinned?: unknown; archived?: unknown } | null
+  const body = value as { [K in keyof SessionEdit]?: unknown } | null
   const title = typeof body?.title === 'string' ? body.title.replace(/\p{Cc}/gu, ' ').trim().slice(0, 200) : undefined
   if (
     !body ||
@@ -88,7 +87,7 @@ const editBody = validator('json', (value, c) => {
   ) {
     return c.text('Bad Request', 400)
   }
-  const edit: { title?: string; pinned?: boolean; archived?: boolean } = {
+  const edit: SessionEdit = {
     ...(title && { title }),
     ...(typeof body.pinned === 'boolean' && { pinned: body.pinned }),
     ...(typeof body.archived === 'boolean' && { archived: body.archived }),
@@ -132,8 +131,7 @@ function isUnread(id: number) {
   return state === 'idle' && Boolean(readAt && repliedAt && repliedAt > readAt)
 }
 
-// thread：页面用它显示对话的内容
-const toResult = (id: number | undefined) => (id === undefined ? ({ error: 'unavailable' } as const) : { id, kitaSession: readSession(id).kitaSession })
+const toResult = (id: number | undefined) => (id === undefined ? ({ error: 'unavailable' } as const) : ({ id, kitaSession: readSession(id).kitaSession } satisfies SessionRef))
 
 async function send(sessionId: number | undefined, text: string, attachments: Upload[], options: MessageOptions) {
   try {

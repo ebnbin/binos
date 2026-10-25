@@ -1,10 +1,10 @@
-import type { Build, Snapshot } from '@binos/server/apps/builds/types'
+import type { Build, BuildsSnapshot } from '@binos/server/apps/builds/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { onChange } from '../../events.ts'
 
 export const buildsBase = '/api/apps/builds'
 
-export async function buildsRequest(body?: unknown): Promise<Snapshot> {
+export async function buildsRequest(body?: unknown): Promise<BuildsSnapshot> {
   const r = await fetch(buildsBase, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
   const data = await r.json()
   if (!r.ok) throw new Error(data.error ?? '请求失败')
@@ -13,7 +13,7 @@ export async function buildsRequest(body?: unknown): Promise<Snapshot> {
 
 // 构建状态变化时后端发 builds 通知；重新连上和切回页面时也重读，补上可能漏掉的通知
 export function useBuilds(enabled = true) {
-  const [data, setData] = useState<Snapshot>()
+  const [data, setData] = useState<BuildsSnapshot>()
   const [error, setError] = useState('')
   const latest = useRef(0)
   const load = useCallback(async () => {
@@ -21,7 +21,7 @@ export function useBuilds(enabled = true) {
     try { const result = await buildsRequest(); if (latest.current === version) { setData(result); setError('') } }
     catch (e) { if (latest.current === version) setError(String(e)) }
   }, [])
-  const update = useCallback((result: Snapshot) => { latest.current++; setData(result) }, [])
+  const update = useCallback((result: BuildsSnapshot) => { latest.current++; setData(result) }, [])
   useEffect(() => {
     if (!enabled) return
     const initial = setTimeout(() => void load(), 0)

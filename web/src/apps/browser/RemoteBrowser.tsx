@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowRight, Keyboard, RotateCw, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
-import type { BrowserState, ClientMessage, ServerMessage } from '@binos/server/apps/browser/protocol'
+import type { BrowserState, BrowserClientMessage, BrowserServerMessage } from '@binos/server/apps/browser/protocol'
 import { IconButton } from '../../ui/IconButton.tsx'
 import type { WindowContext } from '../types.ts'
 import { addressRoute, browserAddress, routeAddress } from './address.ts'
@@ -23,7 +23,7 @@ export function RemoteBrowser({ ctx, session }: { ctx: WindowContext; session: R
   const route = useRef(initialUrl)
   const ctxRef = useRef(ctx)
   useEffect(() => { ctxRef.current = ctx }, [ctx])
-  const send = (message: ClientMessage) => {
+  const send = (message: BrowserClientMessage) => {
     if (socket.current?.readyState === WebSocket.OPEN) socket.current.send(JSON.stringify(message))
   }
 
@@ -79,7 +79,7 @@ export function RemoteBrowser({ ctx, session }: { ctx: WindowContext; session: R
       ws.onmessage = (event) => {
         if (stopped || connection !== ws) return
         lastMessage = Date.now()
-        const message = JSON.parse(event.data) as ServerMessage
+        const message = JSON.parse(event.data) as BrowserServerMessage
         switch (message.type) {
           case 'ready': {
             session.current = message.id

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, expect, it } from 'vitest'
-import type { Snapshot } from './types.js'
+import type { BuildsSnapshot } from './types.js'
 const root = mkdtempSync(path.join(os.tmpdir(), 'binos-build-api-'))
 process.env.BINOS_ROOT = root; process.env.BINOS_TEST_INSTANCE = '1'
 process.execArgv.push('--import', import.meta.resolve('tsx'))
@@ -21,9 +21,9 @@ it('HTTP 页面可触发构建和下载产物，拒绝停止服务、无效目�
   expect((await post({ action: 'enqueue', ref: '--evil', targets: ['android'] })).status).toBe(409)
   const response = await post({ action: 'enqueue', ref: 'main', targets: ['android'] })
   expect(response.status).toBe(200)
-  const id = ((await response.json()) as Snapshot).builds[0].id
-  let snapshot: Snapshot | undefined
-  for (let i = 0; i < 100; i++) { snapshot = await buildRequest<Snapshot>({ action: 'status' }); if (snapshot.builds[0].status === 'success') break; await new Promise((r) => setTimeout(r, 100)) }
+  const id = ((await response.json()) as BuildsSnapshot).builds[0].id
+  let snapshot: BuildsSnapshot | undefined
+  for (let i = 0; i < 100; i++) { snapshot = await buildRequest<BuildsSnapshot>({ action: 'status' }); if (snapshot.builds[0].status === 'success') break; await new Promise((r) => setTimeout(r, 100)) }
   expect(snapshot!.builds[0].status).toBe('success')
   const artifact = await api.request(`${base}/${id}/artifacts/binos-android-debug.apk`)
   expect(artifact.status).toBe(200); expect(artifact.headers.get('Content-Disposition')).toContain('attachment'); expect(await artifact.text()).toContain('预览构建')
