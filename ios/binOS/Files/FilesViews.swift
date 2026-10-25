@@ -93,7 +93,9 @@ private struct FolderView: View {
     @State private var renaming: FileEntry?
     @State private var newName = ""
     @State private var creatingFolder = false
-    @State private var trashing: FileEntry?
+    @State private var trashing: [FileEntry]?
+    @State private var editMode: EditMode = .inactive
+    @State private var selection: Set<String> = []
     @State private var importing = false
     @State private var photos: [PhotosPickerItem] = []
     @State private var pickingPhotos = false
@@ -101,7 +103,7 @@ private struct FolderView: View {
     @State private var goPath = ""
 
     var body: some View {
-        List {
+        List(selection: $selection) {
             if let error {
                 Text(error).foregroundStyle(.red).font(.footnote)
             }
@@ -110,6 +112,7 @@ private struct FolderView: View {
             }
         }
         .listStyle(.plain)
+        .environment(\.editMode, $editMode)
         .overlay {
             if listing == nil && error == nil { ProgressView() }
             else if listing != nil && entries.isEmpty { ContentUnavailableView(query.isEmpty ? "空文件夹" : "没有匹配的文件", systemImage: "folder") }
@@ -141,10 +144,18 @@ private struct FolderView: View {
             Button("取消", role: .cancel) {}
             Button("前往") { navigate(goPath) }
         }
-        .confirmationDialog("移到废纸篓？", isPresented: Binding(get: { trashing != nil }, set: { if !$0 { trashing = nil } }), presenting: trashing) { entry in
-            Button("移到废纸篓", role: .destructive) { run(.init(action: "trash", path: entry.path)) }
-        } message: { entry in
-            Text(entry.name)
+        .confirmationDialog(
+            trashing?.count == 1 ? "移到废纸篓？" : "将 \(trashing?.count ?? 0) 个项目移到废纸篓？",
+            isPresented: Binding(get: { trashing != nil }, set: { if !$0 { trashing = nil } }),
+            titleVisibility: .visible,
+            presenting: trashing
+        ) { items in
+            Button("移到废纸篓", role: .destructive) {
+                finishSelecting()
+                run(items.map { FilesAPI.Operation(action: "trash", path: $0.path) })
+            }
+        } message: { items in
+            Text(items.count == 1 ? items[0].name : "文件会移到 macOS 的废纸篓。")
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
@@ -193,9 +204,19 @@ private struct FolderView: View {
         }
     }
 
+    private var selectedEntries: [FileEntry] { entries.filter { selection.contains($0.path) } }
+
+    private func finishSelecting() {
+        editMode = .inactive
+        selection = []
+    }
+
     private func row(_ entry: FileEntry) -> some View {
         Group {
-            if entry.directory {
+            // 选择时点按只切换选中，不打开文件
+            if editMode.isEditing {
+                FileRow(entry: entry)
+            } else if entry.directory {
                 NavigationLink(value: entry.path) { FileRow(entry: entry) }
             } else {
                 Button {
@@ -207,7 +228,7 @@ private struct FolderView: View {
             }
         }
         .swipeActions {
-            Button("移到废纸篓", systemImage: "trash", role: .destructive) { trashing = entry }
+            Button("移到废纸篓", systemImage: "trash", role: .destructive) { trashing = [entry] }
             Button("重命名", systemImage: "pencil") {
                 newName = entry.name
                 renaming = entry
@@ -222,12 +243,39 @@ private struct FolderView: View {
             Button("剪切", systemImage: "scissors") { clipboard = ([entry.path], true) }
             Button("拷贝路径", systemImage: "link") { UIPasteboard.general.string = entry.path }
             Divider()
-            Button("移到废纸篓", systemImage: "trash", role: .destructive) { trashing = entry }
+            Button("移到废纸篓", systemImage: "trash", role: .destructive) { trashing = [entry] }
         }
     }
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            if editMode.isEditing {
+                Button("完成") { finishSelecting() }
+            } else {
+                Button("选择") { editMode = .active }
+            }
+        }
+        if editMode.isEditing {
+            ToolbarItemGroup(placement: .bottomBar) {
+                let items = selectedEntries
+                Button("复制", systemImage: "doc.on.doc") {
+                    clipboard = (items.map(\.path), false)
+                    finishSelecting()
+                }
+                .disabled(items.isEmpty)
+                Button("剪切", systemImage: "scissors") {
+                    clipboard = (items.map(\.path), true)
+                    finishSelecting()
+                }
+                .disabled(items.isEmpty)
+                Spacer()
+                Text(items.isEmpty ? "选择项目" : "已选 \(items.count) 项").font(.footnote)
+                Spacer()
+                Button("移到废纸篓", systemImage: "trash", role: .destructive) { trashing = items }
+                    .disabled(items.isEmpty)
+            }
+        }
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Menu("位置", systemImage: "externaldrive") {
@@ -256,12 +304,8 @@ private struct FolderView: View {
                     if let clipboard, let current = listing?.path {
                         Button("粘贴 \(clipboard.paths.count) 项", systemImage: "doc.on.clipboard") {
                             let action = clipboard.move ? "move" : "copy"
-                            self.clipboard = nil
-                            Task {
-                                for item in clipboard.paths {
-                                    do { try await FilesAPI.operate(.init(action: action, path: item, destination: current)) } catch { self.error = error.localizedDescription }
-                                }
-                                await load()
+                            run(clipboard.paths.map { FilesAPI.Operation(action: action, path: $0, destination: current) }) {
+                                self.clipboard = nil
                             }
                         }
                     }
@@ -302,10 +346,16 @@ private struct FolderView: View {
     }
 
     private func run(_ operation: FilesAPI.Operation) {
+        run([operation])
+    }
+
+    // 多个项目逐个操作，遇到失败就停下
+    private func run(_ operations: [FilesAPI.Operation], onSuccess: @escaping () -> Void = {}) {
         Task {
             do {
-                try await FilesAPI.operate(operation)
+                for operation in operations { try await FilesAPI.operate(operation) }
                 error = nil
+                onSuccess()
             } catch {
                 self.error = error.localizedDescription
             }
