@@ -4,10 +4,12 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, r
 import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { previewsDir } from '../../paths.js'
+import { closeFinishedPreviews } from '../../preview-instances.js'
 import { isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { automatic, mock, repository, resultsDir, statePath, version, workDir } from './config.js'
-import { targetArtifacts, targets } from './types.js'
+import { targetArtifacts, targetScripts, targets } from './types.js'
 import type { Artifact, Build, Request, Settings, Snapshot, Target } from './types.js'
 const exec = promisify(execFile)
 const now = () => new Date().toISOString()
@@ -16,8 +18,8 @@ const read = <T>(file: string): T | undefined => { try { return JSON.parse(readF
 type State = { mode: string; builds: Build[]; settings: Settings; sequence: number }
 const day = 86_400_000
 // 只保留目标声明的产物并补上类型；旧版本 runner 写的结果没有类型，也可能带着已不算产物的文件
-const declared = (target: Target, artifacts: Pick<Artifact, 'name' | 'size' | 'sha256'>[]): Artifact[] =>
-  artifacts.flatMap((a) => { const spec = targetArtifacts[target].find((s) => s.name === a.name); return spec ? [{ ...a, ...spec }] : [] })
+const declared = (target: Target, artifacts: { name: string }[]): Artifact[] =>
+  artifacts.flatMap((a) => { const spec = targetArtifacts[target].find((s) => s.name === a.name); return spec ? [{ ...a, ...spec } as Artifact] : [] })
 // 构建删了只能重编，老提交重编的结果未必相同，所以只删用不上的：main 最近 5 个提交、开着的 PR 最新提交的构建一直保留，
 // 其余结束满 3 天才删。openPrs 未知时所有 PR 都当作开着。
 export function expired(builds: Build[], openPrs: { has(pr: number): boolean } | undefined, at: number) {
@@ -90,6 +92,7 @@ export class Manager {
             commit = await git('rev-parse', '--verify', `${request.ref === 'main' ? 'origin/main' : request.ref}^{commit}`)
           }
         }
+        if (!pr && request.targets.includes('web')) throw new Error('web 只构建 PR 的提交，请用 pr/编号')
         this.enqueue(commit, request.targets, 'manual', pr, true); return this.snapshot()
       }
       case 'retry': {
@@ -117,19 +120,27 @@ export class Manager {
       if (mock) { this.checkedAt = now(); return }
       await git('fetch', '--prune', 'origin')
       const commit = await git('rev-parse', 'origin/main')
-      // 只编含移动端脚本的提交，避免旧分支持续产生无意义的失败。
-      const supported = async (sha: string) => git('cat-file', '-e', `${sha}:scripts/mobile-build.sh`).then(() => true, () => false)
-      if (await supported(commit)) this.enqueue(commit, [...targets], 'main')
+      // 只编提交里有构建脚本的目标，避免旧分支持续产生无意义的失败。
+      const supported = async (sha: string, candidates: Target[]) => {
+        const found: Target[] = []
+        for (const t of candidates) if (await git('cat-file', '-e', `${sha}:${targetScripts[t]}`).then(() => true, () => false)) found.push(t)
+        return found
+      }
+      const main = await supported(commit, targets.filter((t) => t !== 'web'))
+      if (main.length) this.enqueue(commit, main, 'main')
       const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
       const prs = JSON.parse(stdout) as { number: number; title: string; headRefOid: string; isCrossRepository: boolean }[]
       // 已关闭或合并的 PR 不再构建尚未开始的任务。
       this.openPrs = new Map(prs.map((pr) => [pr.number, pr.title]))
       this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !this.openPrs!.has(b.pr!)))
       this.save()
+      // 列表不完整时不清理，免得误删还开着的 PR 的预览
+      if (prs.length < 100) await closeFinishedPreviews(previewsDir, new Set(this.openPrs.keys()), console.log).catch((e: unknown) => console.error('清理预览出错', e))
       for (const pr of prs) {
         if (pr.isCrossRepository) continue
         await git('fetch', 'origin', `refs/pull/${pr.number}/head`)
-        if (await supported(pr.headRefOid)) this.enqueue(pr.headRefOid, [...targets], 'pr', pr.number)
+        const found = await supported(pr.headRefOid, [...targets])
+        if (found.length) this.enqueue(pr.headRefOid, found, 'pr', pr.number)
       }
       this.pollError = undefined; this.checkedAt = now()
     } catch (e) { this.pollError = e instanceof Error ? e.message : String(e) }
@@ -169,7 +180,7 @@ export class Manager {
         }
         const log = openSync(path.join(result, 'build.log'), 'a', 0o600)
         try {
-          const child = spawn(process.execPath, [...process.execArgv, path.join(import.meta.dirname, `runner${path.extname(import.meta.filename)}`), source, output, path.join(result, 'result.json'), b.target, String(this.state.sequence), mock ? 'mock' : 'real'], { detached: true, stdio: ['ignore', log, log], env: process.env })
+          const child = spawn(process.execPath, [...process.execArgv, path.join(import.meta.dirname, `runner${path.extname(import.meta.filename)}`), source, output, path.join(result, 'result.json'), b.target, String(this.state.sequence), mock ? 'mock' : 'real', String(b.pr ?? '')], { detached: true, stdio: ['ignore', log, log], env: process.env })
           child.on('error', (error) => { b.error = error.message; b.status = 'failed'; b.endedAt = now(); this.save() })
           child.unref()
         } finally { closeSync(log) }

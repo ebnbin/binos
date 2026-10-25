@@ -19,10 +19,10 @@ binOS 是运行在 macOS 上、通过浏览器使用的个人操作系统。用�
 
 1. 有明确的改动任务时，基于最新的 `origin/main`，在 `main/` 旁边建 worktree。目录名和分支名一致，只用小写字母、数字和连字符
 2. 在 worktree 根目录 `pnpm install` 安装依赖，完成改动后运行 `pnpm check`（类型检查、lint 和测试），再用 `pnpm dev` 启动测试实例验证。测试实例的数据在 worktree 里，和正式版互不影响
-3. 第一次提交后推送、开 PR，在描述里写明验证的方式和结果，再在 worktree 里运行 `pnpm preview`，它会构建 PR 最新的提交，给出 `https://pr-<编号>.binos.app` 的预览链接。把 PR 链接和预览链接一起发给用户。之后的改动都提交、推送到同一个 PR，每次推送后重新运行 `pnpm preview`
+3. 第一次提交后推送、开 PR，在描述里写明验证的方式和结果，构建服务会自动构建 PR 最新的提交，Web 的产物就是 `https://pr-<编号>.binos.app` 预览。在 worktree 里运行 `pnpm preview` 等这个提交的预览构建完成，它会给出预览链接。把 PR 链接和预览链接一起发给用户。之后的改动都提交、推送到同一个 PR，每次推送后重新运行 `pnpm preview`
 4. 用户明确说合并后，才合并 PR
 5. 合并后，binOS 会在一分钟内自动上线 main 的最新版本。运行 `pnpm deployed` 等待并确认正式版包含这次合并的提交。上线失败时线上会自动切回原版本，这个提交不再自动上线，`pnpm deployed` 会输出 `deploy.log` 里的原因，详细日志见 `Library/binos/logs/server.log`。自动上线本身坏了、上不了修复它的提交时，在 `Library/Apps/code/repositories/binos/main` 里依次运行 `git fetch origin`、`git merge --ff-only origin/main`、`node scripts/deploy.ts deploy` 手动上线
-6. 合并上线后，或者 PR 被关闭后，删除这次的 worktree 和本地分支。预览会在下一次上线时自动删除
+6. 合并上线后，或者 PR 被关闭后，删除这次的 worktree 和本地分支。预览会在 PR 合并或关闭后一分钟内自动删除
 
 ## 约定
 

@@ -26,7 +26,7 @@ it('独立服务在重启后接续构建，保存产物，支持重试和取消�
   const done = await cli('status')
   const android = done.builds.find((b) => b.target === 'android')!
   expect(android.artifacts).toMatchObject([{ name: 'binos-android-debug.apk', kind: 'install', platform: 'android' }])
-  expect(android.artifacts[0].sha256).toHaveLength(64)
+  expect(android.artifacts[0]).toHaveProperty('sha256', expect.stringMatching(/^[0-9a-f]{64}$/))
   expect(done.builds.find((b) => b.target === 'ios')!.artifacts).toMatchObject([{ name: 'binos-ios-adhoc.ipa', kind: 'install', platform: 'ios' }])
   expect(readFileSync(path.join(root, 'Library/Apps/builds/results', android.id, 'outputs/binos-android-debug.apk'), 'utf8')).toContain('预览构建')
   const retry = await cli('retry', android.id)
