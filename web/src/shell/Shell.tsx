@@ -17,7 +17,7 @@ export function Shell() {
   const controller = useShellController(size)
   const placement = useBarPlacement()
   const compact = placement === 'bottom' && window.matchMedia('(pointer: coarse)').matches
-  const { collapsed, dock, onScroll, expand, collapse, touch } = useDockCapsule(compact, controller.home)
+  const { collapsed, dock, expand, collapse } = useDockCapsule(compact, controller.home)
   const focusedWindow = controller.windows.find(item => item.id === controller.focused)
   const [musicCollapsed, setMusicCollapsed] = useState(false)
   const musicVisible = !controller.home && controller.windows.some(item => item.window.applicationId === 'music' && controller.panes.includes(item.id))
@@ -30,7 +30,7 @@ export function Shell() {
   return (
     <div className={styles.shell} data-bar={placement} data-compact={compact}>
       <div className={styles.titleBar} />
-      <div ref={main} className={styles.screen} onScrollCapture={onScroll}>
+      <div ref={main} className={styles.screen}>
         {loaded && size && (
           <>
             <Workspace
@@ -62,7 +62,7 @@ export function Shell() {
         <TaskBar
           ref={dock}
           placement={placement}
-          capsule={compact ? { collapsed: collapsed && !!focusedWindow, current: focusedWindow, onExpand: expand, onActivity: touch } : undefined}
+          capsule={compact ? { collapsed: collapsed && !!focusedWindow, current: focusedWindow, onExpand: expand } : undefined}
           accessory={!musicVisible && <MusicStatusButton collapsed={musicCollapsed} onToggle={() => setMusicCollapsed(value => !value)} />}
           windows={controller.windows}
           groups={controller.groups}

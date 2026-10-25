@@ -44,7 +44,7 @@ export function TaskBar({
   onClose,
 }: {
   ref?: Ref<HTMLElement>
-  capsule?: { collapsed: boolean; current?: OpenWindow; onExpand: () => void; onActivity: () => void }
+  capsule?: { collapsed: boolean; current?: OpenWindow; onExpand: () => void }
   placement: Exclude<BarPlacement, 'hidden'>
   accessory?: ReactNode
   windows: OpenWindow[]
@@ -90,8 +90,6 @@ export function TaskBar({
       data-placement={placement}
       data-compact={!!capsule}
       data-collapsed={collapsed}
-      onPointerDown={capsule?.onActivity}
-      onKeyDown={capsule?.onActivity}
     >
       {capsule?.current && (
         <button
