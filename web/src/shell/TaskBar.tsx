@@ -74,7 +74,7 @@ export function TaskBar({
   // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
   const focusedUrl = findApplication(apps, windows.find((item) => item.id === focused)?.window.applicationId ?? '')?.url
   const canPick = !home && !locked && !groups.some((group) => focused && group.slots.includes(focused)) && allowed.length > 1
-  // 胶囊在桌面上显示桌面，在 app 里只显示 app 的名字，不带窗口标题里的状态
+  // 胶囊在桌面上只有 binOS 的标志，在 app 里是 app 的图标和名字，不带窗口标题里的状态
   const capsuleApp = !home && capsule?.current ? findApplication(apps, capsule.current.window.applicationId) : undefined
   const capsuleName = capsuleApp?.name ?? '桌面'
   const dockId = useId()
@@ -121,7 +121,7 @@ export function TaskBar({
           }}
         >
           {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={20} inverted />}
-          <span className={styles.capsuleTitle}>{capsuleName}</span>
+          {capsuleApp && <span className={styles.capsuleTitle}>{capsuleName}</span>}
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>

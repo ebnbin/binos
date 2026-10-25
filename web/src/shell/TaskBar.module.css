@@ -256,6 +256,10 @@
     transform var(--duration-normal) var(--ease-standard);
 }
 
+.capsule:not(:has(.capsuleTitle)) {
+  padding: 0 var(--space-1);
+}
+
 .capsule:active {
   filter: brightness(0.8);
 }
