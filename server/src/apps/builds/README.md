@@ -5,7 +5,7 @@ Code 的「构建」页面管理 binOS 的 Android 和 iOS 构建，「设备」
 ## 构建目标
 
 - `android`：Debug APK，并执行单元测试和 lint。调试签名使用构建机用户的 Android debug keystore，同一构建机生成的包可覆盖安装。
-- `ios`：先关闭开发者签名编译模拟器版，确认代码能编译；再 Release archive 并导出 Ad Hoc IPA。需要本机 Xcode 已配置开发者账号、可用签名证书、`app.binos` 的标识和描述文件，安装设备 UDID 必须包含在描述文件中。导出选项为 `ios/ExportOptions-AdHoc.plist`，允许 Xcode 更新描述文件。不自动注册设备或上传 TestFlight。
+- `ios`：Release archive 并导出 Ad Hoc IPA。需要本机 Xcode 已配置开发者账号、可用签名证书、`app.binos` 的标识和描述文件，安装设备 UDID 必须包含在描述文件中。导出选项为 `ios/ExportOptions-AdHoc.plist`，允许 Xcode 更新描述文件。不自动注册设备或上传 TestFlight。
 
 构建机需要 Xcode 27.1 及 iOS 27 SDK、Android SDK 37 和兼容 Gradle 9.6/AGP 9.4 的 JDK。Android 使用 `ANDROID_HOME`，默认 `~/Library/Android/sdk`；使用 `JAVA_HOME`，默认 Homebrew 的 OpenJDK。临时 worktree 内移除生成的 daemon JVM 下载配置，使用构建机 JDK，并生成仅该次构建使用的 local.properties。版本名沿用工程配置，构建号由服务持久化的递增序号注入两端。
 
