@@ -10,7 +10,7 @@ import { SessionList } from './components/SessionList.tsx'
 import { TopBar } from './components/TopBar.tsx'
 import { useSessions } from './useSessions.ts'
 
-type Route = { name: 'builds' } | { name: 'devices' } | { name: 'home' } | { name: 'new'; project?: string } | { name: 'session'; id: number; item?: number }
+type Route = { name: 'builds' } | { name: 'devices' } | { name: 'home' } | { name: 'new'; project?: string } | { name: 'session'; id: number; seq?: number }
 
 function parseRoute(route: string): Route {
   const path = route.split('?')[0]
@@ -18,8 +18,8 @@ function parseRoute(route: string): Route {
   if (route.split('?')[0] === '/new') {
     return { name: 'new', project: new URLSearchParams(route.split('?')[1]).get('project') ?? undefined }
   }
-  const match = /^\/(\d+)(?:\?item=(\d+))?$/.exec(route)
-  return match ? { name: 'session', id: Number(match[1]), ...(match[2] !== undefined && { item: Number(match[2]) }) } : { name: 'home' }
+  const match = /^\/(\d+)(?:\?seq=(\d+))?$/.exec(route)
+  return match ? { name: 'session', id: Number(match[1]), ...(match[2] !== undefined && { seq: Number(match[2]) }) } : { name: 'home' }
 }
 
 const sessionRoute = (id: number) => `/${id}`
@@ -81,8 +81,8 @@ export function CodeApp({ ctx }: { ctx: WindowContext }) {
                   project={project}
                   projects={projects}
                   onProject={(id) => ctx.navigate(`/new?project=${encodeURIComponent(id)}`, { replace: true })}
-                  key={`${sessionId ?? 'new'}-${project}-${route.name === 'session' ? route.item ?? '' : ''}`}
-                  targetItem={route.name === 'session' ? route.item : undefined}
+                  key={`${sessionId ?? 'new'}-${project}-${route.name === 'session' ? route.seq ?? '' : ''}`}
+                  targetSeq={route.name === 'session' ? route.seq : undefined}
                   sessionId={sessionId}
                   session={session}
                   thread={session?.kitaSession ?? (sessionId === created?.id ? created.kitaSession : undefined)}

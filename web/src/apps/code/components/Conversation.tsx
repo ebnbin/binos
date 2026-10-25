@@ -34,19 +34,21 @@ export function Conversation({
   thread,
   scrollRef,
   onCreated,
-  targetItem,
+  targetSeq,
 }: {
   project: string
   projects: Project[] | undefined
   onProject: (id: string) => void
-  targetItem?: number
+  // 要定位到的事件的 seq
+  targetSeq?: number
   sessionId: number | null
   session: SessionSummary | undefined
   thread: string | undefined
   scrollRef: RefObject<HTMLDivElement | null>
   onCreated: (id: number, thread: string) => void
 }) {
-  const { items, offset, session: head, live, loadOlder } = useKitaSession(thread)
+  const { events, session: head, live, loadOlder } = useKitaSession(thread)
+  const first = events[0]?.seq
   const running = live !== null
   // 下一轮用的模型和思考程度，没选过就沿用这个 session 最近一轮的
   const [picked, setPicked] = useState<Choice>()
@@ -59,7 +61,7 @@ export function Conversation({
     }
   }, [sessionId, running])
   const [notice, setNotice] = useState('')
-  const stick = useRef(targetItem === undefined)
+  const stick = useRef(targetSeq === undefined)
   const located = useRef(false)
   useFollowBottom(scrollRef, stick)
   // 往上翻看时，下方出现回到底部的按钮
@@ -67,15 +69,15 @@ export function Conversation({
 
   // 要定位的条目在已读到的之前时，一直补读到它
   useEffect(() => {
-    if (targetItem !== undefined && !located.current && head && targetItem < offset) {
-      loadOlder(targetItem)
+    if (targetSeq !== undefined && !located.current && head && first !== undefined && targetSeq < first) {
+      loadOlder(targetSeq)
     }
-  }, [targetItem, head, offset, loadOlder])
+  }, [targetSeq, head, first, loadOlder])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
-    if (el && targetItem !== undefined && !located.current) {
-      const target = el.querySelector<HTMLElement>(`[data-thread-item="${targetItem}"]`)
+    if (el && targetSeq !== undefined && !located.current) {
+      const target = el.querySelector<HTMLElement>(`[data-thread-item="${targetSeq}"]`)
       if (target) {
         target.scrollIntoView({ block: 'center' })
         target.animate([{ backgroundColor: 'Highlight' }, { backgroundColor: 'transparent' }], { duration: 1800 })
@@ -85,7 +87,7 @@ export function Conversation({
     if (el && stick.current) {
       el.scrollTop = el.scrollHeight
     }
-  }, [scrollRef, items, live, notice, targetItem])
+  }, [scrollRef, events, live, notice, targetSeq])
 
   function stop() {
     if (sessionId !== null) {
@@ -164,7 +166,7 @@ export function Conversation({
               </div>
             ) : (
               thread && (
-                <Transcript thread={thread} agent={head?.agent} items={items} offset={offset} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
+                <Transcript thread={thread} agent={head?.agent} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
               )
             )}
             {notice && <Alert>{notice}</Alert>}

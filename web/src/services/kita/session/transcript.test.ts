@@ -1,4 +1,6 @@
 import { expect, it } from 'vitest'
+import { encodeEntries, pageEvent } from '@binos/server/services/kita/journal'
+import type { PageEvent } from '@binos/server/services/kita/journal'
 import type { Entry } from '@binos/server/services/kita/types'
 import { splitTurns } from './transcript-index.ts'
 
@@ -11,35 +13,31 @@ const makeTurn = (text: string): Entry[] => [
   { type: 'tool_result', time, callId: 'parent', status: 'done', output: text },
   { type: 'turn_end', time, durationMs: 1 },
 ]
+const session: Entry = { type: 'session', time, agent: 'claude', owner: 'test', cwd: '/' }
+const encode = (entries: Entry[], previous?: PageEvent[]): PageEvent[] => {
+  const last = previous?.at(-1)
+  return encodeEntries(entries, last && { ...last, id: '', type: 'item.added' }).map(pageEvent)
+}
 
-it('跨轮重复的工具和子 agent id 不会串结果或子条目', () => {
-  const first = makeTurn('first'), second = makeTurn('second')
-  const turns = splitTurns([...first, ...second])
-  expect(turns).toHaveLength(2)
-  for (const [turn, entries, output] of [[turns[0], first, 'first'], [turns[1], second, 'second']] as const) {
-    const parent = entries[1], child = entries[2]
-    if (parent.type !== 'tool_call' || child.type !== 'tool_call') throw Error('expected call')
-    expect(turn.results.get(parent)?.output).toBe(output)
-    expect(turn.results.get(child)?.output).toBe(output)
-    expect(turn.children.get(parent)?.map(({ item }) => item)).toEqual([child, entries[3]])
+it('事件按轮分组，结果和子 agent 的条目按 itemId、parentId 归到所属的调用', () => {
+  const events = encode([session, ...makeTurn('first'), ...makeTurn('second')])
+  const turns = splitTurns(events)
+  expect(turns.map((turn) => turn.size)).toEqual([1, 6, 6])
+  for (const [turn, output] of [[turns[1], 'first'], [turns[2], 'second']] as const) {
+    const parent = turn.main[1]
+    expect(turn.results.get(parent.itemId!)?.output).toBe(output)
+    expect(turn.children.get(parent.itemId!)?.map(({ data }) => data.type)).toEqual(['tool_call', 'tool_result'])
   }
-  expect(turns.flatMap((turn) => turn.main.map(({ index }) => index))).toEqual([0, 1, 4, 5, 6, 7, 10, 11])
+  expect(turns[2].main.map(({ seq }) => seq)).toEqual([8, 9, 12, 13])
 })
 
-it('追加条目时沿用没变的轮，换了条目的不沿用', () => {
-  const first = makeTurn('first'), second = makeTurn('second')
+it('往两头增加事件时沿用没变的轮', () => {
+  const first = encode([session, ...makeTurn('first')])
+  const second = encode(makeTurn('second'), first)
   const before = splitTurns([...first, ...second.slice(0, 2)])
   const after = splitTurns([...first, ...second], before)
-  expect(after[0]).toBe(before[0])
-  expect(after[1]).not.toBe(before[1])
-  expect(splitTurns(makeTurn('first'), after)[0]).not.toBe(after[0])
-})
-
-it('往前补上更早的轮后，原来的轮位置不变、沿用原来的对象', () => {
-  const first = makeTurn('first'), second = makeTurn('second')
-  const before = splitTurns(second, [], first.length)
-  const after = splitTurns([...first, ...second], before, 0)
-  expect(after.map((turn) => turn.start)).toEqual([0, first.length])
-  expect(after[1]).toBe(before[0])
-  expect(after[1].main[0].index).toBe(first.length)
+  expect(after[1]).toBe(before[1])
+  expect(after[2]).not.toBe(before[2])
+  const older = splitTurns(second)
+  expect(splitTurns([...first, ...second], older)[2]).toBe(older[0])
 })

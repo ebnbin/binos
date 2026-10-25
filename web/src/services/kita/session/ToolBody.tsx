@@ -8,8 +8,8 @@ import type { ToolCall, ToolResult } from './tools.ts'
 import { useFullCall } from './useFullCall.ts'
 
 // 展开一次工具调用看到的内容：常用的几类按各自的样子显示，其他的显示参数和输出
-export function ToolBody({ thread, index, ...shown }: { thread: string; index: number; call: ToolCall; result: ToolResult | undefined }) {
-  const { call, result } = useFullCall(thread, index, shown.call, shown.result)
+export function ToolBody({ thread, seq, ...shown }: { thread: string; seq: number; call: ToolCall; result: ToolResult | undefined }) {
+  const { call, result } = useFullCall(thread, seq, shown.call, shown.result)
   // 出错的调用显示报错；命令的报错就是它的输出，照样显示成终端
   const failed = result?.status === 'error' && call.tool.kind !== 'command'
   return (

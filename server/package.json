@@ -12,6 +12,7 @@
     "./errors": "./src/errors.ts",
     "./services/kita/api": "./src/services/kita/api.ts",
     "./services/kita/types": "./src/services/kita/types.ts",
+    "./services/kita/journal": "./src/services/kita/journal.ts",
     "./services/kita/drivers/claude/api": "./src/services/kita/drivers/claude/api.ts",
     "./services/kita/drivers/codex/api": "./src/services/kita/drivers/codex/api.ts",
     "./apps/code/api": "./src/apps/code/api.ts",

@@ -188,7 +188,7 @@
           ],
           "additionalProperties": false
         },
-        "GET /api/kita/sessions/:id/calls/:index": {
+        "GET /api/kita/sessions/:id/calls/:seq": {
           "type": "object",
           "properties": {
             "response": {
@@ -1407,7 +1407,7 @@
         "GET /api/kita/agents",
         "GET /api/kita/sessions/:id",
         "GET /api/kita/sessions/:id/events",
-        "GET /api/kita/sessions/:id/calls/:index",
+        "GET /api/kita/sessions/:id/calls/:seq",
         "GET /api/kita/sessions/:id/files/:file",
         "GET /api/kita/activity",
         "GET /api/kita/profile",
@@ -2776,28 +2776,45 @@
     },
     "PageEvent": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "parentId": {
+          "type": "string"
+        },
         "seq": {
           "type": "number"
+        },
+        "turnId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "itemId": {
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "data": {
           "$ref": "#/definitions/Entry"
         }
       },
       "required": [
+        "data",
+        "itemId",
         "seq",
-        "data"
-      ],
-      "additionalProperties": false
+        "turnId"
+      ]
     },
     "CallDetail": {
       "type": "object",
       "properties": {
         "call": {
-          "$ref": "#/definitions/Entry"
+          "$ref": "#/definitions/PageEvent"
         },
         "result": {
-          "$ref": "#/definitions/Entry"
+          "$ref": "#/definitions/PageEvent"
         }
       },
       "required": [
@@ -3426,7 +3443,7 @@
         "archived": {
           "type": "boolean"
         },
-        "item": {
+        "seq": {
           "type": "number"
         },
         "kind": {
@@ -5738,9 +5755,6 @@
               "type": "string",
               "const": "window"
             },
-            "from": {
-              "type": "number"
-            },
             "session": {
               "type": "object",
               "properties": {
@@ -5775,12 +5789,18 @@
                 "cwd"
               ],
               "additionalProperties": false
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/PageEvent"
+              }
             }
           },
           "required": [
             "type",
-            "from",
-            "session"
+            "session",
+            "events"
           ],
           "additionalProperties": false
         },

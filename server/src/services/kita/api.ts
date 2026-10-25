@@ -104,42 +104,42 @@ export const kitaApi = new Hono()
     const session = getKitaSession(c.req.valid('param').id)!
     return c.json({ metadata: session.metadata(), summary: session.summary(), turns: session.turns(), items: session.items() })
   })
-  // from 之后的事件；给出 before 时是它之前至少 limit 条，从一轮的开头读起
+  // from：seq 大于它的事件；before：seq 小于它的至少 limit 条，从一轮的开头读起，读到开头时带上第一条 session 条目
   .get('/sessions/:id/events', threadParam, (c) => {
     const session = getKitaSession(c.req.valid('param').id)!
     const before = c.req.query('before')
     if (before !== undefined) {
-      const end = Number(before), limit = Number(c.req.query('limit') ?? 0)
+      const end = Number(before) - 1, limit = Number(c.req.query('limit') ?? 0)
       if (!Number.isSafeInteger(end) || end < 0 || !Number.isSafeInteger(limit) || limit < 0) throw badRequest()
-      return c.json({ events: session.events(session.windowStart(limit, end), end).map(clipEvent) })
+      return c.json({ events: session.pageEvents(session.windowStart(limit, end), end).map(clipEvent) })
     }
     const from = Number(c.req.query('from') ?? 0)
     if (!Number.isSafeInteger(from) || from < 0) throw badRequest()
-    return c.json({ events: session.events(from).map(clipEvent) })
+    return c.json({ events: session.pageEvents(from).map(clipEvent) })
   })
-  // index 处的工具调用和它的结果，完整的，事件里省略过的在页面展开时读
-  .get('/sessions/:id/calls/:index', threadParam, (c) => {
-    const call = getKitaSession(c.req.valid('param').id)!.call(Number(c.req.param('index')))
+  // seq 处的工具调用和它的结果，完整的，事件里省略过的在页面展开时读
+  .get('/sessions/:id/calls/:seq', threadParam, (c) => {
+    const call = getKitaSession(c.req.valid('param').id)!.call(Number(c.req.param('seq')))
     if (!call) throw notFound('这里没有工具调用')
     return c.json(call)
   })
-  // 条目的事件 id 是到它为止的条数，浏览器断线重连时带上 Last-Event-ID，从那之后接着补发。
-  // 第一次连接可以用 tail 只要最后至少这么多条，从一轮的开头补发，更早的由页面按需用 /events 读
+  // SSE 的 id 是事件的 seq，断线重连时带上 Last-Event-ID（或 ?from=）从那之后接着补发。
+  // 第一次连接用 tail 只要最后至少这么多条，从一轮的开头给出，更早的由页面按需用 /events 读
   .get('/sessions/:id/stream', threadParam, (c) => {
     const session = getKitaSession(c.req.valid('param').id)!
     const resume = c.req.header('Last-Event-ID') ?? c.req.query('from')
     const tail = resume === undefined ? Number(c.req.query('tail')) : NaN
-    const from = Number.isSafeInteger(tail) && tail > 0 ? session.windowStart(tail) : Number(resume ?? 0) || 0
+    const from = resume === undefined ? session.windowStart(Number.isSafeInteger(tail) && tail > 0 ? tail : Infinity) : Number(resume) || 0
     return streamSSE(c, async (stream) => {
       const send = (event: KitaSessionEvent) => {
-        const id = event.type === 'event' ? event.event.seq : event.type === 'events' ? event.events.at(-1)?.seq : undefined
-        void stream.writeSSE({ data: JSON.stringify(event.type === 'event' ? { ...event, event: clipEvent(event.event) } : event), id: id === undefined ? undefined : String(id) })
+        const last = event.type === 'event' ? event.event.seq : event.type === 'events' || event.type === 'window' ? event.events.at(-1)?.seq : undefined
+        void stream.writeSSE({ data: JSON.stringify(event.type === 'event' ? { ...event, event: clipEvent(event.event) } : event), id: last === undefined ? undefined : String(last) })
       }
       // 读取条目、补发、开始监听之间没有等待，不会漏掉或重复。补发的条目一次发完，页面一次显示出来
       await stream.write(connectedPreamble)
-      if (resume === undefined) send({ type: 'window', from, session: session.metadata() })
-      const backlog = session.events(from).map(clipEvent)
-      if (backlog.length) send({ type: 'events', events: backlog })
+      const backlog = session.pageEvents(from).map(clipEvent)
+      if (resume === undefined) send({ type: 'window', session: session.metadata(), events: backlog })
+      else if (backlog.length) send({ type: 'events', events: backlog })
       send({ type: 'live', live: session.live() })
       stream.onAbort(session.subscribe(send))
       await keepAlive(stream)

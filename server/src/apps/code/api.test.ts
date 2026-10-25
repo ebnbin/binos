@@ -159,7 +159,7 @@ describe('全局内容搜索', () => {
       { type: 'text', time: time(), text: 'Needle 子任务', parent: 'child' },
     ])
     expect(searchContent('needle')).toEqual({ total: 1, results: [expect.objectContaining({
-      id, archived: true, item: 2, kind: 'text', before: '前文 ', match: 'Needle', after: ' 后文',
+      id, archived: true, seq: 3, kind: 'text', before: '前文 ', match: 'Needle', after: ' 后文',
     })] })
     const res = await api.request('/api/apps/code/search?q=needle')
     expect(res.status).toBe(200)

@@ -88,7 +88,7 @@ export function SearchResults({
               .map((match) => {
                 const Icon = match.kind === 'input' ? UserRound : MessageSquare
                 return (
-                  <button type="button" className={styles.match} key={match.item} onClick={() => onNavigate(`/${id}?item=${match.item}`)}>
+                  <button type="button" className={styles.match} key={match.seq} onClick={() => onNavigate(`/${id}?seq=${match.seq}`)}>
                     <span className={styles.kind}>
                       <Icon size={12} strokeWidth={2} />
                       {match.kind === 'input' ? '你' : '回复'}

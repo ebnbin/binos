@@ -38,7 +38,7 @@ export function Chat({
   memoryCount: number
   onCreated(id: string): void
 }) {
-  const { items, offset, session, live, loadOlder } = useKitaSession(id)
+  const { events, session, live, loadOlder } = useKitaSession(id)
   const running = live !== null
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -55,7 +55,7 @@ export function Chat({
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
-  }, [items, live, notice])
+  }, [events, live, notice])
 
   async function send() {
     const text = input.trim()
@@ -117,7 +117,7 @@ export function Chat({
               )}
             </div>
           ) : (
-            <Transcript thread={id} agent={session?.agent} items={items} offset={offset} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
+            <Transcript thread={id} agent={session?.agent} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
           )}
           {notice && <Alert>{notice}</Alert>}
         </div>

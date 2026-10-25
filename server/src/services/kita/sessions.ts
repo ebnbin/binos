@@ -13,7 +13,8 @@ import { saveLimits } from './limits.js'
 import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readCall, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
 import type { Activity, AgentId, Entry, IdentityScope, Live, KitaSessionEvent, KitaSessionState, KitaSessionSummary } from './types.js'
 import { identityPrompt } from './identity.js'
-import { projectItems, projectTurns } from './journal.js'
+import { pageEvent, projectItems, projectTurns } from './journal.js'
+import type { CallDetail } from './journal.js'
 
 // session：和 agent 的一段对话，由 Kita 保存，任何 app 都能建。app 只管说话、停下、看内容，
 // agent 进程什么时候启动、什么时候退出是服务自己的事：一轮开始时没有合适的进程就启动一个（接着 agent 那边的会话），
@@ -69,8 +70,13 @@ export class KitaSession {
 
   metadata() { return metadata(this.id) }
   events(from = 0, to?: number) { return readEvents(this.id, from, to) }
+  // 第 from 条之后、到第 to 条为止的事件，客户端看到的样子
+  pageEvents(from = 0, to?: number) { return this.events(from, to).map(pageEvent) }
   windowStart(size: number, before?: number) { return windowStart(this.id, size, before) }
-  call(index: number) { return readCall(this.id, index) }
+  call(seq: number): CallDetail | undefined {
+    const call = readCall(this.id, seq)
+    return call && { call: pageEvent(call.call), ...(call.result && { result: pageEvent(call.result) }) }
+  }
   items() { return projectItems(this.events()) }
   turns() { return projectTurns(this.events()) }
 
@@ -347,7 +353,7 @@ export class KitaSession {
       return Object.keys(files).length > 0 ? { ...item, files } : item
     })
     const index = appendEntries(this.id, withFiles)
-    readEvents(this.id, index).forEach((event) => this.emit({ type: 'event', event }))
+    this.pageEvents(index).forEach((event) => this.emit({ type: 'event', event }))
   }
 
   private endTurn(options: { stopped: boolean; error?: string }) {

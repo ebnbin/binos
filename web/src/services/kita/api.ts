@@ -1,9 +1,7 @@
 import type { KitaApi } from '@binos/server/services/kita/api'
-import type { Entry, KitaSessionEvent } from '@binos/server/services/kita/types'
+import type { CallDetail, PageEvent } from '@binos/server/services/kita/journal'
 import { hc } from 'hono/client'
 import { errorMessage } from '../../api.ts'
-
-export type SessionEvent = Extract<KitaSessionEvent, { type: 'event' }>['event']
 
 const client = hc<KitaApi>(`${window.location.origin}/api/kita`)
 
@@ -25,27 +23,27 @@ export async function agentCatalogs() {
   return res?.ok ? (await res.json()).agents : []
 }
 
-// thread 的内容：from 之后的条目，以及临时内容的变化；from 为 undefined 时只要最后至少 tail 条，从一轮的开头补发
+// thread 的内容：seq 在 from 之后的事件，以及临时内容的变化；from 为 undefined 时先给出最后至少 tail 条，从一轮的开头起
 export function sessionStreamUrl(thread: string, from: number | undefined, tail: number) {
   const url = client.sessions[':id'].stream.$url({ param: { id: thread } })
   url.searchParams.set(from === undefined ? 'tail' : 'from', String(from ?? tail))
   return url.href
 }
 
-// before 之前至少 limit 条事件，从一轮的开头读起；读不到时返回 undefined
-export async function readOlderEvents(thread: string, before: number, limit: number): Promise<SessionEvent[] | undefined> {
+// seq 在 before 之前的至少 limit 条事件，从一轮的开头读起；读不到时返回 undefined
+export async function readOlderEvents(thread: string, before: number, limit: number): Promise<PageEvent[] | undefined> {
   const url = client.sessions[':id'].events.$url({ param: { id: thread } })
   url.searchParams.set('before', String(before))
   url.searchParams.set('limit', String(limit))
   const res = await fetch(url).catch(() => undefined)
-  return res?.ok ? ((await res.json()) as { events: SessionEvent[] }).events : undefined
+  return res?.ok ? ((await res.json()) as { events: PageEvent[] }).events : undefined
 }
 
-// index 处的工具调用和它的结果，完整的；读不到时返回 undefined
-export async function readCall(thread: string, index: number) {
-  const url = client.sessions[':id'].calls[':index'].$url({ param: { id: thread, index: String(index) } })
+// 第 seq 条事件的工具调用和它的结果，完整的；读不到时返回 undefined
+export async function readCall(thread: string, seq: number) {
+  const url = client.sessions[':id'].calls[':seq'].$url({ param: { id: thread, seq: String(seq) } })
   const res = await fetch(url).catch(() => undefined)
-  return res?.ok ? ((await res.json()) as { call: Entry; result?: Entry }) : undefined
+  return res?.ok ? ((await res.json()) as CallDetail) : undefined
 }
 
 // name：下载时用的文件名

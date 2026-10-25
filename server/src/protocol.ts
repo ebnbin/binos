@@ -26,8 +26,7 @@ import type { claudeApi } from './services/kita/drivers/claude/api.js'
 import type { ClaudeLoginKind, ClaudeLoginStart } from './services/kita/drivers/claude/login.js'
 import type { codexApi } from './services/kita/drivers/codex/api.js'
 import type { CodexLoginStart, CodexLoginStatus } from './services/kita/drivers/codex/login.js'
-import type { Item, PageEvent, SessionMetadata, Turn } from './services/kita/journal.js'
-import type { CallDetail } from './services/kita/store.js'
+import type { CallDetail, Item, PageEvent, SessionMetadata, Turn } from './services/kita/journal.js'
 import type { Activity, AgentAccount, AgentCatalog, AgentStatus, KitaSessionEvent, KitaSessionSummary, Memory, MemoryChange, NewMemory, Profile } from './services/kita/types.js'
 import type { AppRegistry, ChangeEvent, Health } from './types.js'
 
@@ -50,9 +49,10 @@ export type Http = {
   'GET /api/kita/accounts': { response: { accounts: AgentAccount[] } }
   'GET /api/kita/agents': { response: { agents: AgentCatalog[] } }
   'GET /api/kita/sessions/:id': { response: { metadata: SessionMetadata; summary: KitaSessionSummary; turns: Turn[]; items: Item[] } }
-  // 给出 before 时是它之前至少 limit 条，否则是 from 之后的
+  // ?from=：seq 大于它的；?before=&limit=：seq 小于它的至少 limit 条，从一轮的开头起
   'GET /api/kita/sessions/:id/events': { response: { events: PageEvent[] } }
-  'GET /api/kita/sessions/:id/calls/:index': { response: CallDetail }
+  // seq 是 tool_call 事件的 seq
+  'GET /api/kita/sessions/:id/calls/:seq': { response: CallDetail }
   // ?info=1 时
   'GET /api/kita/sessions/:id/files/:file': { response: FileInfo }
   'GET /api/kita/activity': { response: { activity: Activity[] } }

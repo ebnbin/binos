@@ -5,8 +5,8 @@ import type { LucideIcon } from 'lucide-react'
 
 export type ToolCall = Extract<Entry, { type: 'tool_call' }>
 export type ToolResult = Extract<Entry, { type: 'tool_result' }>
-// index：调用在整个 thread 里的位置；live：这一轮还在回答，没有结果的调用还在运行
-export type CallState = { call: ToolCall; index: number; result: ToolResult | undefined; live: boolean }
+// seq：调用事件的位置；itemId：调用和结果共用的；live：这一轮还在回答，没有结果的调用还在运行
+export type CallState = { call: ToolCall; seq: number; itemId: string; result: ToolResult | undefined; live: boolean }
 
 export type CallStatus = 'running' | 'done' | 'error' | 'stopped'
 

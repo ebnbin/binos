@@ -1,51 +1,44 @@
-import type { Entry } from '@binos/server/services/kita/types'
-import type { ToolCall, ToolResult } from './tools.ts'
+import type { PageEvent } from '@binos/server/services/kita/journal'
+import type { ToolResult } from './tools.ts'
 
-export type IndexedEntry = { item: Entry; index: number }
-
-// 一轮：从 mode 为 start 的 input 到下一个之前，第一轮之前的条目单独成一组。
-// vendor 的调用 id 只在当前轮内匹配；渲染时用调用对象关联结果和子条目
+// 一轮：turnId 相同的连续事件，第一条 session 条目自成一组（id 为空串）。
+// 工具调用和结果按 itemId 对应，子 agent 的条目按 parentId 归到它所属的调用下
 export type Turn = {
-  first: Entry
-  start: number
+  id: string
+  first: PageEvent
   size: number
-  main: IndexedEntry[]
-  results: Map<ToolCall, ToolResult>
-  children: Map<ToolCall, IndexedEntry[]>
+  main: PageEvent[]
+  results: Map<string, ToolResult>
+  children: Map<string, PageEvent[]>
 }
 
-function indexTurn(items: Entry[], offset: number, start: number, end: number): Turn {
-  const entries = items.slice(start, end).map((item, i) => ({ item, index: offset + start + i }))
-  const calls = new Map(entries.flatMap(({ item }) => item.type === 'tool_call' ? [[item.id, item] as const] : []))
-  const results = new Map<ToolCall, ToolResult>()
-  const children = new Map<ToolCall, IndexedEntry[]>()
-  const main: IndexedEntry[] = []
-  for (const entry of entries) {
-    const { item } = entry
-    if (item.type === 'tool_result') {
-      const call = calls.get(item.callId)
-      if (call) results.set(call, item)
+function indexTurn(events: PageEvent[]): Turn {
+  const results = new Map<string, ToolResult>()
+  const children = new Map<string, PageEvent[]>()
+  const main: PageEvent[] = []
+  for (const event of events) {
+    if (event.data.type === 'tool_result' && event.itemId) {
+      results.set(event.itemId, event.data)
     }
-    const parent = 'parent' in item && item.parent ? calls.get(item.parent) : undefined
-    if (parent) {
-      const siblings = children.get(parent) ?? []
-      siblings.push(entry)
-      children.set(parent, siblings)
+    if (event.parentId) {
+      children.set(event.parentId, [...(children.get(event.parentId) ?? []), event])
     } else {
-      main.push(entry)
+      main.push(event)
     }
   }
-  return { first: items[start], start: offset + start, size: end - start, main, results, children }
+  return { id: events[0].turnId ?? '', first: events[0], size: events.length, main, results, children }
 }
 
-// items 是从 offset 开始的条目，轮的 start 和条目的 index 都是在整个 thread 里的位置。
-// 条目只会在两头增加：和 previous 里同一段条目的轮沿用原来的对象，页面上这些轮可以跳过重新渲染
-export function splitTurns(items: Entry[], previous: Turn[] = [], offset = 0): Turn[] {
-  const reusable = new Map(previous.map((turn) => [turn.start, turn]))
-  const starts = items.flatMap((item, index) => (index === 0 || (item.type === 'input' && item.mode === 'start') ? [index] : []))
-  return starts.map((start, i) => {
-    const end = starts[i + 1] ?? items.length
-    const old = reusable.get(offset + start)
-    return old?.first === items[start] && old.size === end - start ? old : indexTurn(items, offset, start, end)
-  })
+// 事件只会在两头增加：和 previous 里同一段事件的轮沿用原来的对象，页面上这些轮可以跳过重新渲染
+export function splitTurns(events: PageEvent[], previous: Turn[] = []): Turn[] {
+  const reusable = new Map(previous.map((turn) => [turn.id, turn]))
+  const turns: Turn[] = []
+  for (let start = 0; start < events.length; ) {
+    let end = start + 1
+    while (end < events.length && events[end].turnId === events[start].turnId) end++
+    const old = reusable.get(events[start].turnId ?? '')
+    turns.push(old?.first === events[start] && old.size === end - start ? old : indexTurn(events.slice(start, end)))
+    start = end
+  }
+  return turns
 }

@@ -45,8 +45,8 @@ function FileRow({ thread, file }: { thread: string; file: FileChange }) {
       </button>
       {open && (
         <div className={styles.body}>
-          {file.calls.map(({ call, index, result }) => (
-            <ToolBody key={call.id} thread={thread} index={index} call={call} result={result} />
+          {file.calls.map(({ call, seq, result }) => (
+            <ToolBody key={seq} thread={thread} seq={seq} call={call} result={result} />
           ))}
         </div>
       )}

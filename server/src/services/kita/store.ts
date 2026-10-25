@@ -146,11 +146,11 @@ export function readEvents(id: string, from = 0, to?: number): Event[] {
   return structuredClone(readJournal(id).slice(from, to))
 }
 
-// 分段读取的起点：before（默认到最后）之前 size 条所在的一轮的开头（mode 为 start 的 input），前面没有一轮时是 0。
-// 页面按轮显示，每段都从一轮的开头读起
+// 分段读取的起点（第几条之后）：前 before 条（默认是全部）里倒数 size 条所在的一轮的开头（mode 为 start 的 input）。
+// 页面按轮显示，每段都从一轮的开头读起；前面只剩第一条 session 条目时从 0 读起，把它也带上
 export function windowStart(id: string, size: number, before?: number): number {
   const events = readJournal(id)
-  for (let i = Math.min((before ?? events.length) - size, events.length - 1); i > 0; i--) {
+  for (let i = Math.min((before ?? events.length) - size, events.length - 1); i > 1; i--) {
     const { data } = events[i]
     if (data.type === 'input' && data.mode === 'start') return i
   }
@@ -159,16 +159,13 @@ export function windowStart(id: string, size: number, before?: number): number {
 
 const journals = new Map<string, { size: number; events: Event[] }>()
 
-export type CallDetail = { call: Entry; result?: Entry }
-
-// index 处的工具调用和它的结果（在同一轮里按调用 id 对应），不是工具调用时返回 undefined
-export function readCall(id: string, index: number): CallDetail | undefined {
+// 第 seq 条事件的工具调用和它的结果，不是工具调用时返回 undefined
+export function readCall(id: string, seq: number): { call: Event; result?: Event } | undefined {
   const events = readJournal(id)
-  const call = events[index]
+  const call = events[seq - 1]
   if (call?.data.type !== 'tool_call') return undefined
-  const callId = call.data.id
-  const result = events.slice(index + 1).find(({ turnId, data }) => turnId === call.turnId && data.type === 'tool_result' && data.callId === callId)
-  return structuredClone({ call: call.data, ...(result && { result: result.data }) })
+  const result = events.slice(seq).find((event) => event.itemId === call.itemId && event.data.type === 'tool_result')
+  return structuredClone({ call, ...(result && { result }) })
 }
 
 export function readEntries(id: string, from = 0): Entry[] {
