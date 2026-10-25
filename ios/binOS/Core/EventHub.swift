@@ -24,6 +24,7 @@ final class EventHub {
     private(set) var agent = 0
     private(set) var music = 0
     private(set) var devices = 0
+    private(set) var kita = 0
 
     private var stream: EventStream?
 
@@ -62,6 +63,7 @@ final class EventHub {
         agent += 1
         music += 1
         devices += 1
+        kita += 1
         Task { await readVersion() }
     }
 
@@ -81,6 +83,7 @@ final class EventHub {
         case "agent": agent += 1
         case "music": music += 1
         case "devices": devices += 1
+        case "kita": kita += 1
         default: break
         }
     }
