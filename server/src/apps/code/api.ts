@@ -116,6 +116,7 @@ async function summary(id: number): Promise<SessionSummary> {
     ...(thread.context && { context: thread.context }),
     agent: thread.agent,
     ...(thread.model && { model: thread.model }),
+    ...(thread.modelName && { modelName: thread.modelName }),
     ...(thread.effort && { effort: thread.effort }),
     turns: thread.turns,
     priced: isPriced(thread.agent),

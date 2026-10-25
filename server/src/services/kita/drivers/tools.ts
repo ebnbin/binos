@@ -1,4 +1,4 @@
-import type { ToolDetail } from '../types.js'
+import type { BrowserOperation, ToolDetail } from '../types.js'
 
 // 浏览器扩展（Claude in Chrome）的 MCP 服务：action 取工具名，target 取这个参数
 const browserServer = 'claude-in-chrome'
@@ -18,3 +18,22 @@ export function mcpTool(server: string, tool: string, input: Record<string, unkn
   }
   return { tool: { kind: 'mcp', server, tool }, input }
 }
+
+const browserOperations: Record<string, BrowserOperation> = {
+  navigate: 'navigate',
+  computer: 'interact',
+  browser_batch: 'interact',
+  javascript_tool: 'script',
+  read_page: 'read',
+  get_page_text: 'read',
+  find: 'find',
+  form_input: 'fill',
+  read_console_messages: 'console',
+  read_network_requests: 'network',
+  tabs_context_mcp: 'tabs',
+  tabs_create_mcp: 'open-tab',
+  tabs_close_mcp: 'close-tab',
+}
+
+// 浏览器工具归到哪类操作
+export const browserOperation = (action: string): BrowserOperation => browserOperations[action] ?? 'other'

@@ -166,7 +166,7 @@ export function Conversation({
               </div>
             ) : (
               thread && (
-                <Transcript thread={thread} agent={head?.agent} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
+                <Transcript thread={thread} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
               )
             )}
             {notice && <Alert>{notice}</Alert>}

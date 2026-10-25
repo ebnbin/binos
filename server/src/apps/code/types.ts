@@ -36,8 +36,9 @@ export type SessionSummary = {
   archived: boolean
   context?: Context
   agent: AgentId
-  // 最近一轮用的模型和思考程度
+  // 最近一轮用的模型、它的显示名和思考程度
   model?: string
+  modelName?: string
   effort?: string
   // 开始过几轮
   turns: number

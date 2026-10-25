@@ -1569,11 +1569,24 @@
             }
           },
           "additionalProperties": false
+        },
+        "attention": {
+          "type": "object",
+          "properties": {
+            "claude": {
+              "$ref": "#/definitions/AgentAttention"
+            },
+            "codex": {
+              "$ref": "#/definitions/AgentAttention"
+            }
+          },
+          "additionalProperties": false
         }
       },
       "required": [
         "limits",
-        "auth"
+        "auth",
+        "attention"
       ],
       "additionalProperties": false
     },
@@ -1679,6 +1692,32 @@
       },
       "required": [
         "loggedIn"
+      ],
+      "additionalProperties": false
+    },
+    "AgentAttention": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": [
+            "logged-out",
+            "login-expired",
+            "login-broken",
+            "login-expiring",
+            "backup-expiring"
+          ]
+        },
+        "usable": {
+          "type": "boolean"
+        },
+        "expiresAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "usable"
       ],
       "additionalProperties": false
     },
@@ -1920,6 +1959,9 @@
           "type": "string"
         },
         "model": {
+          "type": "string"
+        },
+        "modelName": {
           "type": "string"
         },
         "effort": {
@@ -2332,6 +2374,15 @@
               "items": {
                 "type": "string"
               }
+            },
+            "startLine": {
+              "type": "number"
+            },
+            "links": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/WebLink"
+              }
             }
           },
           "required": [
@@ -2398,6 +2449,9 @@
               "type": "string"
             },
             "model": {
+              "type": "string"
+            },
+            "modelName": {
               "type": "string"
             },
             "outputTokens": {
@@ -2489,6 +2543,9 @@
             },
             "change": {
               "$ref": "#/definitions/FileChange"
+            },
+            "lines": {
+              "$ref": "#/definitions/LineCount"
             }
           },
           "required": [
@@ -2588,6 +2645,9 @@
             },
             "target": {
               "type": "string"
+            },
+            "operation": {
+              "$ref": "#/definitions/BrowserOperation"
             }
           },
           "required": [
@@ -2607,6 +2667,9 @@
               "type": "string"
             },
             "tool": {
+              "type": "string"
+            },
+            "target": {
               "type": "string"
             }
           },
@@ -2693,6 +2756,9 @@
             "kind": {
               "type": "string",
               "const": "other"
+            },
+            "target": {
+              "type": "string"
             }
           },
           "required": [
@@ -2773,6 +2839,55 @@
           "additionalProperties": false
         }
       ]
+    },
+    "LineCount": {
+      "type": "object",
+      "properties": {
+        "added": {
+          "type": "number"
+        },
+        "removed": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "added",
+        "removed"
+      ],
+      "additionalProperties": false
+    },
+    "BrowserOperation": {
+      "type": "string",
+      "enum": [
+        "navigate",
+        "interact",
+        "script",
+        "read",
+        "find",
+        "fill",
+        "console",
+        "network",
+        "tabs",
+        "open-tab",
+        "close-tab",
+        "other"
+      ]
+    },
+    "WebLink": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "url"
+      ],
+      "additionalProperties": false
     },
     "PageEvent": {
       "type": "object",
@@ -3522,6 +3637,9 @@
           "$ref": "#/definitions/AgentId"
         },
         "model": {
+          "type": "string"
+        },
+        "modelName": {
           "type": "string"
         },
         "effort": {

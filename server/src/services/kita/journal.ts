@@ -96,7 +96,10 @@ export function clipEvent(event: PageEvent): PageEvent {
     return { ...event, data: { ...data, tool: { ...data.tool, command: data.tool.command.slice(0, pageTextLimit) }, clipped: true } }
   }
   if (data.type === 'tool_result' && data.output && data.output.length > pageTextLimit) {
-    return { ...event, data: { ...data, output: tail(data.output, pageTextLimit), clipped: true } }
+    const output = tail(data.output, pageTextLimit)
+    // 去掉的行数加到起始行号上
+    const startLine = data.startLine && data.startLine + (data.output.slice(0, -output.length).match(/\n/g)?.length ?? 0)
+    return { ...event, data: { ...data, output, clipped: true, ...(startLine && { startLine }) } }
   }
   return event
 }

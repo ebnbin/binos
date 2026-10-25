@@ -10,10 +10,11 @@ import { copyAttachments, promptWithAttachments, snapshotFiles } from './files.j
 import { attachHost, startHost } from './host/client.js'
 import type { Host } from './host/client.js'
 import { saveLimits } from './limits.js'
-import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readCall, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
+import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, journalEvents, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
 import type { Activity, AgentId, Entry, IdentityScope, Live, KitaSessionEvent, KitaSessionState, KitaSessionSummary } from './types.js'
 import { identityPrompt } from './identity.js'
-import { pageEvent, projectItems, projectTurns } from './journal.js'
+import { projectItems, projectTurns } from './journal.js'
+import { pageEvents } from './page.js'
 import type { CallDetail } from './journal.js'
 
 // session：和 agent 的一段对话，由 Kita 保存，任何 app 都能建。app 只管说话、停下、看内容，
@@ -71,11 +72,16 @@ export class KitaSession {
   metadata() { return metadata(this.id) }
   events(from = 0, to?: number) { return readEvents(this.id, from, to) }
   // 第 from 条之后、到第 to 条为止的事件，客户端看到的样子
-  pageEvents(from = 0, to?: number) { return this.events(from, to).map(pageEvent) }
+  pageEvents(from = 0, to?: number) { return pageEvents(this.agent, journalEvents(this.id), from, to) }
   windowStart(size: number, before?: number) { return windowStart(this.id, size, before) }
+  // 第 seq 条事件的工具调用和它的结果，不是工具调用时返回 undefined
   call(seq: number): CallDetail | undefined {
-    const call = readCall(this.id, seq)
-    return call && { call: pageEvent(call.call), ...(call.result && { result: pageEvent(call.result) }) }
+    const journal = journalEvents(this.id)
+    const call = journal[seq - 1]
+    if (call?.data.type !== 'tool_call') return undefined
+    const result = journal.findIndex((event, i) => i >= seq && event.itemId === call.itemId && event.data.type === 'tool_result')
+    const [page] = pageEvents(this.agent, journal, seq - 1, seq)
+    return { call: page, ...(result >= 0 && { result: pageEvents(this.agent, journal, result, result + 1)[0] }) }
   }
   items() { return projectItems(this.events()) }
   turns() { return projectTurns(this.events()) }
@@ -86,6 +92,7 @@ export class KitaSession {
 
   summary(): KitaSessionSummary {
     const info = sessionInfo(this.id)
+    const modelName = info.model && drivers[info.agent].modelName?.(info.model)
     return {
       id: this.id,
       agent: info.agent,
@@ -97,6 +104,7 @@ export class KitaSession {
       ...(info.context && { context: info.context }),
       ...(info.repliedAt && { repliedAt: info.repliedAt }),
       ...(info.model && { model: info.model }),
+      ...(modelName && { modelName }),
       ...(info.effort && { effort: info.effort }),
       usage: Object.keys(info.usageBefore).length > 0 ? addUsage(info.usageBefore, info.usageLatest) : info.usageLatest,
       costs: info.costs,

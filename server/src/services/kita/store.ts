@@ -146,6 +146,9 @@ export function readEvents(id: string, from = 0, to?: number): Event[] {
   return structuredClone(readJournal(id).slice(from, to))
 }
 
+// 全部事件，不复制，不能改动
+export const journalEvents = (id: string): readonly Event[] => readJournal(id)
+
 // 分段读取的起点（第几条之后）：前 before 条（默认是全部）里倒数 size 条所在的一轮的开头（mode 为 start 的 input）。
 // 页面按轮显示，每段都从一轮的开头读起；前面只剩第一条 session 条目时从 0 读起，把它也带上
 export function windowStart(id: string, size: number, before?: number): number {
@@ -158,15 +161,6 @@ export function windowStart(id: string, size: number, before?: number): number {
 }
 
 const journals = new Map<string, { size: number; events: Event[] }>()
-
-// 第 seq 条事件的工具调用和它的结果，不是工具调用时返回 undefined
-export function readCall(id: string, seq: number): { call: Event; result?: Event } | undefined {
-  const events = readJournal(id)
-  const call = events[seq - 1]
-  if (call?.data.type !== 'tool_call') return undefined
-  const result = events.slice(seq).find((event) => event.itemId === call.itemId && event.data.type === 'tool_result')
-  return structuredClone({ call, ...(result && { result }) })
-}
 
 export function readEntries(id: string, from = 0): Entry[] {
   return readEvents(id, from).map((event) => event.data)

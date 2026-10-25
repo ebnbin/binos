@@ -30,7 +30,9 @@ function Content({ thread, call, result }: { thread: string; call: ToolCall; res
     case 'command':
       return <Terminal command={tool.command} result={result} />
     case 'read':
-      return result?.output ? <FileContent path={tool.path} output={result.output} /> : null
+      return result?.output ? (
+        result.startLine === undefined ? <pre className={styles.output}>{result.output}</pre> : <CodeBlock code={result.output} lang={languageOf(tool.path)} startLine={result.startLine} />
+      ) : null
     case 'edit':
       switch (tool.change?.type) {
         case 'write':
@@ -43,7 +45,7 @@ function Content({ thread, call, result }: { thread: string; call: ToolCall; res
           return <Raw call={call} result={result} />
       }
     case 'web_search':
-      return result?.output ? <SearchResults thread={thread} output={result.output} /> : null
+      return result ? <SearchResults thread={thread} result={result} /> : null
     case 'web_fetch':
       return (
         <>
@@ -91,15 +93,6 @@ function Terminal({ command, result }: { command: string; result: ToolResult | u
       )}
     </pre>
   )
-}
-
-// 读文件的输出每行是「行号\t内容」（最后的空行只有行号）：拆出行号，内容按文件类型高亮。对不上这个格式（比如被截断了）就原样显示
-function FileContent({ path, output }: { path: string; output: string }) {
-  const lines = output.split('\n').map((line) => /^\s*(\d+)(?:\t(.*))?$/.exec(line))
-  if (lines.some((match) => !match)) {
-    return <pre className={styles.output}>{output}</pre>
-  }
-  return <CodeBlock code={lines.map((match) => match![2] ?? '').join('\n')} lang={languageOf(path)} startLine={Number(lines[0]![1])} />
 }
 
 function Diff({ before, after, replaceAll }: { before: string; after: string; replaceAll: boolean }) {
@@ -156,33 +149,23 @@ function Patch({ op, diff, path }: { op: 'add' | 'update' | 'delete'; diff: stri
   )
 }
 
-// 搜索网页的输出：一行「Links: [JSON]」列出搜到的网页，后面是总结
-function SearchResults({ thread, output }: { thread: string; output: string }) {
-  const match = /^Links: (\[.*\])$/m.exec(output)
-  let links: { title?: string; url?: string }[] = []
-  try {
-    links = match ? JSON.parse(match[1]) : []
-  } catch {
-    // 解析不了就只显示文字
-  }
-  const summary = match ? output.slice(match.index + match[0].length).trim() : output
+// 搜索网页的结果：搜到的网页，以及总结
+function SearchResults({ thread, result }: { thread: string; result: ToolResult }) {
   return (
     <>
-      {links.length > 0 && (
+      {result.links && result.links.length > 0 && (
         <ul className={styles.links}>
-          {links.map((link, i) =>
-            link.url ? (
-              <li key={i}>
-                <a href={link.url} target="_blank" rel="noreferrer">
-                  <span className={styles.linkTitle}>{link.title || link.url}</span>
-                  <span className={styles.linkHost}>{hostOf(link.url)}</span>
-                </a>
-              </li>
-            ) : null,
-          )}
+          {result.links.map((link, i) => (
+            <li key={i}>
+              <a href={link.url} target="_blank" rel="noreferrer">
+                <span className={styles.linkTitle}>{link.title}</span>
+                <span className={styles.linkHost}>{hostOf(link.url)}</span>
+              </a>
+            </li>
+          ))}
         </ul>
       )}
-      {summary && <Markdown thread={thread} text={summary} />}
+      {result.output && <Markdown thread={thread} text={result.output} />}
     </>
   )
 }

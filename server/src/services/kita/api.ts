@@ -8,14 +8,13 @@ import { validator } from 'hono/validator'
 import { connectedPreamble, keepAlive } from '../../sse.js'
 import { agentAccounts, agentCatalogs } from './accounts.js'
 import { drivers } from './drivers/index.js'
-import { allLimits } from './limits.js'
+import { agentStatus } from './status.js'
 import { filesDir } from './store.js'
 import { activity, getKitaSession } from './sessions.js'
 import { addMemory, addPhoto, listMemories, maxDescriptionLength, maxMemoryLength, photoPattern, photosDir, readProfile, removeMemory, removePhoto, revertMemory, setAvatar, setDescription, updateMemory } from './identity.js'
 import { metadata } from './store.js'
 import { clipEvent } from './journal.js'
-import { agentIds } from './types.js'
-import type { AgentStatus, IdentityScope, KitaSessionEvent, Memory, MemoryChange, MemoryKind, MemorySource, NewMemory } from './types.js'
+import type { IdentityScope, KitaSessionEvent, Memory, MemoryChange, MemoryKind, MemorySource, NewMemory } from './types.js'
 
 const threadParam = validator('param', (value: Record<string, string>) => {
   const id = value.id ?? ''
@@ -93,9 +92,7 @@ const photoParam = validator('param', (value: Record<string, string>) => {
 // 建 session、说话由各个 app 在后端调用；各个 agent 自己的接口（比如在网页上登录）在 /<agent 的 id> 下
 export const kitaApi = new Hono()
   // 各个 agent 最近报告的额度和登录的状况，页面收到 agent 通知时重新读取
-  .get('/status', (c) =>
-    c.json({ limits: allLimits(), auth: Object.fromEntries(agentIds.map((agent) => [agent, drivers[agent].auth()])) as AgentStatus['auth'] } satisfies AgentStatus),
-  )
+  .get('/status', (c) => c.json(agentStatus()))
   // 各个 agent 的账号、登录凭证和用量
   .get('/accounts', async (c) => c.json({ accounts: await agentAccounts() }))
   // 各个 agent 能不能用、有哪些模型

@@ -38,7 +38,7 @@ export function Chat({
   memoryCount: number
   onCreated(id: string): void
 }) {
-  const { events, session, live, loadOlder } = useKitaSession(id)
+  const { events, live, loadOlder } = useKitaSession(id)
   const running = live !== null
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -117,7 +117,7 @@ export function Chat({
               )}
             </div>
           ) : (
-            <Transcript thread={id} agent={session?.agent} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
+            <Transcript thread={id} events={events} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
           )}
           {notice && <Alert>{notice}</Alert>}
         </div>

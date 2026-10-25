@@ -1,5 +1,5 @@
 import type { PageEvent } from '@binos/server/services/kita/journal'
-import type { AgentId, Attachment, Entry, Live, Status } from '@binos/server/services/kita/types'
+import type { Attachment, Entry, Live, Status } from '@binos/server/services/kita/types'
 import { ChevronRight } from 'lucide-react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
@@ -7,7 +7,6 @@ import { Alert } from '../../../ui/Alert.tsx'
 import { CopyButton } from '../../../ui/CopyButton.tsx'
 import { formatDuration, formatTokens, useNow } from '../../../ui/format.ts'
 import { formatClock, formatDivider, formatFull, sameDay } from '../../../ui/time.ts'
-import { modelName } from '../views.ts'
 import { AttachmentList } from './Attachments.tsx'
 import { Markdown } from './Markdown.tsx'
 import { SubagentCall } from './SubagentCall.tsx'
@@ -46,7 +45,6 @@ type Step =
 // 工具结果和子 agent 的条目按所属调用的 itemId 关联
 type Context = {
   thread: string
-  agent: AgentId | undefined
   results: Map<string, ToolResult>
   children: Map<string, PageEvent[]>
   live: Live | null
@@ -136,7 +134,6 @@ function editCalls(state: CallState, context: Context): CallState[] {
 // previousTime：上一轮最后一条的时间
 const TurnSection = memo(function TurnSection({
   thread,
-  agent,
   turn,
   previousTime,
   live,
@@ -144,14 +141,13 @@ const TurnSection = memo(function TurnSection({
   tail,
 }: {
   thread: string
-  agent: AgentId | undefined
   turn: Turn
   previousTime: string | undefined
   live: Live | null
   now: number
   tail?: ReactNode
 }) {
-  const context: Context = { thread, agent, results: turn.results, children: turn.children, live, now }
+  const context: Context = { thread, results: turn.results, children: turn.children, live, now }
   const blocks = buildBlocks(turn.main, context, previousTime)
   if (!blocks.length && !tail) {
     return null
@@ -213,7 +209,7 @@ function renderBlocks(blocks: Block[], context: Context, last: Block | undefined
           </div>
         )
       case 'turn_end':
-        return <TurnEnd key={block.key} thread={thread} agent={context.agent} item={block.item} reply={block.reply} edits={block.edits} />
+        return <TurnEnd key={block.key} thread={thread} item={block.item} reply={block.reply} edits={block.edits} />
     }
   })
 }
@@ -314,14 +310,14 @@ function compactText({ trigger, preTokens, postTokens }: CompactItem) {
 }
 
 // 一轮的结尾：停止、出错，以及这一轮的统计
-function TurnEnd({ thread, agent, item, reply, edits }: { thread: string; agent: AgentId | undefined; item: TurnEndItem; reply: string; edits: CallState[] }) {
+function TurnEnd({ thread, item, reply, edits }: { thread: string; item: TurnEndItem; reply: string; edits: CallState[] }) {
   const files = fileChanges(edits)
-  const { durationMs, outputTokens, context, model, outcome, error } = item
+  const { durationMs, outputTokens, context, model, modelName, outcome, error } = item
   const stats = [
     `用时 ${formatDuration(durationMs)}`,
     outputTokens !== undefined && `输出 ${formatTokens(outputTokens)} token`,
     context && `上下文 ${Math.round((context.tokens / context.window) * 100)}%`,
-    model && (agent ? modelName(agent, model) : model),
+    modelName ?? model,
   ].filter(Boolean)
   const changes = files.length > 0 && <TurnChanges thread={thread} files={files} />
   if (outcome === 'stopped') {
@@ -390,14 +386,12 @@ function turnTop(scroller: HTMLElement, turn: string) {
 // 第一条的 seq 大于 1 时滚到离顶部不远处由 loadOlder 补读更早的轮；scrollRef 是对话滚动的那一层
 export function Transcript({
   thread,
-  agent,
   events,
   live,
   scrollRef,
   loadOlder,
 }: {
   thread: string
-  agent: AgentId | undefined
   events: PageEvent[]
   live: Live | null
   scrollRef: RefObject<HTMLElement | null>
@@ -473,7 +467,6 @@ export function Transcript({
           <TurnSection
             key={turn.id}
             thread={thread}
-            agent={agent}
             turn={turn}
             previousTime={turns[index - 1]?.main.at(-1)?.data.time}
             live={last ? live : null}
