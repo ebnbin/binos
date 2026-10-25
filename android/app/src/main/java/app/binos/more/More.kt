@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.School
@@ -115,6 +116,7 @@ import app.binos.shell.BuildsRoute
 import app.binos.shell.CalendarRoute
 import app.binos.shell.DevicesRoute
 import app.binos.shell.ExternalAppsRoute
+import app.binos.shell.KitaRoute
 import app.binos.shell.LocalNav
 import app.binos.shell.SettingsRoute
 import app.binos.shell.SystemRoute
@@ -141,6 +143,7 @@ data class AppRegistry(val external: List<ExternalApp> = emptyList())
 private data class Entry(val label: String, val icon: ImageVector, val route: Any)
 
 private val builtins = listOf(
+    Entry("喜多", Icons.Outlined.Pets, KitaRoute),
     Entry("系统", Icons.Outlined.Speed, SystemRoute),
     Entry("Agent", Icons.Outlined.SmartToy, AccountsRoute),
     Entry("日历", Icons.Outlined.CalendarMonth, CalendarRoute),

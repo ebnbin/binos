@@ -56,6 +56,10 @@ import app.binos.code.CodeHomeScreen
 import app.binos.code.ConversationScreen
 import app.binos.files.FilePreviewScreen
 import app.binos.files.FilesScreen
+import app.binos.kita.KitaChatScreen
+import app.binos.kita.KitaMemoriesScreen
+import app.binos.kita.KitaProfileScreen
+import app.binos.kita.KitaScreen
 import app.binos.more.BrowserScreen
 import app.binos.more.BuildLogScreen
 import app.binos.more.BuildsScreen
@@ -129,6 +133,10 @@ fun MainScreen() {
                     composable<CodeRoute> { CodeHomeScreen() }
                     composable<SessionRoute> { ConversationScreen(it.toRoute<SessionRoute>().id, null, it.toRoute<SessionRoute>().item.takeIf { item -> item >= 0 }) }
                     composable<NewSessionRoute> { ConversationScreen(null, it.toRoute<NewSessionRoute>().project.ifEmpty { null }, null) }
+                    composable<KitaRoute> { KitaScreen() }
+                    composable<KitaChatRoute> { it.toRoute<KitaChatRoute>().let { route -> KitaChatScreen(route.id.ifEmpty { null }, route.temporary) } }
+                    composable<KitaMemoriesRoute> { KitaMemoriesScreen() }
+                    composable<KitaProfileRoute> { KitaProfileScreen() }
                     composable<TerminalRoute> { TerminalHomeScreen() }
                     composable<TerminalSessionRoute> { TerminalScreen(it.toRoute<TerminalSessionRoute>().id) }
                     composable<MusicRoute> { MusicScreen() }

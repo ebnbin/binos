@@ -13,6 +13,12 @@ import kotlinx.serialization.Serializable
 @Serializable data class SessionRoute(val id: Int, val item: Int = -1)
 @Serializable data class NewSessionRoute(val project: String = "")
 
+// 喜多：id 为空是新对话，temporary 只对新对话有意义
+@Serializable data object KitaRoute
+@Serializable data class KitaChatRoute(val id: String = "", val temporary: Boolean = false)
+@Serializable data object KitaMemoriesRoute
+@Serializable data object KitaProfileRoute
+
 // 终端里的一个会话
 @Serializable data class TerminalSessionRoute(val id: String)
 
