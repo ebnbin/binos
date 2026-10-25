@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -32,13 +34,16 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RepeatOne
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SkipNext
 import androidx.compose.material.icons.outlined.SkipPrevious
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -46,6 +51,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -60,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,6 +80,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -87,7 +96,8 @@ fun MusicScreen() {
     LaunchedEffect(Unit) { MusicPlayer.connect() }
     val queue by MusicStore.queue.collectAsStateWithLifecycle()
     val providers by MusicStore.providers.collectAsStateWithLifecycle()
-    val storeError by MusicStore.error.collectAsStateWithLifecycle()
+    val sync by MusicStore.sync.collectAsStateWithLifecycle()
+    val synced by MusicStore.synced.collectAsStateWithLifecycle()
     var providerId by rememberSaveable { mutableStateOf<String?>(null) }
     val provider = providers.find { it.id == providerId } ?: providers.firstOrNull()
     var query by rememberSaveable { mutableStateOf("") }
@@ -98,9 +108,12 @@ fun MusicScreen() {
     var tab by rememberSaveable { mutableStateOf(0) }
     var providerMenu by remember { mutableStateOf(false) }
     var lyricsOpen by remember { mutableStateOf(false) }
+    var settingsOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val tracks = queue.orEmpty()
     val current = tracks.find { it.key == MusicPlayer.currentKey }
+    // 歌词、相似歌曲看正在播放的这首来自哪个来源，不是查找用的那个
+    val currentProvider = current?.let { track -> providers.find { it.id == track.ref.provider } }
     val queued = tracks.map { it.key }.toSet()
 
     fun search(more: Boolean = false) {
@@ -123,11 +136,27 @@ fun MusicScreen() {
         }
     }
 
+    // 正在播放的这首的相似歌曲，结果放进查找结果
+    fun related(track: Track) {
+        busy = true
+        message = null
+        tab = 1
+        results = null
+        lastSearch = null
+        scope.launch {
+            runCatching { MusicStore.catalog(track.ref.provider, "recommendations", track.ref.id) }
+                .onSuccess { page -> results = page; message = page.warning }
+                .onFailure { message = it.message ?: "请求失败，请检查网络后重试" }
+            busy = false
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("音乐") },
                 actions = {
+                    if (provider?.configuration?.fields?.isNotEmpty() == true) IconButton(onClick = { settingsOpen = true }) { Icon(Icons.Outlined.Settings, "音乐来源设置") }
                     if (providers.size > 1) {
                         Box {
                             TextButton(onClick = { providerMenu = true }) { Text(provider?.name ?: "") }
@@ -162,7 +191,10 @@ fun MusicScreen() {
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).onEnter { search() },
                 )
             }
-            item(key = "now") { NowPlaying(current, provider) { lyricsOpen = true } }
+            (provider?.unavailableReason(provider.operationFor(query.trim())))?.let { reason ->
+                item(key = "capability") { Text(reason, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+            }
+            item(key = "now") { NowPlaying(current, currentProvider, busy, { lyricsOpen = true }) { current?.let(::related) } }
             item(key = "tabs") {
                 PrimaryTabRow(selectedTabIndex = tab) {
                     Tab(tab == 0, onClick = { tab = 0 }, text = { Text("队列 ${tracks.size}") })
@@ -178,8 +210,18 @@ fun MusicScreen() {
                     }) { Text("全部加入") }
                 }
             }
-            (message ?: storeError ?: MusicPlayer.error)?.let { text ->
+            (message ?: MusicPlayer.error)?.let { text ->
                 item(key = "message") { Text(text, Modifier.padding(horizontal = 16.dp, vertical = 4.dp), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+            if (tab == 0) {
+                item(key = "sync") {
+                    Text(
+                        if (tracks.size >= maxQueue) "队列已满（$maxQueue 首）" else sync,
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        color = if (synced) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.tertiary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
             val shown = if (tab == 0) tracks else results?.tracks.orEmpty()
             if (shown.isEmpty()) {
@@ -229,6 +271,9 @@ fun MusicScreen() {
             pendingPlay = null
         }
     }
+    if (settingsOpen && provider != null) {
+        ModalBottomSheet(onDismissRequest = { settingsOpen = false }) { ProviderSettings(provider) }
+    }
     if (lyricsOpen && current != null) {
         ModalBottomSheet(onDismissRequest = { lyricsOpen = false }) { LyricsView(current) }
     }
@@ -237,7 +282,7 @@ fun MusicScreen() {
 private var pendingPlay by mutableStateOf<String?>(null)
 
 @Composable
-private fun NowPlaying(track: Track?, provider: ProviderInfo?, onLyrics: () -> Unit) {
+private fun NowPlaying(track: Track?, provider: ProviderInfo?, busy: Boolean, onLyrics: () -> Unit, onRelated: () -> Unit) {
     val uriHandler = LocalUriHandler.current
     var position by remember { mutableLongStateOf(0L) }
     var dragging by remember { mutableStateOf<Float?>(null) }
@@ -306,9 +351,16 @@ private fun NowPlaying(track: Track?, provider: ProviderInfo?, onLyrics: () -> U
                 else Icon(if (MusicPlayer.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, if (MusicPlayer.playing) "暂停" else "播放", Modifier.size(36.dp))
             }
             IconButton(onClick = { MusicPlayer.next() }, enabled = track != null) { Icon(Icons.Outlined.SkipNext, "下一首", Modifier.size(32.dp)) }
-            Box {
-                if (track != null && provider?.available("lyrics") == true) IconButton(onClick = onLyrics) { Icon(Icons.Outlined.Lyrics, "歌词") }
-                else if (track != null) IconButton(onClick = { uriHandler.openUri(track.externalUrl) }) { Icon(Icons.Outlined.OpenInNew, "在来源打开") }
+            if (track != null && provider?.available("lyrics") == true) IconButton(onClick = onLyrics) { Icon(Icons.Outlined.Lyrics, "歌词") }
+        }
+        if (track != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (provider?.available("recommendations") == true) TextButton(onClick = onRelated, enabled = !busy) { Text("发现相似歌曲") }
+                TextButton(onClick = { uriHandler.openUri(track.externalUrl) }) {
+                    Icon(Icons.Outlined.OpenInNew, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("在${provider?.name ?: "来源"}打开")
+                }
             }
         }
     }
@@ -384,5 +436,48 @@ fun MiniPlayer(onOpen: () -> Unit) {
             IconButton(onClick = { MusicPlayer.toggle() }) { Icon(if (MusicPlayer.playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow, if (MusicPlayer.playing) "暂停" else "播放") }
             IconButton(onClick = { MusicPlayer.next() }) { Icon(Icons.Outlined.SkipNext, "下一首") }
         }
+    }
+}
+
+// 音乐来源的连接设置：每项单独保存，已配置的可以替换或移除，值不回显
+@Composable
+private fun ProviderSettings(provider: ProviderInfo) {
+    val values = remember(provider.id) { mutableStateMapOf<String, String>() }
+    var saving by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val uriHandler = LocalUriHandler.current
+    fun save(patch: Map<String, String>) {
+        saving = true
+        message = null
+        scope.launch {
+            runCatching { MusicStore.configure(provider.id, patch) }
+                .onSuccess { patch.keys.forEach { values.remove(it) }; message = "连接设置已保存。" }
+                .onFailure { message = it.message ?: "保存失败，请重试。" }
+            saving = false
+        }
+    }
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(provider.name, style = MaterialTheme.typography.titleLarge)
+        if (provider.description.isNotEmpty()) Text(provider.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        provider.configuration.fields.forEach { field ->
+            HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Text(field.label + if (field.configured) " · 已配置" else "", style = MaterialTheme.typography.titleSmall)
+            if (field.description.isNotEmpty()) Text(field.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = values[field.id] ?: "",
+                onValueChange = { values[field.id] = it },
+                placeholder = { Text(if (field.configured) "输入新值以替换" else field.label) },
+                singleLine = true,
+                visualTransformation = if (field.secret) PasswordVisualTransformation() else VisualTransformation.None,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { save(mapOf(field.id to values[field.id].orEmpty().trim())) }, enabled = !saving && !values[field.id].isNullOrBlank()) { Text("保存") }
+                if (field.configured) TextButton(onClick = { save(mapOf(field.id to "")) }, enabled = !saving) { Text("移除") }
+                field.links.forEach { link -> TextButton(onClick = { uriHandler.openUri(link.url) }) { Text(link.label) } }
+            }
+        }
+        message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
     }
 }

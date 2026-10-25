@@ -118,11 +118,17 @@ object RemotePlayer {
     // 执行一条指令：先确认它还在等待执行，执行完报告结果。播放类的指令等到真的开始播放
     private suspend fun execute(command: JsonObject) {
         val id = command["id"]!!.jsonPrimitive.content
+        if (busy) {
+            report(buildJsonObject {
+                put("id", id)
+                put("error", "播放器正在执行另一条指令。")
+            })
+            return
+        }
         var error: String? = null
+        busy = true
         try {
-            if (busy) throw IllegalStateException("播放器正在执行另一条指令。")
-            busy = true
-            MusicStore.reload()
+            MusicStore.refreshQueue()
             val latest = app.api.getJson("$base/commands/${encode(id)}").jsonObject
             if (latest["status"]?.jsonPrimitive?.content != "pending") return
             val body = command["command"]!!.jsonObject
