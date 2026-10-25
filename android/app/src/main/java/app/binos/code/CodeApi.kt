@@ -5,22 +5,12 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import app.binos.net.Api
 import app.binos.net.ApiException
-import app.binos.net.StreamSignal
-import app.binos.net.eventStream
 import app.binos.net.json
 import app.binos.net.octetType
-import kotlinx.coroutines.flow.Flow
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -142,66 +132,6 @@ class CodeApi(private val api: Api) {
 
     fun fileUrl(thread: String, file: String, name: String? = null): String =
         api.url("/api/kita/sessions/${encode(thread)}/files/${encode(file)}").newBuilder().apply { name?.let { addQueryParameter("name", it) } }.build().toString()
-
-    // thread 的推送：from() 是已收到的条数，断线重连时接着补发
-    fun threadStream(thread: String, from: () -> Int): Flow<StreamSignal> =
-        api.eventStream { api.url("/api/kita/sessions/${encode(thread)}/stream?from=${from()}").toString() }
-}
-
-// thread 的内容：条目随推送追加，临时内容随推送更新；在主线程上修改，界面直接读取
-class ThreadState {
-    val items = mutableStateListOf<Entry>()
-    var live by mutableStateOf<Live?>(null)
-        private set
-    var loaded by mutableStateOf(false)
-        private set
-
-    fun apply(signal: StreamSignal) {
-        if (signal == StreamSignal.Open) loaded = true
-        if (signal !is StreamSignal.Message) return
-        val event = runCatching { json.parseToJsonElement(signal.message.data).jsonObject }.getOrNull() ?: return
-        when (event["type"]?.jsonPrimitive?.content) {
-            "event" -> {
-                val record = event["event"]!!.jsonObject
-                val seq = record["seq"]!!.jsonPrimitive.content.toInt()
-                if (seq != items.size + 1) return
-                val entry = parseEntry(record["data"]!!)
-                items.add(entry)
-                live = live?.let { applyEntry(it, entry) }
-            }
-            "live" -> live = event["live"]?.takeIf { it !is JsonNull }?.let(::parseLive)
-            else -> live = live?.let { applyLiveEvent(it, event) }
-        }
-    }
-}
-
-private fun parseLive(element: JsonElement): Live = runCatching { json.decodeFromJsonElement(Live.serializer(), element) }.getOrElse {
-    val obj = element.jsonObject
-    Live(thinking = obj["thinking"]?.jsonPrimitive?.content ?: "", text = obj["text"]?.jsonPrimitive?.content ?: "")
-}
-
-// 记成条目的思考和文字取代对应的临时内容
-private fun applyEntry(live: Live, entry: Entry): Live = when {
-    entry.parent != null -> live
-    entry is Entry.Text -> live.copy(text = "", files = emptyMap())
-    entry is Entry.Thinking -> live.copy(thinking = "")
-    else -> live
-}
-
-private fun applyLiveEvent(live: Live, event: JsonObject): Live {
-    val text = { event["text"]?.jsonPrimitive?.content ?: "" }
-    return when (event["type"]?.jsonPrimitive?.content) {
-        "thinking" -> live.copy(thinking = live.thinking + text())
-        "text" -> live.copy(text = live.text + text())
-        "file" -> live.copy(files = live.files + (event["path"]!!.jsonPrimitive.content to event["name"]!!.jsonPrimitive.content))
-        "status" -> live.copy(status = event["status"]?.takeIf { it !is JsonNull }?.let { runCatching { json.decodeFromJsonElement(Status.serializer(), it) }.getOrNull() })
-        "task" -> {
-            val callId = event["callId"]!!.jsonPrimitive.content
-            val progress = event["progress"]?.takeIf { it !is JsonNull }?.let { json.decodeFromJsonElement(TaskProgress.serializer(), it) }
-            live.copy(tasks = if (progress == null) live.tasks - callId else live.tasks + (callId to progress))
-        }
-        else -> live
-    }
 }
 
 fun encode(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")

@@ -19,13 +19,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.time.Instant
+import java.util.IdentityHashMap
+import java.util.Optional
+import java.util.WeakHashMap
 
 // 和 web/src/services/kita/session 的 Transcript.tsx、tools.ts、transcript-index.ts 对应：把条目整理成显示的块
 
 data class IndexedEntry(val item: Entry, val index: Int)
 
-// live：这一轮还在回答，没有结果的调用还在运行
-data class CallState(val call: Entry.ToolCall, val result: Entry.ToolResult?, val live: Boolean) {
+// index：调用在整个 thread 里的位置；live：这一轮还在回答，没有结果的调用还在运行
+data class CallState(val call: Entry.ToolCall, val index: Int, val result: Entry.ToolResult?, val live: Boolean) {
     val status: String get() = result?.status ?: if (live) "running" else "stopped"
 
     fun durationMs(now: Long): Long? = when {
@@ -35,29 +38,34 @@ data class CallState(val call: Entry.ToolCall, val result: Entry.ToolResult?, va
     }
 }
 
-// 工具结果和子 agent 的条目按所属调用关联；调用 id 只在当前轮内匹配
-class TranscriptIndex(items: List<Entry>) {
-    val results = HashMap<Entry.ToolCall, Entry.ToolResult>()
-    val children = HashMap<Entry.ToolCall, MutableList<IndexedEntry>>()
-    val main = ArrayList<IndexedEntry>()
+// 一轮：从 mode 为 start 的 input 到下一个之前，第一轮之前的条目单独成一组。start 和条目的 index 都是在整个 thread 里的位置。
+// 调用 id 只在当前轮内匹配；结果和子 agent 的条目按调用对象（不是内容相等）关联
+class Turn(val first: Entry, val start: Int, val size: Int, val main: List<IndexedEntry>, val results: Map<Entry.ToolCall, Entry.ToolResult>, val children: Map<Entry.ToolCall, List<IndexedEntry>>)
 
-    init {
-        var turn = ArrayList<IndexedEntry>()
-        fun flush() {
-            val calls = turn.mapNotNull { it.item as? Entry.ToolCall }.associateBy { it.id }
-            for (entry in turn) {
-                val item = entry.item
-                if (item is Entry.ToolResult) calls[item.callId]?.let { results[it] = item }
-                val parent = item.parent?.let { calls[it] }
-                if (parent != null) children.getOrPut(parent) { ArrayList() }.add(entry) else main.add(entry)
-            }
-            turn = ArrayList()
-        }
-        items.forEachIndexed { index, item ->
-            if (item is Entry.Input && item.mode == "start") flush()
-            turn.add(IndexedEntry(item, index))
-        }
-        flush()
+private fun indexTurn(items: List<Entry>, offset: Int, start: Int, end: Int): Turn {
+    val entries = (start until end).map { IndexedEntry(items[it], offset + it) }
+    val calls = HashMap<String, Entry.ToolCall>()
+    entries.forEach { (item) -> if (item is Entry.ToolCall) calls[item.id] = item }
+    val results = IdentityHashMap<Entry.ToolCall, Entry.ToolResult>()
+    val children = IdentityHashMap<Entry.ToolCall, MutableList<IndexedEntry>>()
+    val main = ArrayList<IndexedEntry>()
+    for (entry in entries) {
+        val item = entry.item
+        if (item is Entry.ToolResult) calls[item.callId]?.let { results[it] = item }
+        val parent = item.parent?.let { calls[it] }
+        if (parent != null) children.getOrPut(parent) { ArrayList() }.add(entry) else main.add(entry)
+    }
+    return Turn(items[start], offset + start, end - start, main, results, children)
+}
+
+// 条目只会在两头增加：和 previous 里同一段条目的轮沿用原来的对象，这些轮不用重新整理
+fun splitTurns(items: List<Entry>, previous: List<Turn>, offset: Int): List<Turn> {
+    val reusable = previous.associateBy { it.start }
+    val starts = items.indices.filter { it == 0 || items[it].let { item -> item is Entry.Input && item.mode == "start" } }
+    return starts.mapIndexed { i, start ->
+        val end = starts.getOrNull(i + 1) ?: items.size
+        val old = reusable[offset + start]
+        if (old != null && old.first === items[start] && old.size == end - start) old else indexTurn(items, offset, start, end)
     }
 }
 
@@ -67,7 +75,8 @@ sealed interface Step {
 
     data class Thinking(override val key: String, override val time: String, val text: String, val durationMs: Long?) : Step
     data class Tool(override val key: String, override val time: String, val state: CallState) : Step
-    data class Subagent(override val key: String, override val time: String, val state: CallState) : Step
+    // turn：子 agent 的条目在它里面
+    data class Subagent(override val key: String, override val time: String, val state: CallState, val turn: Turn) : Step
 }
 
 sealed interface Block {
@@ -87,7 +96,8 @@ sealed interface Block {
 // 一轮开始时离上一条超过这么久，先显示一条时间
 private const val dividerGapMs = 30 * 60 * 1000L
 
-fun buildBlocks(entries: List<IndexedEntry>, index: TranscriptIndex, running: Boolean): List<Block> {
+// lastTime：上一条的时间，一轮开始时离它太久或者跨了天，就先显示一条时间
+fun buildBlocks(entries: List<IndexedEntry>, turn: Turn, running: Boolean, lastTime: String? = null): List<Block> {
     val blocks = ArrayList<Block>()
     fun addStep(step: Step) {
         val last = blocks.lastOrNull()
@@ -95,12 +105,12 @@ fun buildBlocks(entries: List<IndexedEntry>, index: TranscriptIndex, running: Bo
     }
     var replies = ArrayList<String>()
     var edits = ArrayList<CallState>()
-    var lastTime: Long? = null
+    var current: Long? = lastTime?.let(::parseTime)
     for ((item, position) in entries) {
         val key = position.toString()
-        val previous = lastTime
+        val previous = current
         val time = parseTime(item.time)
-        lastTime = time
+        current = time
         when (item) {
             is Entry.Input -> {
                 if (item.mode == "start") {
@@ -121,9 +131,9 @@ fun buildBlocks(entries: List<IndexedEntry>, index: TranscriptIndex, running: Bo
                 blocks.add(Block.Text(key, item.text, item.files))
             }
             is Entry.ToolCall -> {
-                val state = CallState(item, index.results[item], running)
-                edits.addAll(editCalls(state, index))
-                addStep(if (item.tool is ToolDetail.Subagent) Step.Subagent(key, item.time, state) else Step.Tool(key, item.time, state))
+                val state = CallState(item, position, turn.results[item], running)
+                edits.addAll(editCalls(state, turn))
+                addStep(if (item.tool is ToolDetail.Subagent) Step.Subagent(key, item.time, state, turn) else Step.Tool(key, item.time, state))
             }
             is Entry.Compact -> blocks.add(Block.Compact(key, item))
             is Entry.TurnEnd -> blocks.add(Block.TurnEnd(key, item, replies.joinToString("\n\n"), edits))
@@ -134,10 +144,10 @@ fun buildBlocks(entries: List<IndexedEntry>, index: TranscriptIndex, running: Bo
 }
 
 // 这次调用改了文件就是它自己；是子 agent 时，是子 agent 里改文件的调用
-private fun editCalls(state: CallState, index: TranscriptIndex): List<CallState> {
+private fun editCalls(state: CallState, turn: Turn): List<CallState> {
     if (state.call.tool is ToolDetail.Edit) return listOf(state)
-    return index.children[state.call].orEmpty().flatMap { (item) ->
-        if (item is Entry.ToolCall) editCalls(CallState(item, index.results[item], state.live), index) else emptyList()
+    return turn.children[state.call].orEmpty().flatMap { (item, index) ->
+        if (item is Entry.ToolCall) editCalls(CallState(item, index, turn.results[item], state.live), turn) else emptyList()
     }
 }
 
@@ -255,7 +265,12 @@ fun patchLines(diff: String): List<DiffLine> = diff.removeSuffix("\n").split('\n
 
 data class LineChanges(val added: Int, val removed: Int)
 
-fun lineChanges(call: Entry.ToolCall): LineChanges? {
+// 条目不会变，算过的记下来：每次重组都对整段内容做 diff 太慢
+private val lineChangesCache = WeakHashMap<Entry.ToolCall, Optional<LineChanges>>()
+
+fun lineChanges(call: Entry.ToolCall): LineChanges? = lineChangesCache.getOrPut(call) { Optional.ofNullable(countLines(call)) }.orElse(null)
+
+private fun countLines(call: Entry.ToolCall): LineChanges? {
     val change = (call.tool as? ToolDetail.Edit)?.change ?: return null
     return when (change) {
         is FileChange.Write -> LineChanges(change.content.removeSuffix("\n").split('\n').size, 0)

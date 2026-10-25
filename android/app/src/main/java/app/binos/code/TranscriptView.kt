@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,7 +76,6 @@ import kotlinx.serialization.json.JsonElement
 class TranscriptContext(
     val thread: String,
     val agent: String?,
-    val index: TranscriptIndex,
     val live: Live?,
     val now: Long,
     val onOpenFile: (url: String, name: String) -> Unit,
@@ -243,7 +243,7 @@ private fun StepView(step: Step, context: TranscriptContext) {
     when (step) {
         is Step.Thinking -> ThinkingView(step.text, step.durationMs, context)
         is Step.Tool -> ToolCallView(step.state, context)
-        is Step.Subagent -> SubagentView(step.state, context)
+        is Step.Subagent -> SubagentView(step.state, step.turn, context)
     }
 }
 
@@ -326,7 +326,7 @@ private fun ToolCallView(state: CallState, context: TranscriptContext) {
         }
         if (open) {
             Column(Modifier.padding(start = 24.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                ToolBody(state.call, state.result, context)
+                ToolBody(state, context)
             }
         }
     }
@@ -352,9 +352,21 @@ private fun removedColor() = if (MaterialTheme.colorScheme.surface.luminance() <
 
 private fun Color.luminance() = 0.2126f * red + 0.7152f * green + 0.0722f * blue
 
+// 发给页面时省略过的调用，展开时读完整的；还没读到或读不到时用已有的。结果是读完之后才到的，就还用已有的
+@Composable
+private fun rememberFullCall(thread: String, state: CallState): Pair<Entry.ToolCall, Entry.ToolResult?> {
+    val clipped = state.call.clipped || state.result?.clipped == true
+    var full by remember(thread, state.index) { mutableStateOf<Triple<Entry.ToolResult?, Entry.ToolCall, Entry.ToolResult?>?>(null) }
+    LaunchedEffect(thread, state.index, clipped, state.result) {
+        if (clipped) readFullCall(thread, state.index)?.let { (call, result) -> full = Triple(state.result, call, result) }
+    }
+    return full?.takeIf { it.first === state.result }?.let { it.second to it.third } ?: (state.call to state.result)
+}
+
 // 展开一次工具调用看到的内容：常用的几类按各自的样子显示，其他的显示参数和输出
 @Composable
-private fun ToolBody(call: Entry.ToolCall, result: Entry.ToolResult?, context: TranscriptContext) {
+private fun ToolBody(state: CallState, context: TranscriptContext) {
+    val (call, result) = rememberFullCall(context.thread, state)
     val failed = result?.status == "error" && call.tool !is ToolDetail.Command
     if (failed) {
         Output(result)
@@ -416,7 +428,7 @@ private fun Output(result: Entry.ToolResult?) {
             .verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState()).padding(10.dp),
     ) {
         Text(
-            (if (result.truncated) "…（前面的输出已省略）\n" else "") + output,
+            (if (result.truncated || result.clipped) "…（前面的输出已省略）\n" else "") + output,
             style = codeStyle,
             color = if (result.status == "error") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             softWrap = false,
@@ -442,7 +454,7 @@ private fun TerminalOutput(command: String, result: Entry.ToolResult?) {
                 result?.output?.takeIf { it.isNotEmpty() }?.let {
                     pushStyle(androidx.compose.ui.text.SpanStyle(color = if (result.status == "error") Color(0xFFFF7B72) else Color(0xFFB0B8C1)))
                     append("\n")
-                    if (result.truncated) append("…（前面的输出已省略）\n")
+                    if (result.truncated || result.clipped) append("…（前面的输出已省略）\n")
                     append(it)
                     pop()
                 }
@@ -522,11 +534,11 @@ private fun String.toHttpHost() = runCatching { java.net.URI(this).host }.getOrN
 
 // 子 agent：卡片里是任务描述和进度，点开看它的过程
 @Composable
-private fun SubagentView(state: CallState, context: TranscriptContext) {
+private fun SubagentView(state: CallState, turn: Turn, context: TranscriptContext) {
     var open by rememberSaveable(state.call.id) { mutableStateOf(false) }
     val tool = state.call.tool as ToolDetail.Subagent
     val progress = context.live?.tasks?.get(state.call.id)
-    val children = context.index.children[state.call]
+    val children = turn.children[state.call]
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).animateContentSize(),
@@ -557,13 +569,16 @@ private fun SubagentView(state: CallState, context: TranscriptContext) {
                 }
                 if (!children.isNullOrEmpty()) {
                     HorizontalDivider()
-                    val blocks = buildBlocks(children, context.index, state.live)
+                    val blocks = remember(children, state.live) { buildBlocks(children, turn, state.live) }
                     blocks.forEach { BlockView(it, context, it === blocks.last()) }
-                }
-                state.result?.output?.takeIf { it.isNotBlank() }?.let {
-                    HorizontalDivider()
-                    Text("结果", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Markdown(it, style = MaterialTheme.typography.bodyMedium)
+                } else if (state.result?.output?.isNotBlank() == true) {
+                    // 没有过程的记录时显示交回的结果，发给页面时省略过就读完整的
+                    val (_, result) = rememberFullCall(context.thread, state)
+                    result?.output?.takeIf { it.isNotBlank() }?.let {
+                        HorizontalDivider()
+                        Text("结果", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Markdown(it, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
             }
         }

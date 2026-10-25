@@ -224,6 +224,7 @@ sealed interface Entry {
     @Serializable @SerialName("text")
     data class Text(override val time: String, val text: String, val files: Map<String, String> = emptyMap(), override val parent: String? = null) : Entry
 
+    // clipped：发给页面时省略了过长的命令（只留开头）或输出（只留末尾），完整的按调用的位置另外读
     @Serializable @SerialName("tool_call")
     data class ToolCall(
         override val time: String,
@@ -232,6 +233,7 @@ sealed interface Entry {
         val tool: ToolDetail = ToolDetail.Other,
         val input: JsonElement? = null,
         val background: Boolean = false,
+        val clipped: Boolean = false,
         override val parent: String? = null,
     ) : Entry
 
@@ -243,6 +245,7 @@ sealed interface Entry {
         val output: String? = null,
         val truncated: Boolean = false,
         val images: List<String> = emptyList(),
+        val clipped: Boolean = false,
         override val parent: String? = null,
     ) : Entry
 

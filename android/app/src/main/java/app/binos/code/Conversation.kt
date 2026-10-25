@@ -8,32 +8,23 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Unarchive
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -46,19 +37,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -79,11 +66,6 @@ import app.binos.shell.LocalNav
 import app.binos.shell.NewSessionRoute
 import app.binos.shell.SessionRoute
 import app.binos.ui.ImageViewer
-import app.binos.ui.Markdown
-import app.binos.ui.download
-import app.binos.ui.formatElapsed
-import app.binos.ui.rememberNow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // 待发的附件
@@ -93,7 +75,6 @@ data class PendingFile(val uri: Uri, val name: String, val image: Boolean)
 private val created = HashMap<Int, Pair<String, String>>()
 
 class ConversationModel(val sessionId: Int?, initialProject: String?) : ViewModel() {
-    val thread = ThreadState()
     var project by mutableStateOf(initialProject)
     var picked by mutableStateOf<Choice?>(null)
     val pending = mutableStateListOf<PendingFile>()
@@ -115,14 +96,10 @@ class ConversationModel(val sessionId: Int?, initialProject: String?) : ViewMode
 
     fun threadId(session: SessionSummary?): String? = session?.kitaSession ?: sessionId?.let { created[it]?.first }
 
-    suspend fun follow(thread: String) {
-        CodeStore.api.threadStream(thread) { this.thread.items.size }.collect { this.thread.apply(it) }
-    }
-
     fun choice(session: SessionSummary?): Choice = picked ?: Choice(session?.agent ?: defaultAgent, session?.model, session?.effort)
 
     // 发送成功后清空输入；新对话返回新 session 的编号
-    fun send(resolver: ContentResolver, mode: SendMode, session: SessionSummary?, onCreated: (Int) -> Unit) {
+    fun send(resolver: ContentResolver, mode: SendMode, session: SessionSummary?, running: Boolean, onCreated: (Int) -> Unit) {
         if (sending || input.isBlank() && pending.isEmpty()) return
         sending = true
         notice = null
@@ -131,7 +108,7 @@ class ConversationModel(val sessionId: Int?, initialProject: String?) : ViewMode
             try {
                 val uploads = pending.map { CodeStore.api.upload(resolver, it.uri) }
                 val projectId = session?.project ?: project ?: "binos"
-                val (id, thread) = CodeStore.api.send(sessionId, projectId, input.trim(), uploads, if (session?.running == true || this@ConversationModel.thread.live != null) mode else SendMode.Send, choice(session))
+                val (id, thread) = CodeStore.api.send(sessionId, projectId, input.trim(), uploads, if (session?.running == true || running) mode else SendMode.Send, choice(session))
                 updateInput("")
                 pending.clear()
                 if (sessionId == null) {
@@ -174,23 +151,21 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
     val projects by CodeStore.projects.collectAsStateWithLifecycle()
     val session = sessions?.find { it.id == sessionId }
     val thread = model.threadId(session)
-    val state = model.thread
-    val live = state.live
-    val running = live != null
+    val state = remember(thread) { thread?.let(ThreadCache::get) }
+    val running = state?.live != null
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var viewing by remember { mutableStateOf<Pair<String, String>?>(null) }
     var renaming by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
     // 只在页面可见时跟着推送
     LaunchedEffect(thread) {
-        if (thread != null) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { model.follow(thread) }
+        if (state != null) lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { state.follow() }
     }
     // 正在看、又没在回答：记为已读
-    LaunchedEffect(sessionId, running, state.loaded) {
-        if (sessionId != null && state.loaded && !running) CodeStore.api.markRead(sessionId)
+    LaunchedEffect(sessionId, running, state?.loaded) {
+        if (sessionId != null && state?.loaded == true && !running) CodeStore.api.markRead(sessionId)
     }
 
     val missing = sessionId != null && sessions != null && session == null && thread == null
@@ -228,14 +203,14 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
                                 })
                                 DropdownMenuItem(text = { Text(if (session.pinned) "取消置顶" else "置顶") }, leadingIcon = { Icon(Icons.Outlined.PushPin, null) }, onClick = {
                                     menu = false
-                                    scope.launch { runCatching { CodeStore.api.edit(session.id, pinned = !session.pinned) } }
+                                    CodeStore.edit(session.id, pinned = !session.pinned)
                                 })
                                 DropdownMenuItem(
                                     text = { Text(if (session.archived) "取消归档" else "归档") },
                                     leadingIcon = { Icon(if (session.archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, null) },
                                     onClick = {
                                         menu = false
-                                        scope.launch { runCatching { CodeStore.api.edit(session.id, archived = !session.archived) } }
+                                        CodeStore.edit(session.id, archived = !session.archived)
                                     },
                                 )
                                 session.prs.forEach { pr ->
@@ -268,7 +243,7 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
                     running = running,
                     agentFixed = sessionId != null,
                     onSend = { mode ->
-                        model.send(context.contentResolver, mode, session) { id ->
+                        model.send(context.contentResolver, mode, session, running) { id ->
                             nav.navigate(SessionRoute(id)) { popUpTo<NewSessionRoute> { inclusive = true } }
                         }
                     },
@@ -280,8 +255,8 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
             when {
                 missing -> Text("这个对话不存在", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 sessionId == null -> NewConversation(model, projects)
-                thread == null || !state.loaded && state.items.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                else -> TranscriptList(model, thread, targetItem) { url, name -> if (isImage(name)) viewing = url to name else nav.navigate(FilePreviewRoute(url, name)) }
+                state == null || !state.loaded && state.items.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                else -> Transcript(state, model.notice, model.stickRequests, targetItem) { url, name -> if (isImage(name)) viewing = url to name else nav.navigate(FilePreviewRoute(url, name)) }
             }
         }
     }
@@ -315,102 +290,6 @@ private fun NewConversation(model: ConversationModel, projects: List<Project>?) 
                     })
                 }
             }
-        }
-    }
-}
-
-// 对话内容：倒序排列的列表，新内容出现在底部；往上翻看时不打扰
-@Composable
-private fun TranscriptList(model: ConversationModel, thread: String, targetItem: Int?, onOpenFile: (String, String) -> Unit) {
-    val state = model.thread
-    val live = state.live
-    val now = rememberNow(live != null)
-    val items = state.items
-    val count = items.size
-    val running = live != null
-    val index = remember(count) { TranscriptIndex(items.toList()) }
-    val blocks = remember(index, running) { buildBlocks(index.main, index, running) }
-    val agent = (items.firstOrNull() as? Entry.Session)?.agent
-    val context = TranscriptContext(thread, agent, index, live, now, onOpenFile)
-    val runningTool = remember(index) { index.main.lastOrNull { (item) -> item is Entry.ToolCall && index.results[item] == null }?.item as? Entry.ToolCall }
-    val turnStart = remember(count) { items.lastOrNull { it is Entry.Input && it.mode == "start" }?.time }
-    val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val reversed = remember(blocks) { blocks.asReversed() }
-    val awayFromBottom by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
-    // 在底部时新内容到来会跟着滚到底；往上翻看时不打扰。倒序列表按条目保持位置，新条目插在前面时要手动滚回去
-    var stick by remember { mutableStateOf(targetItem == null) }
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
-            if (!scrolling) stick = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 120
-        }
-    }
-    LaunchedEffect(model.stickRequests) { stick = true }
-    LaunchedEffect(blocks.size, live?.text?.length, live?.thinking?.length, live != null, model.notice) {
-        if (stick) listState.scrollToItem(0)
-    }
-
-    // 从搜索结果跳过来时，滚到那一条并短暂高亮。倒序列表里条目前面还有提示和回答中的临时内容
-    var located by remember { mutableStateOf(targetItem == null) }
-    var highlight by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(blocks) {
-        if (!located && targetItem != null) {
-            val position = reversed.indexOfFirst { it is Block.Input && it.index == targetItem || it is Block.Text && it.key == targetItem.toString() }
-            if (position >= 0) {
-                val leading = listOfNotNull(model.notice, live, live?.text?.takeIf { it.isNotBlank() }, live?.thinking?.takeIf { it.isNotEmpty() }).size
-                listState.scrollToItem(position + leading, -listState.layoutInfo.viewportSize.height / 3)
-                located = true
-                highlight = reversed[position].key
-                delay(2000)
-                highlight = null
-            }
-        }
-    }
-
-    Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            reverseLayout = true,
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            model.notice?.let { notice ->
-                item(key = "notice") {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                        Text(notice, Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-            }
-            if (live != null) {
-                item(key = "live-status") {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            statusText(live, runningTool?.name) + (turnStart?.let { " · ${formatElapsed(now - parseTime(it))}" } ?: ""),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (live.text.isNotBlank()) {
-                    item(key = "live-text") { Markdown(live.text, resolve = context.resolver(live.files)) }
-                }
-                if (live.thinking.isNotEmpty()) {
-                    item(key = "live-thinking") { ThinkingView(live.thinking, null, context, live = true) }
-                }
-            }
-            items(reversed, key = { it.key }) { block -> BlockView(block, context, block === blocks.lastOrNull(), highlighted = block.key == highlight) }
-        }
-        if (awayFromBottom) {
-            SmallFloatingActionButton(
-                onClick = {
-                    stick = true
-                    scope.launch { listState.animateScrollToItem(0) }
-                },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
-            ) { Icon(Icons.Outlined.KeyboardArrowDown, "回到底部") }
         }
     }
 }
