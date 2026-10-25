@@ -7,7 +7,8 @@ import { acquireProcessLock } from '../server/src/process.ts'
 import { serverLabel, serverPort } from '../server/src/production.ts'
 import { buildCommit, isHealthy } from './build.ts'
 import { installBuild, swapPrevious, undoInstall, versionOf } from './install.ts'
-import { closeFinishedPreviews } from './previews.ts'
+import { closeFinishedPreviews } from '../server/src/preview-instances.ts'
+import { openPullRequests } from './previews.ts'
 
 const { binosDir, deployDir, logsDir, previewsDir, dataRevisionPath } = rootLayout(rootFromEnv())
 const repoDir = path.resolve(import.meta.dirname, '..')
@@ -46,7 +47,8 @@ for (const entry of readdirSync(tmpDir)) {
 
 if (command === 'deploy') {
   // 顺带清理已合并或关闭的 PR 的预览；清理出错不影响上线
-  await closeFinishedPreviews(previewsDir, repoDir, say).catch((err: unknown) => say(`清理预览出错：${String(err)}`))
+  const open = openPullRequests(repoDir)
+  if (open) await closeFinishedPreviews(previewsDir, open, say).catch((err: unknown) => say(`清理预览出错：${String(err)}`))
   const commit = git('rev-parse', 'HEAD')
   if (versionOf(binosDir) === commit) {
     say(`已经在运行 ${short(commit)}`)

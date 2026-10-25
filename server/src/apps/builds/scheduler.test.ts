@@ -33,6 +33,9 @@ it('自动检查按提交和目标去重，新 main 替换未开始的旧任务�
   await manager.request({ action: 'cancel', id: builds[0].id })
   await manager.poll()
   expect(manager.snapshot().builds.map((b) => b.status).sort()).toEqual(['cancelled', 'queued'])
+  // web 只构建 PR；main 只编提交里有构建脚本的目标
+  expect(new Set(manager.snapshot().builds.map((b) => b.target))).toEqual(new Set(['android', 'ios']))
+  await expect(manager.request({ action: 'enqueue', ref: 'main', targets: ['web'] })).rejects.toThrow('web 只构建 PR')
 })
 it('保留 main 最近 5 个提交和打开 PR 的最新提交，其余结束满 3 天才删除', () => {
   const at = Date.parse('2026-01-31T00:00:00Z')

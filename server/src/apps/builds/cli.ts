@@ -26,5 +26,5 @@ try {
       process.stdout.write(tail.toString().replace(/\n$/, '').split('\n').slice(-lines).join('\n') + '\n')
     } finally { await file.close() }
   }
-  else console.log('用法：binos builds status|poll|serve|stop\n  enqueue main|pr/<编号>|<完整提交> [android,ios]\n  cancel|retry <构建ID>\n  log <构建ID> [行数，默认 200]')
+  else console.log('用法：binos builds status|poll|serve|stop\n  enqueue main|pr/<编号>|<完整提交> [web,android,ios]\n  cancel|retry <构建ID>\n  log <构建ID> [行数，默认 200]')
 } catch (e) { console.error(e instanceof Error ? e.message : String(e)); process.exitCode = 1 }

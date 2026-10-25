@@ -1,22 +1,12 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { setTimeout as sleep } from 'node:timers/promises'
-import { rootLayout } from '../server/src/layout.ts'
-import { previewDirName } from '../server/src/preview-info.ts'
-import { acquireProcessLock, isAlive, isRunning } from '../server/src/process.ts'
-import type { ProcessIdentity } from '../server/src/process.ts'
-
-// 预览目录同时是预览实例的根目录：构建按提交放在里面，数据在它的 Library/ 里
-export function previewPaths(previewsDir: string, pr: number) {
-  const dir = path.join(previewsDir, previewDirName(pr))
-  return {
-    dir,
-    lock: path.join(dir, '.preview.lock'),
-    serverLock: rootLayout(dir).serverLockPath,
-    serverLog: path.join(dir, 'server.log'),
-  }
-}
+import { previewDirName, previewInfoPath } from '../server/src/preview-info.ts'
+import type { PreviewInfo } from '../server/src/preview-info.ts'
+import { previewPaths, readJson, runningPreviewServer, stopPreviewDevices, stopPreviewServer } from '../server/src/preview-instances.ts'
+import { acquireProcessLock } from '../server/src/process.ts'
+import { buildCommit, isHealthy } from './build.ts'
+import { freePort } from './net.ts'
 
 // 预览实例是测试实例：数据在预览目录里，借用正式版 agent 的登录，agent 在 PR 的 worktree 里工作。
 // 自成一个进程组，启动它的 agent 和 session 结束后仍在运行
@@ -51,98 +41,57 @@ export function startPreviewServer(options: {
   }
 }
 
-export function runningPreviewServer(serverLock: string): ProcessIdentity | undefined {
-  const server = readJson<ProcessIdentity>(serverLock)
-  return server && isRunning(server) ? server : undefined
-}
-
-export async function stopPreviewServer(serverLock: string) {
-  const server = runningPreviewServer(serverLock)
-  if (!server) {
-    return
-  }
-  process.kill(server.pid, 'SIGTERM')
-  for (let i = 0; i < 100 && isAlive(server.pid); i++) {
-    await sleep(100)
-  }
-  if (isAlive(server.pid)) {
-    throw new Error(`预览实例（进程 ${server.pid}）10 秒内没有退出`)
-  }
-}
-
-// 设备和构建管理进程独立于网页后端；删除构建或数据前也要结束它，避免残留进程继续读写旧目录。
-export async function stopPreviewDevices(dir: string) {
-  await stopPreviewBuilds(dir)
-  const lock = path.join(rootLayout(dir).devicesServiceDir, 'manager.lock')
-  const manager = readJson<ProcessIdentity>(lock)
-  if (!manager || !isRunning(manager)) return
-  process.kill(manager.pid, 'SIGTERM')
-  for (let i = 0; i < 100 && isRunning(manager); i++) await sleep(100)
-  if (isRunning(manager)) throw new Error(`设备预览进程 ${manager.pid} 未能退出`)
-}
-
-// PR 合并或关闭后，停止并删除它的预览；查不到打开的 PR 时什么都不做，免得网络出错时误删
-export async function closeFinishedPreviews(previewsDir: string, repoDir: string, say: (message: string) => void) {
-  let open: Set<number>
+// 开着的 PR；查不到时返回 undefined
+export function openPullRequests(repoDir: string): Set<number> | undefined {
   try {
     const numbers = execFileSync('gh', ['pr', 'list', '--state', 'open', '--limit', '1000', '--json', 'number', '--jq', '.[].number'], {
       cwd: repoDir,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     })
-    open = new Set(numbers.split('\n').filter(Boolean).map(Number))
-  } catch {
-    return
-  }
-  let entries: string[]
-  try {
-    entries = readdirSync(previewsDir)
-  } catch {
-    return
-  }
-  for (const entry of entries) {
-    const pr = Number(/^pr-(\d+)$/.exec(entry)?.[1])
-    if (!pr || open.has(pr)) {
-      continue
-    }
-    const paths = previewPaths(previewsDir, pr)
-    // 正在由 pnpm preview 更新的预览留到下一次
-    if (acquireProcessLock(paths.lock)) {
-      continue
-    }
-    await stopPreviewServer(paths.serverLock)
-    await stopPreviewDevices(paths.dir)
-    rmSync(paths.dir, { recursive: true, force: true })
-    say(`PR #${pr} 已合并或关闭，删除了它的预览`)
-  }
-}
-
-export function readJson<T>(file: string): T | undefined {
-  try {
-    return JSON.parse(readFileSync(file, 'utf8')) as T
+    return new Set(numbers.split('\n').filter(Boolean).map(Number))
   } catch {
     return undefined
   }
 }
 
-async function stopPreviewBuilds(dir: string) {
-  const data = path.join(rootLayout(dir).appsDir, 'builds')
-  const manager = readJson<ProcessIdentity>(path.join(data, 'manager.lock'))
-  if (manager && isRunning(manager)) {
-    process.kill(manager.pid, 'SIGTERM')
-    for (let i = 0; i < 100 && isRunning(manager); i++) await sleep(100)
-    if (isRunning(manager)) throw new Error('构建预览服务未退出')
+// 把一个提交构建成 PR 的预览并启动；预览已经在这个提交上时什么都不做。
+// sourceRepo 用来取提交的代码，agentRepo 是预览里 agent 工作的 worktree
+export async function deployPreview(options: { previewsDir: string; agentsDir: string; sourceRepo: string; agentRepo: string; number: number; commit: string; say: (message: string) => void }) {
+  const { previewsDir, number, commit, say } = options
+  const short = commit.slice(0, 7)
+  const paths = previewPaths(previewsDir, number)
+  const infoPath = previewInfoPath(previewsDir, previewDirName(number))
+  const holder = acquireProcessLock(paths.lock)
+  if (holder) {
+    throw new Error(`PR #${number} 的预览正在由进程 ${holder.pid} 更新`)
   }
-  const results = path.join(data, 'results')
-  if (!existsSync(results)) return
-  for (const id of readdirSync(results)) {
-    const runner = readJson<ProcessIdentity>(path.join(results, id, 'runner.json'))
-    if (runner && isRunning(runner)) {
-      process.kill(runner.pid, 'SIGTERM')
-      for (let i = 0; i < 100 && isRunning(runner); i++) await sleep(100)
-      if (isRunning(runner)) throw new Error('预览构建未退出')
+  if (readJson<PreviewInfo>(infoPath)?.commit === commit && runningPreviewServer(paths.serverLock)) {
+    say(`PR #${number} 的预览已经是 ${short}`)
+    return
+  }
+  const buildDir = path.join(paths.dir, commit)
+  if (!existsSync(buildDir)) {
+    say(`构建 ${short}`)
+    const workDir = `${buildDir}.tmp`
+    rmSync(workDir, { recursive: true, force: true })
+    try {
+      renameSync(buildCommit(options.sourceRepo, commit, workDir), buildDir)
+    } finally {
+      rmSync(workDir, { recursive: true, force: true })
     }
-    const child = readJson<ProcessIdentity>(path.join(results, id, 'child.json'))
-    if (child && isRunning(child)) { try { process.kill(-child.pid, 'SIGKILL') } catch { /* 进程已结束。 */ } }
+  }
+  await stopPreviewServer(paths.serverLock)
+  await stopPreviewDevices(paths.dir)
+  const port = await freePort()
+  writeFileSync(infoPath, JSON.stringify({ port, commit } satisfies PreviewInfo) + '\n')
+  startPreviewServer({ dir: paths.dir, buildDir, serverLog: paths.serverLog, port, repoDir: options.agentRepo, agentsDir: options.agentsDir })
+  if (!(await isHealthy(port, commit))) {
+    throw new Error(`${short} 的预览没有正常启动，日志见 ${paths.serverLog}`)
+  }
+  for (const entry of readdirSync(paths.dir)) {
+    if (/^[0-9a-f]{40}$/.test(entry) && entry !== commit) {
+      rmSync(path.join(paths.dir, entry), { recursive: true, force: true })
+    }
   }
 }

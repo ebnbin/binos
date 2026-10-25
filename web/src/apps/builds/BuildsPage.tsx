@@ -4,7 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
 import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
-const targetLabels: Record<Target, string> = { android: 'Android', ios: 'iOS' }
+const targetLabels: Record<Target, string> = { web: 'Web', android: 'Android', ios: 'iOS' }
 const statusLabels = { queued: '排队中', running: '构建中', success: '成功', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
 type Group = { key: string; kind: 'main' | 'pr' | 'manual'; pr?: number; commits: Build[][] }
 // 按来源分组：main、每个 PR（包括手动指定 pr/编号 的）、其余手动构建；组内按提交分，最新的在前
@@ -54,13 +54,17 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       window.location.assign(value.url)
     } catch (e) { setError(String(e)) } finally { setBusy(false) }
   }
+  // 预览链接指向 PR 当前的预览，只在开着的 PR 最新一次成功的 Web 构建上显示
+  const live = new Set(data?.prs?.flatMap((pr) => data.builds.find((b) => b.target === 'web' && b.pr === pr.number && b.status === 'success')?.id ?? []))
   function card(b: Build) {
     return <article className={styles.build} key={b.id}>
       <div className={styles.buildTitle}><strong>{targetLabels[b.target]}</strong><span className={styles.badge} data-status={b.status}>{statusLabels[b.status]}</span><span className={styles.spacer} /><code title={b.commit}>{b.commit.slice(0, 7)}</code>{b.trigger === 'manual' && b.pr && <span className={styles.trigger}>手动</span>}</div>
       <small className={styles.meta}>{new Date(b.createdAt).toLocaleString()}{b.startedAt && ` · 用时 ${Math.max(0, Math.round(((b.endedAt ? Date.parse(b.endedAt) : clock) - Date.parse(b.startedAt)) / 1000))} 秒`}</small>
       {b.error && <p className={styles.error}>{b.error}</p>}
       <div className={styles.actions}><button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>{['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act({ action: 'cancel', id: b.id })}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act({ action: 'retry', id: b.id })}>重新构建</button>}</div>
-      {b.artifacts.map((a) => <div className={styles.actions} key={a.name}>
+      {b.artifacts.map((a) => a.kind === 'link' ? live.has(b.id) && <div className={styles.actions} key={a.name}>
+        <a className={styles.artifact} href={a.url} target="_blank" rel="noreferrer">网页预览 · {new URL(a.url).host} ↗</a>
+      </div> : <div className={styles.actions} key={a.name}>
         <a className={styles.artifact} href={`${base}/${b.id}/artifacts/${encodeURIComponent(a.name)}`} download title={`SHA-256: ${a.sha256}`}>{a.platform === 'ios' ? 'iOS 安装包' : 'Android 安装包'} · {a.name} · {(a.size / 1024 / 1024).toFixed(1)} MB ↓</a>
         {a.platform === 'ios' && data?.mode === 'real' && <><button className={styles.tinted} disabled={busy} onClick={() => void install(b.id)}>在 iPhone / iPad 上安装</button><small className={styles.meta}>仅限描述文件内已注册的设备，安装链接有效期 24 小时</small></>}
       </div>)}
