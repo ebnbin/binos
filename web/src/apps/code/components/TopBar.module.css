@@ -82,7 +82,7 @@
   max-width: 420px;
 }
 
-.id {
+.subtitle {
   flex: none;
   color: var(--color-label-secondary);
   font-size: var(--font-size-callout);
@@ -251,7 +251,7 @@
     flex: none;
   }
 
-  /* 标题下面一行小字的副标题：编号 */
+  /* 标题下面一行小字的副标题：项目和编号 */
   .heading {
     flex-wrap: wrap;
     justify-content: center;
@@ -269,7 +269,7 @@
     padding: 0 var(--space-1);
   }
 
-  .id {
+  .subtitle {
     font-size: var(--font-size-footnote);
     line-height: var(--line-height-footnote);
   }

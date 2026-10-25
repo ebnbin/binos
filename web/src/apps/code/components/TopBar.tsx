@@ -7,12 +7,13 @@ import styles from './TopBar.module.css'
 import { IconButton } from '../../../ui/IconButton.tsx'
 import { type BuildState, buildState, prBuilds, useBuilds } from '../../builds/useBuilds.ts'
 
-// 一列时左边返回列表；两列时列表就在旁边，只显示标题，上下文的用量在输入框里。对话开过 PR 时右边是 PR 按钮。session：列表里这个 session 的概况，还没读到时没有。
+// 一列时左边返回列表；两列时列表就在旁边，只显示标题，上下文的用量在输入框里。标题旁是项目和编号，对话开过 PR 时右边是 PR 按钮。session：列表里这个 session 的概况，还没读到时没有。
 // 点空白处回到对话顶部，和 iOS 点状态栏一样
 export function TopBar({
   title,
   sessionId,
   session,
+  projectName,
   onBack,
   onScrollTop,
   onNavigate,
@@ -20,6 +21,7 @@ export function TopBar({
   title: string
   sessionId: number | null
   session: SessionSummary | undefined
+  projectName: string | undefined
   onBack: () => void
   onScrollTop: () => void
   onNavigate: (route: string) => void
@@ -34,7 +36,9 @@ export function TopBar({
         ) : (
           <>
             {session ? <SessionTitle key={session.id} session={session} /> : <span className={styles.title}>{title}</span>}
-            <span className={styles.id}>#{sessionId}</span>
+            <span className={styles.subtitle}>
+              {projectName && `${projectName} · `}#{sessionId}
+            </span>
           </>
         )}
       </div>
