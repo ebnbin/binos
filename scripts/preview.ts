@@ -1,17 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
+import type { Snapshot } from '../server/src/apps/builds/types.ts'
 import { rootFromEnv, rootLayout } from '../server/src/layout.ts'
-import { previewDirName, previewInfoPath, previewUrl } from '../server/src/preview-info.ts'
-import type { PreviewInfo } from '../server/src/preview-info.ts'
-import { acquireProcessLock } from '../server/src/process.ts'
-import { buildCommit, isHealthy } from './build.ts'
-import { freePort } from './net.ts'
-import { previewPaths, readJson, runningPreviewServer, startPreviewServer, stopPreviewDevices, stopPreviewServer } from './previews.ts'
+import { previewUrl } from '../server/src/preview-info.ts'
 
-// 把当前分支的 PR 构建成预览；PR 合并或关闭后由上线脚本删除
-const { previewsDir, agentsDir } = rootLayout(rootFromEnv())
+// 给出当前分支 PR 最新提交的预览；PR 合并或关闭后由构建服务和上线脚本删除
+const { binosDir } = rootLayout(rootFromEnv())
 const repoDir = path.resolve(import.meta.dirname, '..')
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repoDir, encoding: 'utf8' }).trim()
@@ -55,49 +50,28 @@ if (git('status', '--porcelain')) {
   console.log('注意：工作区有未提交的改动，不包含在预览里')
 }
 
-const paths = previewPaths(previewsDir, number)
-const infoPath = previewInfoPath(previewsDir, previewDirName(number))
-const holder = acquireProcessLock(paths.lock)
-if (holder) {
-  fail(`PR #${number} 的预览正在由进程 ${holder.pid} 更新`)
-}
-
-if (readJson<PreviewInfo>(infoPath)?.commit === commit && runningPreviewServer(paths.serverLock)) {
-  console.log(`PR #${number} 的预览已经是 ${short(commit)}：${previewUrl(number)}`)
-  process.exit(0)
-}
-const buildDir = path.join(paths.dir, commit)
-if (!existsSync(buildDir)) {
-  console.log(`构建 ${short(commit)}`)
-  const workDir = `${buildDir}.tmp`
-  rmSync(workDir, { recursive: true, force: true })
-  try {
-    renameSync(buildCommit(repoDir, commit, workDir), buildDir)
-  } finally {
-    rmSync(workDir, { recursive: true, force: true })
+// 预览由构建服务的 Web 目标产出：让它马上检查 PR，等这个提交的 Web 构建结束
+const cli = path.join(binosDir, 'bin', 'binos')
+const builds = (...args: string[]) => JSON.parse(execFileSync(cli, ['builds', ...args], { encoding: 'utf8' })) as Snapshot
+builds('poll')
+console.log(`等待构建服务构建 ${short(commit)} 的预览`)
+for (let i = 0; ; i++) {
+  const build = builds('status').builds.find((b) => b.target === 'web' && b.commit === commit)
+  if (!build) {
+    fail(`构建服务没有为 ${short(commit)} 排上 Web 构建，用 binos builds status 查看`)
   }
-}
-await stopPreviewServer(paths.serverLock)
-await stopPreviewDevices(paths.dir)
-const port = await freePort()
-writeFileSync(infoPath, JSON.stringify({ port, commit } satisfies PreviewInfo) + '\n')
-startPreviewServer({
-  dir: paths.dir,
-  buildDir,
-  serverLog: paths.serverLog,
-  port,
-  repoDir,
-  agentsDir: process.env.BINOS_AGENTS_DIR ?? agentsDir,
-})
-if (!(await isHealthy(port, commit))) {
-  fail(`${short(commit)} 的预览没有正常启动，日志见 ${paths.serverLog}`)
-}
-for (const entry of readdirSync(paths.dir)) {
-  if (/^[0-9a-f]{40}$/.test(entry) && entry !== commit) {
-    rmSync(path.join(paths.dir, entry), { recursive: true, force: true })
+  if (build!.status === 'success') {
+    console.log(`✓ PR #${number} 的预览 ${short(commit)}：${previewUrl(number)}`)
+    break
   }
+  if (build!.status !== 'queued' && build!.status !== 'running') {
+    fail(`${short(commit)} 的 Web 构建${build!.error ? `：${build!.error}` : '没有成功'}。日志用 binos builds log ${build!.id}，重试用 binos builds retry ${build!.id}`)
+  }
+  if (i === 600) {
+    fail(`等了 30 分钟 ${short(commit)} 的 Web 构建还没结束，用 binos builds status 查看`)
+  }
+  await sleep(3000)
 }
-console.log(`✓ PR #${number} 的预览 ${short(commit)}：${previewUrl(number)}`)
 
 function pullRequest(): { number: number; state: string; headRefOid: string } | undefined {
   try {

@@ -191,7 +191,38 @@
   composes: segment from '../../ui/controls.module.css';
 }
 
-/* 构建记录 */
+/* 构建记录：每个来源一组，组内最新提交展开，更早的提交收起 */
+.section {
+  margin: 0 0 var(--space-6);
+}
+
+.groupHeader {
+  composes: groupHeader from '../../ui/controls.module.css';
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.closed {
+  composes: badge from '../../ui/controls.module.css';
+  font-weight: var(--font-weight-regular);
+}
+
+.older {
+  margin-top: var(--space-2);
+}
+
+.older summary {
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+  cursor: pointer;
+}
+
+.older[open] summary {
+  margin-bottom: var(--space-1-5);
+}
+
 .list {
   composes: group from '../../ui/controls.module.css';
 }
@@ -275,22 +306,6 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
-}
-
-.artifact {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  color: var(--color-link);
-  font-size: var(--font-size-footnote);
-  text-decoration: none;
-  overflow-wrap: anywhere;
-}
-
-@media (hover: hover) {
-  .artifact:hover {
-    text-decoration: underline;
-  }
 }
 
 .empty {

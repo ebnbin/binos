@@ -26,7 +26,7 @@ it('分发地址固定使用独立域名，隔离开发实例使用本机地址�
   expect(installationOrigin('https://pr-110.binos.app/api/apps/builds')).toBe('https://downloads.binos.app')
   expect(installationOrigin('https://evil.example/api/apps/builds')).toBe('https://downloads.binos.app')
   expect(installationOrigin('http://127.0.0.1:3000/api')).toBe('http://127.0.0.1:3000')
-  expect(manifest('https://downloads.binos.app/a?b=1&c=2', { bundleId: 'app.binos', version: '3', name: '<binOS>' })).toContain('&lt;binOS&gt;')
+  expect(manifest('https://downloads.binos.app/a?b=1&c=2', { bundleId: 'app.binos', version: '3', name: '<binOS>' }, 'abcdef0123456789abcdef0123456789abcdef01')).toContain('<string>&lt;binOS&gt; abcdef0</string>')
 })
 it('独立域名不暴露普通页面、API 或预览；主域名不经过下载入口', async () => {
   const server = new Hono().use(downloadsRouter).get('*', (c) => c.text('主站'))
@@ -40,7 +40,7 @@ it('系统安装器无需浏览器凭据即可获取签名清单和 IPA，其他
   const ipa = path.join(dir, 'binos-ios-adhoc.ipa')
   execFileSync('ditto', ['-c', '-k', '--keepParent', path.join(root, 'pack/Payload'), ipa])
   expect(await ipaInfo(ipa)).toEqual({ bundleId: 'app.binos', version: '3', name: 'binOS' })
-  fixture.builds = [{ id, target: 'ios-adhoc', status: 'success', artifacts: [{ name: 'binos-ios-adhoc.ipa' }] }]
+  fixture.builds = [{ id, commit: 'a'.repeat(40), target: 'ios', status: 'success', artifacts: [{ name: 'binos-ios-adhoc.ipa', kind: 'install', platform: 'ios' }] }]
   const token = installToken(id)
   const prefix = `/install/${id}/${token}`
   const response = await app.request(`https://downloads.binos.app${prefix}/manifest.plist`)

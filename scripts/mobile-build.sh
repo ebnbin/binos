@@ -14,11 +14,7 @@ case "$platform" in
     (cd android && bash ./gradlew --no-daemon -PciBuildNumber="$number" assembleDebug testDebugUnitTest lintDebug)
     cp android/app/build/outputs/apk/debug/app-debug.apk "$output/binos-android-debug.apk"
     ;;
-  ios-simulator)
-    xcodebuild -project ios/binOS.xcodeproj -scheme binOS -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath .mobile-build/simulator CURRENT_PROJECT_VERSION="$number" CODE_SIGNING_ALLOWED=NO build
-    ditto -c -k --sequesterRsrc --keepParent .mobile-build/simulator/Build/Products/Debug-iphonesimulator/binOS.app "$output/binos-ios-simulator.app.zip"
-    ;;
-  ios-adhoc)
+  ios)
     if ! security find-identity -v -p codesigning | grep -Eq '[1-9][0-9]* valid identities found'; then
       echo '没有可用签名证书。请在 Xcode 配置开发者账号、证书及 Ad Hoc 设备。' >&2
       exit 1

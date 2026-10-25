@@ -105,6 +105,7 @@
 }
 
 .pr a,
+.pr .build,
 .finished {
   display: inline-flex;
   align-items: center;
@@ -123,6 +124,7 @@
 
 @media (hover: hover) {
   .pr a:hover,
+  .pr .build:hover,
   .finished:hover {
     background: var(--color-hover);
   }
@@ -143,6 +145,18 @@
 
 .pr .preview {
   color: var(--color-link);
+}
+
+.pr .build {
+  color: var(--color-label-secondary);
+}
+
+.pr .build[data-state='running'] {
+  color: var(--color-link);
+}
+
+.pr .build[data-state='failed'] {
+  color: var(--color-destructive-text);
 }
 
 .finished {

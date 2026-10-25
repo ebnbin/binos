@@ -3,6 +3,7 @@
   "compilerOptions": {
     "composite": true,
     "module": "nodenext",
+    "rewriteRelativeImportExtensions": true,
     "types": ["node"],
     "rootDir": "./src",
     "outDir": "./dist",

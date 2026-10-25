@@ -67,6 +67,7 @@ export function CodeApp({ ctx }: { ctx: WindowContext }) {
                 onBack={ctx.back}
                 onNew={() => ctx.navigate(`/new?project=${encodeURIComponent(project)}`)}
                 onScrollTop={() => conversationScroll.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                onNavigate={ctx.navigate}
               />
               {missing ? (
                 <div className={styles.missing}>
