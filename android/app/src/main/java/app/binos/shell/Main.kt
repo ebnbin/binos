@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.GridView
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
@@ -36,6 +38,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,11 +128,11 @@ fun MainScreen() {
             Column {
                 ConnectionBanner()
                 // 提示条已经让开了状态栏，下面的页面不用再留
-                val connected by app.events.connected.collectAsStateWithLifecycle()
+                val banner = rememberBanner()
                 NavHost(
                     nav,
                     startDestination = CodeRoute,
-                    modifier = Modifier.weight(1f).then(if (connected) Modifier else Modifier.consumeWindowInsets(WindowInsets.statusBars)),
+                    modifier = Modifier.weight(1f).then(if (banner == null) Modifier else Modifier.consumeWindowInsets(WindowInsets.statusBars)),
                 ) {
                     composable<CodeRoute> { CodeHomeScreen() }
                     composable<SessionRoute> { ConversationScreen(it.toRoute<SessionRoute>().id, null, it.toRoute<SessionRoute>().item.takeIf { item -> item >= 0 }) }
@@ -163,22 +167,47 @@ fun MainScreen() {
     }
 }
 
-// 和后端的全局通知断开时在顶部提示，连上后消失
+private enum class Banner { Disconnected, Outdated }
+
+// 断开连接优先；服务端接口更新了的提示可以关掉，下次连上时再比对
+private var outdatedDismissed by mutableStateOf(false)
+
+@Composable
+private fun rememberBanner(): Banner? {
+    val connected by app.events.connected.collectAsStateWithLifecycle()
+    val outdated by app.events.outdated.collectAsStateWithLifecycle()
+    LaunchedEffect(outdated) { if (!outdated) outdatedDismissed = false }
+    return when {
+        !connected -> Banner.Disconnected
+        outdated && !outdatedDismissed -> Banner.Outdated
+        else -> null
+    }
+}
+
+// 顶部的提示条：和后端的全局通知断开时提示正在重连；服务端的接口比这个版本的 app 新时提示更新 app，不影响使用
 @Composable
 private fun ConnectionBanner() {
-    val connected by app.events.connected.collectAsStateWithLifecycle()
-    AnimatedVisibility(!connected) {
+    val banner = rememberBanner()
+    AnimatedVisibility(banner != null) {
+        val outdated = banner == Banner.Outdated
+        val container = if (outdated) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.errorContainer
+        val content = if (outdated) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onErrorContainer
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.errorContainer)
+                .background(container)
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 16.dp, vertical = 6.dp),
+                .padding(start = 16.dp, end = if (outdated) 4.dp else 16.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onErrorContainer)
-            Spacer(Modifier.width(10.dp))
-            Text("与 binOS 的连接已断开，正在重连…", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onErrorContainer)
+            if (outdated) {
+                Text("服务端已更新，这个版本的 app 可能有部分内容显示不正确，请更新 app", style = MaterialTheme.typography.labelLarge, color = content, modifier = Modifier.weight(1f))
+                IconButton(onClick = { outdatedDismissed = true }) { Icon(Icons.Outlined.Close, "关闭", tint = content) }
+            } else {
+                CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 2.dp, color = content)
+                Spacer(Modifier.width(10.dp))
+                Text("与 binOS 的连接已断开，正在重连…", style = MaterialTheme.typography.labelLarge, color = content)
+            }
         }
     }
 }

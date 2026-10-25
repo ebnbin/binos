@@ -87,10 +87,12 @@ object RemotePlayer {
     }
 
     private fun stateJson(): JsonElement {
-        val player = MusicPlayer.controller ?: return JsonNull
-        val track = MusicStore.queue.value?.find { it.key == player.currentMediaItem?.mediaId }
+        // 播放器还没准备好时报告空闲
+        val player = MusicPlayer.controller
+        val track = player?.let { MusicStore.queue.value?.find { track -> track.key == it.currentMediaItem?.mediaId } }
         val status = when {
             MusicPlayer.error != null -> "error"
+            player == null -> "idle"
             player.isPlaying -> "playing"
             player.playbackState == Player.STATE_BUFFERING -> "loading"
             player.playbackState == Player.STATE_ENDED -> "ended"
@@ -100,10 +102,10 @@ object RemotePlayer {
         return buildJsonObject {
             put("track", track?.let { json.encodeToJsonElement(TrackRef.serializer(), it.ref) } ?: JsonNull)
             put("status", status)
-            put("positionMs", player.currentPosition.coerceAtLeast(0))
-            put("durationMs", MusicPlayer.duration)
-            put("volume", player.volume.toDouble())
-            put("repeat", when (player.repeatMode) {
+            put("positionMs", player?.currentPosition?.coerceAtLeast(0) ?: 0L)
+            put("durationMs", if (player == null) 0L else MusicPlayer.duration)
+            put("volume", player?.volume?.toDouble() ?: 1.0)
+            put("repeat", when (player?.repeatMode) {
                 Player.REPEAT_MODE_ALL -> "all"
                 Player.REPEAT_MODE_ONE -> "one"
                 else -> "off"

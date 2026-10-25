@@ -16,6 +16,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ChangeEvent(val type: String, val id: Int? = null)
 
+// 旧服务端没有 protocol
+@Serializable
+private data class Health(val version: String? = null, val protocol: String? = null)
+
 // 整个应用只连一条全局通知。连上时发出 null，表示之前可能漏了通知，应全部重新读取。只在应用在前台时连接
 class Events(private val api: Api, private val scope: CoroutineScope) {
     private val _connected = MutableStateFlow(true)
@@ -24,6 +28,9 @@ class Events(private val api: Api, private val scope: CoroutineScope) {
     val changes = _changes.asSharedFlow()
     private val _version = MutableStateFlow<String?>(null)
     val version: StateFlow<String?> = _version.asStateFlow()
+    // 服务端的接口和这个版本的 app 不是同一版；每次连上都重新比对，服务端上线新版本后会变
+    private val _outdated = MutableStateFlow(false)
+    val outdated: StateFlow<Boolean> = _outdated.asStateFlow()
     private var job: Job? = null
 
     fun start() {
@@ -57,8 +64,9 @@ class Events(private val api: Api, private val scope: CoroutineScope) {
     }
 
     private suspend fun checkVersion() {
-        runCatching { api.getJson("/api/health") }.getOrNull()?.let {
-            _version.value = (it as? kotlinx.serialization.json.JsonObject)?.get("version")?.toString()?.trim('"')
+        runCatching { api.get<Health>("/api/health") }.getOrNull()?.let {
+            _version.value = it.version
+            _outdated.value = it.protocol != null && it.protocol != BinOSProtocol.PROTOCOL_ID
         }
     }
 
