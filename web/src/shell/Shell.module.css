@@ -24,8 +24,10 @@
   padding-bottom: var(--dock-strip);
 }
 
-/* 展开的 Dock 盖住的高度：Dock 本身加上它离屏幕底边的距离 */
+/* 展开的 Dock 盖住的高度：Dock 本身加上它离屏幕底边的距离。
+   app 里带 z-index 的元素只在屏幕里比高低，不会盖住浮在屏幕上的 Dock */
 .shell[data-compact='true'] .screen {
+  isolation: isolate;
   --dock-overlap: calc(44px + var(--space-0-5) * 2 + var(--space-2));
 }
 

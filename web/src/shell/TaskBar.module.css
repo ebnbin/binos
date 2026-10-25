@@ -213,6 +213,7 @@
   margin-inline: auto;
   background: linear-gradient(var(--material-dock), var(--material-dock)), color-mix(in srgb, var(--color-chrome) 72%, transparent);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  -webkit-backdrop-filter: var(--material-blur);
   backdrop-filter: var(--material-blur);
   transform-origin: bottom center;
   transition:
