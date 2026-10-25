@@ -1,20 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { Build, Snapshot, Target } from '@binos/server/apps/builds/types'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { Build, Target } from '@binos/server/apps/builds/types'
 import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
-const base = '/api/apps/builds'
+import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
 const targetLabels: Record<Target, string> = { android: 'Android APK', 'ios-simulator': 'iOS 模拟器', 'ios-adhoc': 'iOS Ad Hoc' }
 const statusLabels = { queued: '排队中', running: '构建中', success: '成功', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
-async function request(body?: unknown): Promise<Snapshot> {
-  const r = await fetch(base, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
-  const data = await r.json()
-  if (!r.ok) throw new Error(data.error ?? '请求失败')
-  return data
-}
 export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
-  const [data, setData] = useState<Snapshot>()
-  const [error, setError] = useState('')
+  const { data, error, setError, update } = useBuilds()
   const [busy, setBusy] = useState(false)
   const [ref, setRef] = useState(initialRef)
   const [target, setTarget] = useState('both')
@@ -22,15 +15,23 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   const [log, setLog] = useState<Build>()
   const [text, setText] = useState('')
   const [clock, setClock] = useState(() => Date.now())
-  const load = useCallback(async () => { try { setData(await request()); setClock(Date.now()); setError('') } catch (e) { setError(String(e)) } }, [])
-  useEffect(() => { const initial = setTimeout(() => void load(), 0); const timer = setInterval(() => { if (!document.hidden) void load() }, 4000); return () => { clearTimeout(initial); clearInterval(timer) } }, [load])
+  const running = Boolean(data?.builds.some((b) => b.status === 'running'))
+  useEffect(() => { if (!running) return; const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer) }, [running])
+  // 日志不在通知里：没编完时定时重读，编完再读最后一次
+  const logStatus = data?.builds.find((b) => b.id === log?.id)?.status
+  const logLive = logStatus === 'queued' || logStatus === 'running'
   useEffect(() => {
     if (!log) return
     let active = true
     const read = async () => { try { const r = await fetch(`${base}/${log.id}/log`); if (!r.ok) throw new Error('日志读取失败'); const value = await r.text(); if (active) setText(value) } catch (e) { if (active) setText(String(e)) } }
-    void read(); const timer = setInterval(() => void read(), 2000)
+    void read(); const timer = logLive ? setInterval(() => void read(), 2000) : undefined
     return () => { active = false; clearInterval(timer) }
-  }, [log])
+  }, [log, logLive])
+  // 报错一般在最后：打开时滚到末尾，停在末尾时跟着新内容走，往上翻看时不打断
+  const pre = useRef<HTMLPreElement>(null)
+  const follow = useRef(true)
+  useEffect(() => { follow.current = true }, [log])
+  useLayoutEffect(() => { const el = pre.current; if (el && follow.current) el.scrollTop = el.scrollHeight }, [text])
   async function install(id: string) {
     setBusy(true)
     try {
@@ -40,7 +41,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       window.location.href = value.url
     } catch (e) { setError(String(e)) } finally { setBusy(false) }
   }
-  async function act(body: unknown) { setBusy(true); try { setData(await request(body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
+  async function act(body: unknown) { setBusy(true); try { update(await request(body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   return <section className={styles.page}>
     <div className={styles.content}>
     <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act({ action: 'poll' })}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
@@ -68,6 +69,6 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       {b.artifacts.map((a) => <a className={styles.artifact} key={a.name} href={`${base}/${b.id}/artifacts/${encodeURIComponent(a.name)}`} download title={`SHA-256: ${a.sha256}`}>{a.name} · {(a.size / 1024 / 1024).toFixed(1)} MB ↓</a>)}
     </article>)}</div>}
     </div>
-    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log?download=1`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre>{text}</pre></section>}
+    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log?download=1`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
   </section>
 }
