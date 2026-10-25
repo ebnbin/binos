@@ -249,6 +249,23 @@
   color: var(--color-destructive-text);
 }
 
+/* 构建入口右边的概况：在编是链接色，失败是醒目的红色 */
+.buildSummary {
+  flex: none;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-subheadline);
+  font-variant-numeric: tabular-nums;
+}
+
+.buildSummary[data-state='running'] {
+  color: var(--color-link);
+}
+
+.buildSummary[data-state='failed'] {
+  color: var(--color-destructive-text);
+  font-weight: var(--font-weight-semibold);
+}
+
 .row {
   position: relative;
   display: grid;

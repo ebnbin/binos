@@ -58,12 +58,13 @@ export async function ipaInfo(file: string): Promise<Info> {
   cache.set(file, info); return info
 }
 const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
-export function manifest(ipaUrl: string, info: Info) {
+// 标题带短提交号，安装提示里能分清同一个应用的不同构建。
+export function manifest(ipaUrl: string, info: Info, commit: string) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>items</key><array><dict>
 <key>assets</key><array><dict><key>kind</key><string>software-package</string><key>url</key><string>${xml(ipaUrl)}</string></dict></array>
-<key>metadata</key><dict><key>bundle-identifier</key><string>${xml(info.bundleId)}</string><key>bundle-version</key><string>${xml(info.version)}</string><key>kind</key><string>software</string><key>title</key><string>${xml(info.name)}</string></dict>
+<key>metadata</key><dict><key>bundle-identifier</key><string>${xml(info.bundleId)}</string><key>bundle-version</key><string>${xml(info.version)}</string><key>kind</key><string>software</string><key>title</key><string>${xml(`${info.name} ${commit.slice(0, 7)}`)}</string></dict>
 </dict></array></dict></plist>`
 }
 // 系统安装服务没有浏览器登录状态；这里只接受按构建 ID 签名、24 小时内有效的令牌。
@@ -80,7 +81,7 @@ export const installationApi = new Hono()
       const origin = installationOrigin(c.req.url)
       const ipaUrl = `${origin}${url.pathname.replace(/manifest\.plist$/, 'app.ipa')}`
       c.header('Content-Type', 'application/xml; charset=utf-8')
-      return c.body(manifest(ipaUrl, await ipaInfo(item.file)))
+      return c.body(manifest(ipaUrl, await ipaInfo(item.file), item.build.commit))
     }
     const size = (await lstat(item.file)).size
     const headers: Record<string, string> = { 'Content-Type': 'application/octet-stream', 'Content-Length': String(size), 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Accept-Ranges': 'bytes' }
