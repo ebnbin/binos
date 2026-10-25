@@ -79,6 +79,17 @@ export function useShellController(size: Size | null) {
     setView((prev) => ({ ...prev, home: !next, focused: next, slot: 0 }))
   }
 
+  // 关掉任意一个窗口；它在分屏组里时整组一起关
+  const remove = (id: string) => {
+    if (draft) return
+    const members: string[] = stored.groups.find((item) => item.slots.includes(id))?.slots ?? [id]
+    members.forEach((member) => closeWindow(member))
+    if (!focused || !members.includes(focused)) return
+    const next = recent.find((item) => !members.includes(item)) ?? ids.find((item) => !members.includes(item)) ?? null
+    const at = next ? stored.groups.find((item) => item.slots.includes(next))?.slots.indexOf(next) ?? 0 : 0
+    setView((prev) => ({ ...prev, home: prev.home || !next, focused: next, slot: at }))
+  }
+
   if (draft && (!allowed.includes(draft.layout) || !stored.windows[draft.slots[0]!])) setDraft(null)
 
   // 浏览器返回时，恢复那条记录的窗口和路由
@@ -120,10 +131,12 @@ export function useShellController(size: Size | null) {
   }
 
   return {
-    windows, groups: stored.groups, panes, layout, home, portrait, focused, slot, allowed,
+    windows, groups: stored.groups, panes,
+    // 最近用过的在前，没聚焦过的按窗口顺序排在后面
+    order: [...recent, ...ids.filter((id) => !recent.includes(id))], layout, home, portrait, focused, slot, allowed,
     picking: draft !== null,
     unavailableApps: windows.filter((item) => stored.groups.some((group) => group.slots.includes(item.id))).map((item) => item.window.applicationId),
     focus, chooseLayout, exitSplit, pick, swap, cancel: () => exitSplit(slot), onTitle,
-    open, show, close, toggleHome, split,
+    open, show, close, remove, toggleHome, split,
   }
 }

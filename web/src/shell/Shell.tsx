@@ -7,6 +7,7 @@ import { ConnectionStatus } from './ConnectionStatus.tsx'
 import { useShellController } from './controller/useShellController.ts'
 import { Desktop } from './Desktop.tsx'
 import styles from './Shell.module.css'
+import { Switcher } from './Switcher.tsx'
 import { TaskBar } from './TaskBar.tsx'
 import { Workspace } from './Workspace.tsx'
 
@@ -15,6 +16,10 @@ export function Shell() {
   const [main, size] = useElementSize<HTMLDivElement>()
   const controller = useShellController(size)
   const placement = useBarPlacement()
+  // 放不下分屏的屏幕上，Dock 不排开所有 app，用多任务视图切换
+  const compact = controller.allowed.length === 1
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const switcher = compact && switcherOpen && controller.windows.length > 0
   const [musicCollapsed, setMusicCollapsed] = useState(false)
   const musicVisible = !controller.home && controller.windows.some(item => item.window.applicationId === 'music' && controller.panes.includes(item.id))
   const [previousMusicVisible, setPreviousMusicVisible] = useState(musicVisible)
@@ -53,6 +58,18 @@ export function Shell() {
         {loaded && size && !musicVisible && (
           <FloatingPlayer screen={size} collapsed={musicCollapsed} onCollapse={() => setMusicCollapsed(true)} onOpen={() => controller.open('music')} locked={controller.picking} />
         )}
+        {size && compact && (
+          <Switcher
+            open={switcher}
+            windows={controller.windows}
+            groups={controller.groups}
+            order={controller.order}
+            aspect={size.width / size.height}
+            onShow={(id) => { controller.show(id); setSwitcherOpen(false) }}
+            onRemove={controller.remove}
+            onClose={() => setSwitcherOpen(false)}
+          />
+        )}
       </div>
       {placement !== 'hidden' && (
         <TaskBar
@@ -68,10 +85,16 @@ export function Shell() {
           layout={controller.layout}
           allowed={controller.allowed}
           portrait={controller.portrait}
-          onHome={controller.toggleHome}
+          compact={compact}
+          switcher={switcher}
+          onHome={() => {
+            setSwitcherOpen(false)
+            if (!switcher || !controller.home) controller.toggleHome()
+          }}
           onShow={controller.show}
           onSplit={controller.split}
-          onClose={controller.close}
+          onClose={() => { setSwitcherOpen(false); controller.close() }}
+          onSwitcher={() => setSwitcherOpen(!switcher)}
         />
       )}
       <ConnectionStatus />

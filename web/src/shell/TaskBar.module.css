@@ -192,3 +192,23 @@
   border-radius: var(--radius-full);
   background: var(--color-on-chrome);
 }
+
+/* 窄屏的当前 app 按钮：开着几个窗口 */
+.badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--color-on-chrome);
+  box-shadow: 0 0 0 2px var(--color-chrome);
+  color: var(--color-chrome);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
