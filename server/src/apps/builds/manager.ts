@@ -34,11 +34,11 @@ export class Manager {
   busy() { return this.ticking || this.polling || Boolean(this.active) }
   private enqueue(commit: string, targets: Target[], trigger: Build['trigger'], pr?: number, force = false) {
     for (const target of targets) {
-      if (!force && this.state.builds.some((b) => b.commit === commit && b.target === target && b.status !== 'cancelled' && b.status !== 'interrupted')) continue
+      // 自动构建只看是否有过记录：取消和中断的构建不会被下一次检查重新排上，需手动重试。
+      if (!force && this.state.builds.some((b) => b.commit === commit && b.target === target)) continue
       if (this.state.builds.some((b) => b.commit === commit && b.target === target && ['running', 'queued'].includes(b.status))) continue
-      if (trigger !== 'manual') for (const b of this.state.builds) {
-        if (b.status === 'queued' && b.trigger === trigger && b.pr === pr && b.target === target && b.commit !== commit) { b.status = 'cancelled'; b.error = '已有更新提交'; b.endedAt = now() }
-      }
+      // 未开始的旧任务直接移出队列，来源回到该提交时仍会自动构建。
+      if (trigger !== 'manual') this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === trigger && b.pr === pr && b.target === target && b.commit !== commit))
       this.state.builds.push({ id: randomUUID(), commit, target, trigger, ...(pr && { pr }), status: 'queued', createdAt: now(), artifacts: [] })
     }
     this.save()
@@ -52,20 +52,20 @@ export class Manager {
       case 'poll': await this.poll(); return this.snapshot()
       case 'enqueue': {
         let commit: string
+        const pr = request.ref.startsWith('pr/') ? Number(request.ref.slice(3)) : undefined
         if (mock) commit = /^[a-f0-9]{40}$/.test(request.ref) ? request.ref : '0'.repeat(40)
         else {
-          if (request.ref === 'main') await git('fetch', 'origin', 'main')
-          else if (request.ref.startsWith('pr/')) {
-            const line = await git('ls-remote', 'origin', `refs/pull/${request.ref.slice(3)}/head`)
-            const sha = line.split(/\s/)[0]
-            if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('找不到 PR 提交')
-            await git('fetch', 'origin', sha)
-            commit = sha
-            this.enqueue(commit, request.targets, 'manual', undefined, true); return this.snapshot()
-          } else await git('cat-file', '-e', `${request.ref}^{commit}`).catch(() => git('fetch', 'origin', request.ref))
-          commit = await git('rev-parse', '--verify', `${request.ref === 'main' ? 'origin/main' : request.ref}^{commit}`)
+          if (pr) {
+            commit = (await git('ls-remote', 'origin', `refs/pull/${pr}/head`)).split(/\s/)[0]
+            if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('找不到 PR 提交')
+            await git('fetch', 'origin', commit)
+          } else {
+            if (request.ref === 'main') await git('fetch', 'origin', 'main')
+            else await git('cat-file', '-e', `${request.ref}^{commit}`).catch(() => git('fetch', 'origin', request.ref))
+            commit = await git('rev-parse', '--verify', `${request.ref === 'main' ? 'origin/main' : request.ref}^{commit}`)
+          }
         }
-        this.enqueue(commit, request.targets, 'manual', undefined, true); return this.snapshot()
+        this.enqueue(commit, request.targets, 'manual', pr, true); return this.snapshot()
       }
       case 'retry': {
         const b = this.find(request.id)
@@ -97,7 +97,11 @@ export class Manager {
       const supported = async (sha: string) => git('cat-file', '-e', `${sha}:scripts/mobile-build.sh`).then(() => true, () => false)
       if (await supported(commit)) this.enqueue(commit, selected, 'main')
       const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
-      for (const pr of JSON.parse(stdout) as { number: number; headRefOid: string; isCrossRepository: boolean }[]) {
+      const prs = JSON.parse(stdout) as { number: number; headRefOid: string; isCrossRepository: boolean }[]
+      // 已关闭或合并的 PR 不再构建尚未开始的任务。
+      this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !prs.some((pr) => pr.number === b.pr)))
+      this.save()
+      for (const pr of prs) {
         if (pr.isCrossRepository) continue
         await git('fetch', 'origin', `refs/pull/${pr.number}/head`)
         if (await supported(pr.headRefOid)) this.enqueue(pr.headRefOid, selected, 'pr', pr.number)
