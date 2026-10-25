@@ -77,14 +77,17 @@ final class EventStream {
     private let onOpen: () -> Void
     private let onMessage: (SSEMessage) -> Void
     private let onConnectedChange: (Bool) -> Void
+    // 服务端拒绝了这个请求（4xx，比如要读的东西不在了）时调用，不再重连；没有时照样重连
+    private let onRejected: ((Error) -> Void)?
     private var task: Task<Void, Never>?
     private var lastActivity = Date()
 
-    init(url: @escaping () -> URL, onOpen: @escaping () -> Void = {}, onMessage: @escaping (SSEMessage) -> Void, onConnectedChange: @escaping (Bool) -> Void = { _ in }) {
+    init(url: @escaping () -> URL, onOpen: @escaping () -> Void = {}, onMessage: @escaping (SSEMessage) -> Void, onConnectedChange: @escaping (Bool) -> Void = { _ in }, onRejected: ((Error) -> Void)? = nil) {
         self.url = url
         self.onOpen = onOpen
         self.onMessage = onMessage
         self.onConnectedChange = onConnectedChange
+        self.onRejected = onRejected
     }
 
     func start() {
@@ -92,7 +95,11 @@ final class EventStream {
         task = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.connectOnce()
+                if let error = await self.connectOnce(), let onRejected = self.onRejected {
+                    self.task = nil
+                    onRejected(error)
+                    return
+                }
                 if Task.isCancelled { return }
                 self.onConnectedChange(false)
                 try? await Task.sleep(for: Self.retryDelay)
@@ -112,7 +119,8 @@ final class EventStream {
         }
     }
 
-    private func connectOnce() async {
+    // 返回服务端拒绝时的错误
+    private func connectOnce() async -> Error? {
         let api = API.shared
         var request = api.request(url())
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
@@ -142,15 +150,17 @@ final class EventStream {
                 }
             }
         }
-        await withTaskCancellationHandler {
-            _ = await reading.result
+        let result = await withTaskCancellationHandler {
+            await reading.result
         } onCancel: {
             reading.cancel()
         }
         watchdog.cancel()
+        if case .failure(let error) = result, let status = (error as? APIError)?.status, (400..<500).contains(status) { return error }
         // 需要登录时不要每秒重连，等登录完成后由界面重新连接
         while api.needsLogin && !Task.isCancelled {
             try? await Task.sleep(for: .seconds(1))
         }
+        return nil
     }
 }

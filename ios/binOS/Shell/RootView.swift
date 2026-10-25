@@ -40,7 +40,11 @@ struct RootView: View {
             player.start()
         }
         .onOpenURL { router.open($0) }
-        .task(id: hub.music) { await player.refreshQueue() }
+        .task(id: hub.music) {
+            await player.refreshQueue()
+            await player.refreshProviders()
+        }
+        .task(id: hub.apps) { await AppsStore.shared.refresh() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { hub.reconnectIfStale() }
         }

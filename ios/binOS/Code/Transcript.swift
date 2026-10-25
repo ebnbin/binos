@@ -1,19 +1,15 @@
 import Foundation
 
-// 把对话的条目整理成显示的块，规则和网页的 Transcript 一致
+// 把对话的事件整理成显示的块，规则和网页的 Transcript 一致
 
-struct IndexedEntry: Hashable {
-    let index: Int
-    let entry: Entry
-}
-
-// live：这一轮还在回答，没有结果的调用还在运行
+// seq：调用事件的位置；itemId：调用和结果共用的；live：这一轮还在回答，没有结果的调用还在运行
 struct CallState: Hashable, Identifiable {
-    let index: Int
+    let seq: Int
+    let itemId: String
     let call: ToolCallEntry
     let result: ToolResultEntry?
     let live: Bool
-    var id: Int { index }
+    var id: Int { seq }
 
     enum Status { case running, done, error, stopped }
 
@@ -30,14 +26,14 @@ struct CallState: Hashable, Identifiable {
 }
 
 enum Step: Hashable, Identifiable {
-    case thinking(index: Int, time: String, text: String, durationMs: Double?)
+    case thinking(seq: Int, time: String, text: String, durationMs: Double?)
     case tool(CallState)
     case subagent(CallState)
 
     var id: Int {
         switch self {
-        case .thinking(let index, _, _, _): index
-        case .tool(let state), .subagent(let state): state.index
+        case .thinking(let seq, _, _, _): seq
+        case .tool(let state), .subagent(let state): state.seq
         }
     }
 
@@ -49,73 +45,73 @@ enum Step: Hashable, Identifiable {
     }
 }
 
+// 块的 seq 是它对应的事件的位置，搜索结果按它定位
 enum Block: Hashable, Identifiable {
-    case time(index: Int, date: Date)
-    case input(index: Int, entry: InputEntry)
-    case attachments(index: Int, attachments: [Attachment])
-    case text(index: Int, text: String, files: [String: String])
-    case steps(index: Int, steps: [Step])
-    case divider(index: Int, text: String)
-    case turnEnd(index: Int, entry: TurnEndEntry, reply: String, edits: [CallState])
+    case time(seq: Int, date: Date)
+    case input(seq: Int, entry: InputEntry)
+    case attachments(seq: Int, attachments: [Attachment])
+    case text(seq: Int, text: String, files: [String: String])
+    case steps(seq: Int, steps: [Step])
+    case divider(seq: Int, text: String)
+    case turnEnd(seq: Int, entry: TurnEndEntry, reply: String, edits: [CallState])
 
     var id: String {
         switch self {
-        case .time(let index, _): "\(index)-time"
-        case .input(let index, _): "\(index)"
-        case .attachments(let index, _): "\(index)-attachments"
-        case .text(let index, _, _): "\(index)"
-        case .steps(let index, _): "\(index)-steps"
-        case .divider(let index, _): "\(index)-divider"
-        case .turnEnd(let index, _, _, _): "\(index)"
+        case .time(let seq, _): "\(seq)-time"
+        case .input(let seq, _): "\(seq)"
+        case .attachments(let seq, _): "\(seq)-attachments"
+        case .text(let seq, _, _): "\(seq)"
+        case .steps(let seq, _): "\(seq)-steps"
+        case .divider(let seq, _): "\(seq)-divider"
+        case .turnEnd(let seq, _, _, _): "\(seq)"
         }
     }
 }
 
-// 一轮：从 mode 为 start 的 input 到下一个之前，第一轮之前的条目单独成一组。start 和条目的 index 都是在整个 thread 里的位置。
-// vendor 的调用 id 只在当前轮内唯一，按调用所在的位置关联结果和子 agent 的条目
+// 一轮：turnId 相同的连续事件，第一条 session 条目自成一组（id 为空串）。
+// 工具调用和结果按 itemId 对应，子 agent 的条目按 parentId 归到它所属的调用下
 final class TranscriptTurn {
-    let start: Int
-    let first: Entry
+    let id: String
+    let first: PageEvent
     let size: Int
-    private(set) var results: [Int: ToolResultEntry] = [:]
-    private(set) var children: [Int: [IndexedEntry]] = [:]
-    private(set) var main: [IndexedEntry] = []
+    private(set) var results: [String: ToolResultEntry] = [:]
+    private(set) var children: [String: [PageEvent]] = [:]
+    private(set) var main: [PageEvent] = []
     // 答完的轮的块不会再变，算过就记下来
     private var settled: (previous: String?, blocks: [Block])?
 
-    init(_ items: ArraySlice<Entry>, offset: Int) {
-        start = offset + items.startIndex
-        first = items.first!
-        size = items.count
-        var calls: [String: Int] = [:]
-        for (index, entry) in zip(items.indices, items) {
-            if case .toolCall(let call) = entry { calls[call.id] = offset + index }
-        }
-        for (index, entry) in zip(items.indices, items) {
-            let item = IndexedEntry(index: offset + index, entry: entry)
-            if case .toolResult(let result) = entry, let call = calls[result.callId] {
-                results[call] = result
+    init(_ events: ArraySlice<PageEvent>) {
+        first = events.first!
+        id = first.turnId ?? ""
+        size = events.count
+        for event in events {
+            if case .toolResult(let result) = event.data, let itemId = event.itemId {
+                results[itemId] = result
             }
-            if let parent = entry.parent, let call = calls[parent] {
-                children[call, default: []].append(item)
+            if let parent = event.parentId {
+                children[parent, default: []].append(event)
             } else {
-                main.append(item)
+                main.append(event)
             }
         }
     }
 
-    // items 是从 offset 开始的条目。条目只会在两头增加：和 previous 里同一段条目的轮沿用原来的对象，界面上这些轮可以跳过重新排版
-    static func split(_ items: [Entry], previous: [TranscriptTurn] = [], offset: Int = 0) -> [TranscriptTurn] {
-        let reusable = Dictionary(previous.map { ($0.start, $0) }, uniquingKeysWith: { first, _ in first })
-        var starts: [Int] = []
-        for (index, entry) in items.enumerated() {
-            if index == 0 { starts.append(index) } else if case .input(let input) = entry, input.mode == "start" { starts.append(index) }
+    // 事件只会在两头增加：和 previous 里同一段事件的轮沿用原来的对象，界面上这些轮可以跳过重新排版
+    static func split(_ events: [PageEvent], previous: [TranscriptTurn] = []) -> [TranscriptTurn] {
+        let reusable = Dictionary(previous.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        var turns: [TranscriptTurn] = []
+        var start = events.startIndex
+        while start < events.endIndex {
+            var end = start + 1
+            while end < events.endIndex, events[end].turnId == events[start].turnId { end += 1 }
+            if let old = reusable[events[start].turnId ?? ""], old.size == end - start, old.first == events[start] {
+                turns.append(old)
+            } else {
+                turns.append(TranscriptTurn(events[start..<end]))
+            }
+            start = end
         }
-        return starts.enumerated().map { i, start in
-            let end = i + 1 < starts.count ? starts[i + 1] : items.count
-            if let old = reusable[offset + start], old.size == end - start, old.first == items[start] { return old }
-            return TranscriptTurn(items[start..<end], offset: offset)
-        }
+        return turns
     }
 
     // 这一轮的块；previous 是上一轮最后一条的时间
@@ -126,78 +122,79 @@ final class TranscriptTurn {
         return blocks
     }
 
-    func state(_ index: Int, _ call: ToolCallEntry, live: Bool) -> CallState {
-        CallState(index: index, call: call, result: results[index], live: live)
+    func state(_ event: PageEvent, _ call: ToolCallEntry, live: Bool) -> CallState {
+        let itemId = event.itemId ?? ""
+        return CallState(seq: event.seq, itemId: itemId, call: call, result: results[itemId], live: live)
     }
 
     // 这次调用改了文件就是它自己；是子 agent 时，是子 agent 里改文件的调用
     func editCalls(_ state: CallState) -> [CallState] {
         if case .edit = state.call.tool { return [state] }
-        return (children[state.index] ?? []).flatMap { item -> [CallState] in
-            guard case .toolCall(let call) = item.entry else { return [] }
-            return editCalls(self.state(item.index, call, live: state.live))
+        return (children[state.itemId] ?? []).flatMap { event -> [CallState] in
+            guard case .toolCall(let call) = event.data else { return [] }
+            return editCalls(self.state(event, call, live: state.live))
         }
     }
 
     // 一轮开始时离上一条超过这么久或者跨了天，先显示一条时间
     private static let dividerGap: TimeInterval = 30 * 60
 
-    func blocks(_ entries: [IndexedEntry], live: Bool, previous: String? = nil) -> [Block] {
+    func blocks(_ events: [PageEvent], live: Bool, previous: String? = nil) -> [Block] {
         var blocks: [Block] = []
         var replies: [String] = []
         var edits: [CallState] = []
         var lastTime = previous.flatMap(Date.init(iso:))
-        func addStep(_ step: Step, at index: Int) {
+        func addStep(_ step: Step, at seq: Int) {
             if case .steps(let first, var steps) = blocks.last {
                 steps.append(step)
-                blocks[blocks.count - 1] = .steps(index: first, steps: steps)
+                blocks[blocks.count - 1] = .steps(seq: first, steps: steps)
             } else {
-                blocks.append(.steps(index: index, steps: [step]))
+                blocks.append(.steps(seq: seq, steps: [step]))
             }
         }
-        for item in entries {
-            let index = item.index
+        for event in events {
+            let seq = event.seq
             let previous = lastTime
-            let time = Date(iso: item.entry.time)
+            let time = Date(iso: event.data.time)
             if let time { lastTime = time }
-            switch item.entry {
+            switch event.data {
             case .input(let input):
                 if input.mode == "start" {
                     replies = []
                     edits = []
                     if let time, previous == nil || time.timeIntervalSince(previous!) > Self.dividerGap || !Calendar.current.isDate(time, inSameDayAs: previous!) {
-                        blocks.append(.time(index: index, date: time))
+                        blocks.append(.time(seq: seq, date: time))
                     }
                 }
                 if input.mode == "interrupt" {
-                    blocks.append(.divider(index: index, text: "已打断"))
+                    blocks.append(.divider(seq: seq, text: "已打断"))
                 }
                 if !input.attachments.isEmpty {
-                    blocks.append(.attachments(index: index, attachments: input.attachments))
+                    blocks.append(.attachments(seq: seq, attachments: input.attachments))
                 }
                 if !input.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    blocks.append(.input(index: index, entry: input))
+                    blocks.append(.input(seq: seq, entry: input))
                 }
-            case .thinking(let time, let text, let durationMs, _):
-                addStep(.thinking(index: index, time: time, text: text, durationMs: durationMs), at: index)
-            case .text(_, let text, let files, _):
+            case .thinking(let time, let text, let durationMs):
+                addStep(.thinking(seq: seq, time: time, text: text, durationMs: durationMs), at: seq)
+            case .text(_, let text, let files):
                 if !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     replies.append(text)
-                    blocks.append(.text(index: index, text: text, files: files))
+                    blocks.append(.text(seq: seq, text: text, files: files))
                 }
             case .toolCall(let call):
-                let state = state(index, call, live: live)
+                let state = state(event, call, live: live)
                 edits.append(contentsOf: editCalls(state))
                 if case .subagent = call.tool {
-                    addStep(.subagent(state), at: index)
+                    addStep(.subagent(state), at: seq)
                 } else {
-                    addStep(.tool(state), at: index)
+                    addStep(.tool(state), at: seq)
                 }
-            case .compact(_, let trigger, let pre, let post, _):
+            case .compact(_, let trigger, let pre, let post):
                 let sizes = pre.flatMap { pre in post.map { "（\(Format.tokens(pre)) → \(Format.tokens($0)) token）" } } ?? ""
-                blocks.append(.divider(index: index, text: "\(trigger == "manual" ? "手动" : "自动")压缩了上下文\(sizes)"))
+                blocks.append(.divider(seq: seq, text: "\(trigger == "manual" ? "手动" : "自动")压缩了上下文\(sizes)"))
             case .turnEnd(let end):
-                blocks.append(.turnEnd(index: index, entry: end, reply: replies.joined(separator: "\n\n"), edits: edits))
+                blocks.append(.turnEnd(seq: seq, entry: end, reply: replies.joined(separator: "\n\n"), edits: edits))
             default:
                 break
             }
@@ -225,7 +222,7 @@ enum StepSummary {
             guard let state = step.state else { continue }
             let label = ToolLabel(state.call)
             let key: String
-            if case .edit(let path, _) = state.call.tool { key = path } else { key = state.call.id + "\(state.index)" }
+            if case .edit(let path, _, _) = state.call.tool { key = path } else { key = state.itemId }
             counts[label.category, default: []].insert(key)
         }
         let parts = order.compactMap { category, text in counts[category].map { text($0.count) } }
@@ -242,24 +239,18 @@ struct ToolLabel {
     let category: ToolCategory
     let detail: String?
 
+    // 浏览器操作（服务端归类的 operation）的说法，认不出的直接用工具名
     private static let browserVerbs = [
-        "navigate": "浏览器打开", "computer": "操作浏览器", "browser_batch": "操作浏览器", "javascript_tool": "在浏览器里执行脚本",
-        "read_page": "读取页面", "get_page_text": "读取页面", "find": "在页面里查找", "form_input": "填写表单",
-        "read_console_messages": "查看控制台", "read_network_requests": "查看网络请求", "tabs_context_mcp": "查看标签页",
-        "tabs_create_mcp": "新建标签页", "tabs_close_mcp": "关闭标签页",
+        "navigate": "浏览器打开", "interact": "操作浏览器", "script": "在浏览器里执行脚本", "read": "读取页面",
+        "find": "在页面里查找", "fill": "填写表单", "console": "查看控制台", "network": "查看网络请求",
+        "tabs": "查看标签页", "open-tab": "新建标签页", "close-tab": "关闭标签页",
     ]
 
     init(_ call: ToolCallEntry) {
-        let firstText: String? = {
-            if case .object(let object) = call.input {
-                return object.sorted { $0.key < $1.key }.lazy.compactMap { $0.value.stringValue }.first
-            }
-            return nil
-        }()
         switch call.tool {
         case .command(let command): (icon, verb, category, detail) = ("apple.terminal", "运行", .command, command)
         case .read(let path): (icon, verb, category, detail) = ("doc.text", "查看", .read, path)
-        case .edit(let path, let change):
+        case .edit(let path, let change, _):
             if case .write = change {
                 (icon, verb, category, detail) = ("doc.badge.plus", "写入", .edit, path)
             } else {
@@ -269,15 +260,13 @@ struct ToolLabel {
         case .webSearch(let query): (icon, verb, category, detail) = ("globe", "搜索网页", .search, query)
         case .webFetch(let url, _): (icon, verb, category, detail) = ("globe", "打开网页", .web, url)
         case .imageView(let path): (icon, verb, category, detail) = ("photo", "查看图片", .read, path)
-        case .browser(let action, let target): (icon, verb, category, detail) = ("macwindow", Self.browserVerbs[action] ?? "浏览器 \(action)", .browser, target)
-        case .mcp(let server, let tool): (icon, verb, category, detail) = ("wrench.and.screwdriver", "\(server) \(tool)", .other, firstText)
+        case .browser(let action, let target, let operation): (icon, verb, category, detail) = ("macwindow", operation.flatMap { Self.browserVerbs[$0] } ?? "浏览器 \(action)", .browser, target)
+        case .mcp(let server, let tool, let target): (icon, verb, category, detail) = ("wrench.and.screwdriver", "\(server) \(tool)", .other, target)
         case .subagent(let description, _, _): (icon, verb, category, detail) = ("person.2", "子 agent", .subagent, description)
         case .toolSearch(let query): (icon, verb, category, detail) = ("shippingbox", "加载工具", .other, query)
         case .skill(let name): (icon, verb, category, detail) = ("sparkles", "使用技能", .other, name)
         case .todo: (icon, verb, category, detail) = ("checklist", "更新待办", .other, nil)
-        case .other:
-            let name = call.name.replacing(/^mcp__/, with: "").replacing("__", with: " ")
-            (icon, verb, category, detail) = ("wrench.and.screwdriver", name, .other, firstText)
+        case .other(let target): (icon, verb, category, detail) = ("wrench.and.screwdriver", call.name, .other, target)
         }
     }
 }
@@ -308,18 +297,6 @@ enum Diff {
                 return DiffLine(id: index, kind: kind, text: text)
             }
         }
-    }
-
-    // 条目不会变，算过的记下来：每次排版都对整段内容做 diff 太慢
-    private static var countCache: [FileChange: (added: Int, removed: Int)] = [:]
-
-    static func counts(for change: FileChange) -> (added: Int, removed: Int) {
-        if let cached = countCache[change] { return cached }
-        let lines = lines(for: change)
-        let counts = (lines.count { $0.kind == .added }, lines.count { $0.kind == .removed })
-        if countCache.count > 2000 { countCache.removeAll() }
-        countCache[change] = counts
-        return counts
     }
 
     private static func split(_ text: String) -> [String] {
@@ -370,17 +347,14 @@ struct ChangedFile: Identifiable {
     static func collect(_ states: [CallState]) -> [ChangedFile] {
         var files: [ChangedFile] = []
         for state in states {
-            guard state.result?.status == "done", case .edit(let path, let change) = state.call.tool else { continue }
+            guard state.result?.status == "done", case .edit(let path, let change, let lines) = state.call.tool else { continue }
             let index = files.firstIndex { $0.path == path } ?? {
                 files.append(ChangedFile(path: path))
                 return files.count - 1
             }()
-            if let change {
-                let counts = Diff.counts(for: change)
-                files[index].added += counts.added
-                files[index].removed += counts.removed
-                if case .diff(let op, _) = change, op != "update" { files[index].op = op }
-            }
+            files[index].added += lines?.added ?? 0
+            files[index].removed += lines?.removed ?? 0
+            if case .diff(let op, _)? = change, op != "update" { files[index].op = op }
             files[index].calls.append(state)
         }
         return files

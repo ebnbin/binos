@@ -39,6 +39,8 @@ final class MusicPlayer {
     private var artwork: (url: String, image: UIImage)?
     // 开始加载这首歌之后，又切了歌，前一次的加载结果作废
     private var loadToken = 0
+    // 各个来源的曲目从哪个来源取音频流（ProviderInfo.stream），没有的不能在本机播放
+    private var streamProviders: [String: String]?
 
     private init() {
         let defaults = UserDefaults.standard
@@ -71,6 +73,7 @@ final class MusicPlayer {
         connection?.stop()
         playerId = nil
         connect()
+        streamProviders = nil
         Task { await refreshQueue() }
     }
 
@@ -120,6 +123,23 @@ final class MusicPlayer {
         }
     }
 
+    // 把 track 移到第 target 首；先在本机生效，没做成时以服务端的队列为准
+    func move(_ track: Track, to target: Int) async throws {
+        guard let from = queue.firstIndex(where: { $0.ref == track.ref }) else { return }
+        let currentRef = current?.ref
+        var next = queue
+        next.remove(at: from)
+        next.insert(track, at: min(max(target, 0), next.count))
+        queue = next
+        index = currentRef.flatMap { ref in queue.firstIndex { $0.ref == ref } }
+        do {
+            apply(try await MusicAPI.mutate(.init(type: "move", ref: track.ref, index: target)))
+        } catch {
+            await refreshQueue()
+            throw error
+        }
+    }
+
     func clear() async throws {
         stop()
         apply(try await MusicAPI.mutate(.init(type: "clear")))
@@ -153,15 +173,20 @@ final class MusicPlayer {
         Task { await load(track, token: token) }
     }
 
-    // YouTube 的两个来源用的是同一套视频 id，都经由 YouTube Music 的音频流播放
+    // 收到 music 通知时重新读取：来源的设置会影响能不能取音频流
+    func refreshProviders() async {
+        guard let providers = try? await MusicAPI.providers() else { return }
+        streamProviders = Dictionary(providers.compactMap { provider in provider.stream.map { (provider.id, $0.provider) } }, uniquingKeysWith: { first, _ in first })
+    }
+
     private func load(_ track: Track, token: Int) async {
         do {
-            let source: PlaybackSource = try await API.shared.get("\(MusicAPI.base)/providers/youtube-music/playback", query: ["q": track.ref.id])
+            if streamProviders == nil { await refreshProviders() }
             guard token == loadToken else { return }
-            guard source.kind == "audio", let path = source.url else {
-                throw APIError.http(422, "这首歌不能在本机播放")
+            guard let provider = streamProviders?[track.ref.provider] else {
+                throw APIError.http(422, code: "unsupported", message: "这首歌不能在本机播放")
             }
-            let url = path.hasPrefix("/") ? API.shared.url(path.components(separatedBy: "?")[0], query: query(of: path)) : URL(string: path)!
+            let url = MusicAPI.streamURL(provider: provider, id: track.ref.id)
             var options: [String: Any] = [:]
             if let cookies = HTTPCookieStorage.shared.cookies(for: url), !cookies.isEmpty {
                 options[AVURLAssetHTTPCookiesKey] = cookies
@@ -179,11 +204,6 @@ final class MusicPlayer {
             self.error = error.localizedDescription
             updateNowPlaying()
         }
-    }
-
-    private func query(of path: String) -> [String: String] {
-        guard let components = URLComponents(string: path) else { return [:] }
-        return Dictionary((components.queryItems ?? []).map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { $1 })
     }
 
     private func activateSession() {

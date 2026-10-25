@@ -69,7 +69,7 @@ struct DevicesView: View {
     @State private var reason = "手动验证"
     // 手动申请的编号：排队时每 30 秒重新申请一次保活
     @AppStorage("devices/request") private var requestId = ""
-    @State private var screenshot: (id: String, image: UIImage)?
+    @State private var screenshot: (id: String, image: UIImage, at: Date?)?
     @State private var busy = false
     @State private var destroying: (device: DevicesSnapshot.Device, leased: Bool)?
     private let hub = EventHub.shared
@@ -90,12 +90,11 @@ struct DevicesView: View {
                 Section("手动申请") {
                     if let lease = manualLease {
                         Text("正在使用：\(lease.devices.joined(separator: "、"))").font(.footnote)
-                        Button("归还我的设备", role: .destructive) { Task { await post("/leases/\(lease.id)/release") } }
+                        Button("归还我的设备", role: .destructive) { Task { await call("DELETE", "/leases/\(lease.id)") } }
                     } else if let waiting = manualWaiting {
                         Text(waiting.phase == "failed" ? (waiting.error ?? "申请失败") : "排队中").font(.footnote)
                         Button("取消申请", role: .destructive) {
-                            struct Body: Encodable { let requestId: String }
-                            Task { await post("/queue/cancel", body: Body(requestId: requestId)) }
+                            Task { await call("DELETE", "/queue/\(requestId)") }
                         }
                     } else {
                         Picker("平台", selection: $platform) {
@@ -130,22 +129,23 @@ struct DevicesView: View {
             presenting: destroying
         ) { target in
             Button(target.leased ? "确认中断租约并销毁" : "确认销毁设备", role: .destructive) {
-                struct Body: Encodable { let operation: String }
-                Task { await post("/\(target.device.id)/control", body: Body(operation: "destroy")) }
+                Task { await call("DELETE", "/\(target.device.id)") }
             }
         }
         .sheet(isPresented: Binding(get: { screenshot != nil }, set: { if !$0 { screenshot = nil } })) {
             if let screenshot {
-                Image(uiImage: screenshot.image).resizable().scaledToFit().padding().presentationDetents([.large])
+                VStack {
+                    Image(uiImage: screenshot.image).resizable().scaledToFit()
+                    if let at = screenshot.at {
+                        Text("截图于 \(at.formatted(date: .omitted, time: .standard)) · 非实时画面").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .padding()
+                .presentationDetents([.large])
             }
         }
+        // 设备、租约、排队和操作记录变了时有 devices 通知
         .task(id: hub.devices) { await load() }
-        .task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(5))
-                await load()
-            }
-        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(30))
@@ -257,12 +257,12 @@ struct DevicesView: View {
             let requestId: String
         }
         let platforms = platform == "both" ? ["android", "ios"] : [platform]
-        await post("/leases", body: Body(platforms: platforms, reason: reason, requestId: requestId))
+        await call("POST", "/leases", body: Body(platforms: platforms, reason: reason, requestId: requestId))
     }
 
-    private func post(_ path: String, body: (any Encodable)? = nil) async {
+    private func call(_ method: String, _ path: String, body: (any Encodable)? = nil) async {
         do {
-            try await API.shared.post("/api/apps/devices\(path)", body: body)
+            let _: Ignored = try await API.shared.send(method, "/api/apps/devices\(path)", body: body)
             error = nil
         } catch {
             self.error = error.localizedDescription
@@ -270,15 +270,29 @@ struct DevicesView: View {
         await load()
     }
 
+    // 响应体就是截图，Last-Modified 是截图的时间
     private func capture(_ id: String) async {
-        struct Shot: Decodable { let image: String }
+        let api = API.shared
         do {
-            let shot: Shot = try await API.shared.get("/api/apps/devices/\(id)/screenshot")
-            if let data = Data(base64Encoded: shot.image), let image = UIImage(data: data) { screenshot = (id, image) }
+            let (data, response) = try await api.session.data(for: api.request(api.url("/api/apps/devices/\(id)/screenshot")))
+            let http = try api.check(response, data: data)
+            guard let image = UIImage(data: data) else { throw APIError.invalidResponse }
+            let at = http.value(forHTTPHeaderField: "Last-Modified").flatMap { Self.httpDate.date(from: $0) }
+            screenshot = (id, image, at)
         } catch {
             self.error = error.localizedDescription
         }
     }
+}
+
+extension DevicesView {
+    fileprivate static let httpDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter
+    }()
 }
 
 private struct DeviceRow: View {

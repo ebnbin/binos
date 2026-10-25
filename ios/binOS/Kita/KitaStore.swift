@@ -122,7 +122,7 @@ final class KitaStore {
             counts[item.owner, default: 0] += 1
         }
         let parts = owners.map { owner in
-            let name = KitaAPI.appName(owner)
+            let name = AppsStore.shared.name(owner)
             return counts[owner]! > 1 ? "\(name)（\(counts[owner]!)）" : name
         }
         return (true, "回答中：\(parts.joined(separator: "、"))")
@@ -133,10 +133,6 @@ final class KitaStore {
 enum KitaAPI {
     private static var api: API { API.shared }
 
-    // 内置 app 的名字，和网页的 apps/builtins.ts 一致
-    private static let appNames = ["code": "Code", "kita": "喜多", "music": "音乐", "browser": "浏览器", "terminal": "终端", "files": "文件", "calendar": "日历", "system": "系统", "builds": "构建", "devices": "设备"]
-    static func appName(_ id: String) -> String { appNames[id] ?? id }
-
     static func photoURL(_ file: String) -> URL { api.url("/api/kita/profile/photos/\(file)") }
 
     struct MessageBody: Encodable {
@@ -145,29 +141,16 @@ enum KitaAPI {
         var agent: String?
     }
 
-    private static func unavailable(_ error: Error) -> Error {
-        if case APIError.http(503, _) = error { return APIError.http(503, "消息没能发出，稍后再试") }
-        return error
-    }
-
     // 新对话，返回它的 id
     static func start(text: String, temporary: Bool, agent: String) async throws -> String {
         struct Response: Decodable { let id: String }
-        do {
-            let response: Response = try await api.send("POST", "/api/apps/kita/conversations", body: MessageBody(text: text, temporary: temporary, agent: agent))
-            return response.id
-        } catch {
-            throw unavailable(error)
-        }
+        let response: Response = try await api.send("POST", "/api/apps/kita/conversations", body: MessageBody(text: text, temporary: temporary, agent: agent))
+        return response.id
     }
 
     // 正在回答时交给 agent，它在下一步看到
     static func send(_ id: String, text: String) async throws {
-        do {
-            try await api.post("/api/apps/kita/conversations/\(id)/messages", body: MessageBody(text: text))
-        } catch {
-            throw unavailable(error)
-        }
+        try await api.post("/api/apps/kita/conversations/\(id)/messages", body: MessageBody(text: text))
     }
 
     static func stop(_ id: String) async {
@@ -176,31 +159,27 @@ enum KitaAPI {
 
     // 只能删没在回答的
     static func delete(_ id: String) async throws {
-        do {
-            try await api.post("/api/apps/kita/conversations/\(id)/delete")
-        } catch APIError.http(409, _) {
-            throw APIError.http(409, "正在回答，停止后才能删除")
-        }
+        try await api.delete("/api/apps/kita/conversations/\(id)")
     }
 
     static func saveDescription(_ description: String) async throws {
         struct Body: Encodable { let description: String }
-        try await api.post("/api/kita/profile/description", body: Body(description: description))
+        try await api.put("/api/kita/profile/description", body: Body(description: description))
     }
 
-    // 请求体就是照片本身，原来的文件名 URL 编码后放在 X-File-Name 里
-    static func upload(_ data: Data, name: String) async throws {
+    // 请求体就是照片本身，格式由服务端认
+    static func upload(_ data: Data) async throws {
         struct Response: Decodable { let file: String }
-        let encoded = name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? ""
-        let _: Response = try await api.upload("/api/kita/profile/photos", data: data, headers: ["X-File-Name": encoded])
+        let _: Response = try await api.upload("/api/kita/profile/photos", data: data, headers: [:])
     }
 
     static func removePhoto(_ file: String) async throws {
-        try await api.post("/api/kita/profile/photos/\(file)/delete")
+        try await api.delete("/api/kita/profile/photos/\(file)")
     }
 
     static func setAvatar(_ file: String) async throws {
-        try await api.post("/api/kita/profile/photos/\(file)/avatar")
+        struct Body: Encodable { let file: String }
+        try await api.put("/api/kita/profile/avatar", body: Body(file: file))
     }
 
     struct NewMemory: Encodable {
@@ -219,19 +198,15 @@ enum KitaAPI {
     }
 
     static func updateMemory(_ id: String, _ change: MemoryChange) async throws {
-        try await api.post("/api/kita/memories/\(id)", body: change)
+        let _: Ignored = try await api.send("PATCH", "/api/kita/memories/\(id)", body: change)
     }
 
     static func removeMemory(_ id: String) async throws {
-        try await api.post("/api/kita/memories/\(id)/delete")
+        try await api.delete("/api/kita/memories/\(id)")
     }
 
     // 恢复上一个版本
     static func revertMemory(_ id: String) async throws {
-        do {
-            try await api.post("/api/kita/memories/\(id)/revert")
-        } catch APIError.http(409, _) {
-            throw APIError.http(409, "没有可以恢复的版本")
-        }
+        try await api.post("/api/kita/memories/\(id)/revert")
     }
 }

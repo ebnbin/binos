@@ -69,11 +69,17 @@ struct ProviderInfo: Decodable, Hashable, Identifiable {
         @Lossy var fields: [Field]
     }
 
+    // 这个来源的曲目能直接取音频流时，用哪个来源的 /providers/<provider>/stream
+    struct Stream: Decodable, Hashable {
+        let provider: String
+    }
+
     let id: String
     @Default<Defaults.Empty> var name: String
     @Default<Defaults.Empty> var description: String
     let input: Input
     @LossyDictionary var capabilities: [String: Capability]
+    let stream: Stream?
     let configuration: Configuration
 
     func available(_ capability: String) -> Bool { capabilities[capability]?.state == "available" }
@@ -88,12 +94,6 @@ struct ProviderInfo: Decodable, Hashable, Identifiable {
         }
         return "search"
     }
-}
-
-struct PlaybackSource: Decodable {
-    let kind: String
-    let url: String?
-    let id: String?
 }
 
 struct Lyrics: Decodable {
@@ -230,9 +230,13 @@ enum MusicAPI {
         return try await api.get("\(base)/providers/\(provider)/\(operation)", query: params)
     }
 
-    // 值为空字符串表示移除这一项
-    static func configure(provider: String, values: [String: String]) async throws -> ProviderInfo {
-        try await api.send("PUT", "\(base)/providers/\(provider)/settings", body: values)
+    // 只改给出的项，值为 nil 表示移除这一项
+    static func configure(provider: String, values: [String: String?]) async throws -> ProviderInfo {
+        try await api.send("PATCH", "\(base)/providers/\(provider)/settings", body: values)
+    }
+
+    static func streamURL(provider: String, id: String) -> URL {
+        api.url("\(base)/providers/\(provider)/stream", query: ["id": id])
     }
 
     static func lyrics(_ ref: TrackRef) async throws -> Lyrics {
@@ -248,6 +252,8 @@ enum MusicAPI {
             let type: String
             var tracks: [Track]?
             var ref: TrackRef?
+            // move：移到第几首，从 0 开始
+            var index: Int?
         }
 
         let id = UUID().uuidString

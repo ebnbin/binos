@@ -192,8 +192,6 @@ struct KitaChatView: View {
             next.start()
             stream = next
         }
-        .onAppear { stream?.start() }
-        .onDisappear { stream?.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream?.reconnectIfStale() }
         }
@@ -420,10 +418,8 @@ struct KitaProfileView: View {
         defer { uploading = false }
         for item in items {
             guard let data = try? await item.loadTransferable(type: Data.self) else { continue }
-            let ext = item.supportedContentTypes.first?.preferredFilenameExtension ?? "jpg"
-            let name = "\(item.itemIdentifier ?? UUID().uuidString).\(ext)".replacing("/", with: "-")
             do {
-                try await KitaAPI.upload(data, name: name)
+                try await KitaAPI.upload(data)
             } catch {
                 notice = error.localizedDescription
             }

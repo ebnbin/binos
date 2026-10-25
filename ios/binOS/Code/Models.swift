@@ -37,23 +37,33 @@ enum FileChange: Decodable, Hashable {
     }
 }
 
+struct LineCount: Decodable, Hashable {
+    @Default<Defaults.ZeroInt> var added: Int
+    @Default<Defaults.ZeroInt> var removed: Int
+}
+
+struct WebLink: Decodable, Hashable {
+    let title: String
+    let url: String
+}
+
 enum ToolDetail: Decodable, Hashable {
     case command(String)
     case read(path: String)
-    case edit(path: String, change: FileChange?)
+    case edit(path: String, change: FileChange?, lines: LineCount?)
     case search(pattern: String, files: Bool)
     case webSearch(String)
     case webFetch(url: String, prompt: String?)
     case imageView(path: String)
-    case browser(action: String, target: String?)
-    case mcp(server: String, tool: String)
+    case browser(action: String, target: String?, operation: String?)
+    case mcp(server: String, tool: String, target: String?)
     case subagent(description: String, prompt: String?, type: String?)
     case toolSearch(String)
     case skill(String)
     case todo
-    case other
+    case other(target: String?)
 
-    private enum Keys: String, CodingKey { case kind, command, path, change, pattern, target, query, url, prompt, action, server, tool, description, type, name }
+    private enum Keys: String, CodingKey { case kind, command, path, change, lines, pattern, target, query, url, prompt, action, operation, server, tool, description, type, name }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
@@ -62,18 +72,18 @@ enum ToolDetail: Decodable, Hashable {
         switch try c.decode(String.self, forKey: .kind) {
         case "command": self = .command(string(.command))
         case "read": self = .read(path: string(.path))
-        case "edit": self = .edit(path: string(.path), change: try? c.decode(FileChange.self, forKey: .change))
+        case "edit": self = .edit(path: string(.path), change: try? c.decode(FileChange.self, forKey: .change), lines: try? c.decode(LineCount.self, forKey: .lines))
         case "search": self = .search(pattern: string(.pattern), files: optional(.target) == "files")
         case "web_search": self = .webSearch(string(.query))
         case "web_fetch": self = .webFetch(url: string(.url), prompt: optional(.prompt))
         case "image_view": self = .imageView(path: string(.path))
-        case "browser": self = .browser(action: string(.action), target: optional(.target))
-        case "mcp": self = .mcp(server: string(.server), tool: string(.tool))
+        case "browser": self = .browser(action: string(.action), target: optional(.target), operation: optional(.operation))
+        case "mcp": self = .mcp(server: string(.server), tool: string(.tool), target: optional(.target))
         case "subagent": self = .subagent(description: string(.description), prompt: optional(.prompt), type: optional(.type))
         case "tool_search": self = .toolSearch(string(.query))
         case "skill": self = .skill(string(.name))
         case "todo": self = .todo
-        default: self = .other
+        default: self = .other(target: optional(.target))
         }
     }
 }
@@ -93,7 +103,6 @@ struct ToolCallEntry: Hashable {
     let name: String
     let tool: ToolDetail
     let input: JSONValue?
-    let parent: String?
     // 发给页面时省略过长的命令，完整的按调用的位置另外读
     let clipped: Bool
 }
@@ -105,7 +114,9 @@ struct ToolResultEntry: Hashable {
     let output: String?
     let truncated: Bool
     let images: [String]
-    let parent: String?
+    // 读文件的结果：output 第一行的行号
+    let startLine: Int?
+    let links: [WebLink]
     // 发给页面时只留了输出的末尾，完整的按调用的位置另外读
     let clipped: Bool
 }
@@ -116,6 +127,7 @@ struct TurnEndEntry: Hashable {
     let outcome: String?
     let error: String?
     let model: String?
+    let modelName: String?
     let outputTokens: Int?
     let context: ContextUsage?
 }
@@ -124,26 +136,24 @@ struct TurnEndEntry: Hashable {
 enum Entry: Decodable, Hashable {
     case session(agent: String, time: String)
     case input(InputEntry)
-    case thinking(time: String, text: String, durationMs: Double?, parent: String?)
-    case text(time: String, text: String, files: [String: String], parent: String?)
+    case thinking(time: String, text: String, durationMs: Double?)
+    case text(time: String, text: String, files: [String: String])
     case toolCall(ToolCallEntry)
     case toolResult(ToolResultEntry)
-    case compact(time: String, trigger: String, preTokens: Int?, postTokens: Int?, parent: String?)
+    case compact(time: String, trigger: String, preTokens: Int?, postTokens: Int?)
     case turnEnd(TurnEndEntry)
     case other(time: String)
 
     private enum Keys: String, CodingKey {
-        case type, time, agent, mode, text, attachments, model, effort, durationMs, files, parent, id, name, tool, input
-        case callId, status, output, truncated, images, trigger, preTokens, postTokens, outcome, error, outputTokens, context, clipped
+        case type, time, agent, mode, text, attachments, model, modelName, effort, durationMs, files, id, name, tool, input
+        case callId, status, output, truncated, images, startLine, links, trigger, preTokens, postTokens, outcome, error, outputTokens, context, clipped
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         let time = (try? c.decode(String.self, forKey: .time)) ?? ""
-        let parent = try? c.decode(String.self, forKey: .parent)
         let clipped = (try? c.decode(Bool.self, forKey: .clipped)) ?? false
         func string(_ key: Keys) -> String { (try? c.decode(String.self, forKey: key)) ?? "" }
-        // 没有类型的也占一条，后面条目的序号才对得上
         switch (try? c.decode(String.self, forKey: .type)) ?? "" {
         case "session":
             self = .session(agent: string(.agent), time: time)
@@ -153,44 +163,37 @@ enum Entry: Decodable, Hashable {
                 attachments: (try? c.decode(Lossy<Attachment>.self, forKey: .attachments))?.wrappedValue ?? [],
                 model: try? c.decode(String.self, forKey: .model), effort: try? c.decode(String.self, forKey: .effort)))
         case "thinking":
-            self = .thinking(time: time, text: string(.text), durationMs: try? c.decode(Double.self, forKey: .durationMs), parent: parent)
+            self = .thinking(time: time, text: string(.text), durationMs: try? c.decode(Double.self, forKey: .durationMs))
         case "text":
-            self = .text(time: time, text: string(.text), files: (try? c.decode([String: String].self, forKey: .files)) ?? [:], parent: parent)
+            self = .text(time: time, text: string(.text), files: (try? c.decode([String: String].self, forKey: .files)) ?? [:])
         case "tool_call":
             self = .toolCall(ToolCallEntry(
                 time: time, id: string(.id), name: string(.name),
-                tool: (try? c.decode(ToolDetail.self, forKey: .tool)) ?? .other,
-                input: try? c.decode(JSONValue.self, forKey: .input), parent: parent, clipped: clipped))
+                tool: (try? c.decode(ToolDetail.self, forKey: .tool)) ?? .other(target: nil),
+                input: try? c.decode(JSONValue.self, forKey: .input), clipped: clipped))
         case "tool_result":
             self = .toolResult(ToolResultEntry(
                 time: time, callId: string(.callId), status: string(.status), output: try? c.decode(String.self, forKey: .output),
                 truncated: (try? c.decode(Bool.self, forKey: .truncated)) ?? false,
-                images: (try? c.decode(Lossy<String>.self, forKey: .images))?.wrappedValue ?? [], parent: parent, clipped: clipped))
+                images: (try? c.decode(Lossy<String>.self, forKey: .images))?.wrappedValue ?? [],
+                startLine: try? c.decode(Int.self, forKey: .startLine),
+                links: (try? c.decode(Lossy<WebLink>.self, forKey: .links))?.wrappedValue ?? [], clipped: clipped))
         case "compact":
-            self = .compact(time: time, trigger: string(.trigger), preTokens: try? c.decode(Int.self, forKey: .preTokens), postTokens: try? c.decode(Int.self, forKey: .postTokens), parent: parent)
+            self = .compact(time: time, trigger: string(.trigger), preTokens: try? c.decode(Int.self, forKey: .preTokens), postTokens: try? c.decode(Int.self, forKey: .postTokens))
         case "turn_end":
             self = .turnEnd(TurnEndEntry(
                 time: time, durationMs: (try? c.decode(Double.self, forKey: .durationMs)) ?? 0,
                 outcome: try? c.decode(String.self, forKey: .outcome), error: try? c.decode(String.self, forKey: .error),
-                model: try? c.decode(String.self, forKey: .model), outputTokens: try? c.decode(Int.self, forKey: .outputTokens),
+                model: try? c.decode(String.self, forKey: .model), modelName: try? c.decode(String.self, forKey: .modelName), outputTokens: try? c.decode(Int.self, forKey: .outputTokens),
                 context: try? c.decode(ContextUsage.self, forKey: .context)))
         default:
             self = .other(time: time)
         }
     }
 
-    var parent: String? {
-        switch self {
-        case .thinking(_, _, _, let parent), .text(_, _, _, let parent), .compact(_, _, _, _, let parent): parent
-        case .toolCall(let call): call.parent
-        case .toolResult(let result): result.parent
-        default: nil
-        }
-    }
-
     var time: String {
         switch self {
-        case .session(_, let time), .thinking(let time, _, _, _), .text(let time, _, _, _), .compact(let time, _, _, _, _), .other(let time): time
+        case .session(_, let time), .thinking(let time, _, _), .text(let time, _, _), .compact(let time, _, _, _), .other(let time): time
         case .input(let input): input.time
         case .toolCall(let call): call.time
         case .toolResult(let result): result.time
@@ -248,15 +251,19 @@ nonisolated struct Live: Decodable, Hashable {
     }
 }
 
-// 发给页面的一条事件：seq 是到它为止的条数
-struct PageEvent: Decodable {
+// 对话里的一条事件：seq 是位置，从 1 开始；turnId 是所属的一轮，第一条 session 条目没有；
+// itemId 是所属的条目，一次工具调用和它的结果相同；parentId 是子 agent 的条目所属的那次调用的 itemId
+struct PageEvent: Decodable, Hashable {
     let seq: Int
+    let turnId: String?
+    let itemId: String?
+    let parentId: String?
     let data: Entry
 }
 
-// 订阅 session 收到的一条。window：只要最后几轮时最先收到，from 是补发的第一条之前的条数；events：订阅时补发的条目，一次发完
+// 订阅 session 收到的一条。window：第一次连接时最先收到的最后几轮，从一轮的开头起；events：断线续传时补发的，一次发完
 enum KitaSessionEvent: Decodable {
-    case window(from: Int, session: Entry)
+    case window([PageEvent])
     case events([PageEvent])
     case event(PageEvent)
     case live(Live?)
@@ -267,12 +274,12 @@ enum KitaSessionEvent: Decodable {
     case file(path: String, name: String)
     case unknown
 
-    private enum Keys: String, CodingKey { case type, event, events, from, session, live, text, status, callId, progress, path, name }
+    private enum Keys: String, CodingKey { case type, event, events, live, text, status, callId, progress, path, name }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         switch try c.decode(String.self, forKey: .type) {
-        case "window": self = .window(from: try c.decode(Int.self, forKey: .from), session: try c.decode(Entry.self, forKey: .session))
+        case "window": self = .window(try c.decode([PageEvent].self, forKey: .events))
         case "events": self = .events(try c.decode([PageEvent].self, forKey: .events))
         case "event": self = .event(try c.decode(PageEvent.self, forKey: .event))
         case "live": self = .live(try c.decodeIfPresent(Live.self, forKey: .live))
@@ -332,6 +339,7 @@ struct SessionSummary: Decodable, Hashable, Identifiable {
     let context: ContextUsage?
     let agent: String
     let model: String?
+    let modelName: String?
     let effort: String?
     @Default<Defaults.ZeroInt> var turns: Int
     let tokens: Tokens?
@@ -347,7 +355,7 @@ struct SearchResult: Decodable, Hashable {
     let id: Int
     @Default<Defaults.Empty> var title: String
     @Default<Defaults.False> var archived: Bool
-    let item: Int?
+    let seq: Int?
     @Default<Defaults.Empty> var kind: String
     @Default<Defaults.Empty> var before: String
     @Default<Defaults.Empty> var match: String
@@ -412,9 +420,17 @@ struct AgentAuths: Decodable, Hashable {
     let codex: CodexAuth?
 }
 
+// 登录要用户处理的事，规则在服务端；usable：现在还能回答
+struct AgentAttention: Decodable, Hashable {
+    let reason: String
+    @Default<Defaults.False> var usable: Bool
+    let expiresAt: String?
+}
+
 struct AgentStatus: Decodable, Hashable {
     @LossyDictionary var limits: [String: Limits]
     let auth: AgentAuths
+    @LossyDictionary var attention: [String: AgentAttention]
 }
 
 // 新的一轮用哪个 agent、模型和思考程度；没有就是默认的
@@ -429,20 +445,6 @@ enum Agents {
     static let defaultAgent = "claude"
 
     static func name(_ agent: String) -> String { names[agent] ?? agent }
-
-    // claude-opus-5-5 → Opus 5.5；gpt-5-codex → GPT-5-Codex
-    static func modelName(_ agent: String, _ model: String) -> String {
-        if agent == "claude" {
-            guard let match = model.wholeMatch(of: /claude-([a-z]+)-(\d+)(?:-(\d+))?.*/) else { return model }
-            let family = String(match.1)
-            let version = match.3.map { "\(match.2).\($0)" } ?? String(match.2)
-            return "\(family.prefix(1).uppercased())\(family.dropFirst()) \(version)"
-        }
-        if model.hasPrefix("gpt-") {
-            return model.split(separator: "-").enumerated().map { index, part in index == 0 ? "GPT" : part.prefix(1).uppercased() + part.dropFirst() }.joined(separator: "-")
-        }
-        return model
-    }
 
     private static let effortNames = ["minimal": "最低", "low": "低", "medium": "中", "high": "高", "xhigh": "很高", "max": "最高", "ultra": "极高"]
     static func effortName(_ effort: String) -> String { effortNames[effort] ?? effort }

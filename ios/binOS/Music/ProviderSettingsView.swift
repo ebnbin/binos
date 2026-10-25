@@ -46,11 +46,11 @@ struct ProviderSettingsView: View {
             }
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
-            .onSubmit { if !trimmed.isEmpty { save([field.id: trimmed]) } }
-            Button("保存") { save([field.id: trimmed]) }
+            .onSubmit { if !trimmed.isEmpty { save([field.id: .some(trimmed)]) } }
+            Button("保存") { save([field.id: .some(trimmed)]) }
                 .disabled(saving || trimmed.isEmpty)
             if field.configured {
-                Button("移除", role: .destructive) { save([field.id: ""]) }
+                Button("移除", role: .destructive) { save([field.id: .none]) }
                     .disabled(saving)
             }
         } header: {
@@ -65,7 +65,7 @@ struct ProviderSettingsView: View {
         }
     }
 
-    private func save(_ patch: [String: String]) {
+    private func save(_ patch: [String: String?]) {
         saving = true
         message = nil
         Task {

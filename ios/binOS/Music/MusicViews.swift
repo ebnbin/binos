@@ -5,7 +5,8 @@ struct MusicRootView: View {
     private let player = MusicPlayer.shared
     @State private var providers: [ProviderInfo] = []
     @State private var providersError: String?
-    @State private var provider = "youtube-music"
+    // 搜索用的来源，没选过时是第一个
+    @State private var provider = ""
     @State private var showingSettings = false
     @State private var query = ""
     @State private var results: CatalogPage?
@@ -47,6 +48,9 @@ struct MusicRootView: View {
             .onSubmit(of: .search) { Task { await search() } }
             .onChange(of: query) { results = nil }
             .toolbar {
+                if player.queue.count > 1, queryText.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) { EditButton() }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Picker("来源", selection: $provider) {
@@ -80,18 +84,15 @@ struct MusicRootView: View {
             .task(id: EventHub.shared.music) {
                 do {
                     providers = try await MusicAPI.providers()
+                    if !providers.contains(where: { $0.id == provider }) { provider = providers.first?.id ?? "" }
                     providersError = nil
                 } catch is CancellationError {
                 } catch {
                     providersError = error.localizedDescription
                 }
             }
-            .task {
-                while !Task.isCancelled {
-                    await loadOthers()
-                    try? await Task.sleep(for: .seconds(5))
-                }
-            }
+            // 播放器上线、下线或播放状态变了时有 players 通知；播放进度按 updatedAt 推算
+            .task(id: EventHub.shared.players) { await loadOthers() }
         }
     }
 
@@ -136,6 +137,11 @@ struct MusicRootView: View {
                     }
                 }
                 .contextMenu {
+                    if offset > 0 {
+                        Button("移到最前", systemImage: "arrow.up.to.line") {
+                            Task { try? await player.move(track, to: 0) }
+                        }
+                    }
                     if let url = URL(string: track.externalUrl) {
                         Link(destination: url) { Label("在 YouTube 打开", systemImage: "safari") }
                     }
@@ -143,6 +149,12 @@ struct MusicRootView: View {
                         Task { try? await player.remove(track) }
                     }
                 }
+            }
+            .onMove { source, destination in
+                guard let from = source.first else { return }
+                let track = player.queue[from]
+                // destination 是移走之前的位置
+                Task { try? await player.move(track, to: destination > from ? destination - 1 : destination) }
             }
         } header: {
             Text("共享队列 · \(player.queue.count) 首")

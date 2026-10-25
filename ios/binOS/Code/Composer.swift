@@ -37,7 +37,7 @@ struct Composer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let session, !session.queue.isEmpty, let sessionId {
-                QueueList(queue: session.queue, running: running, sessionId: sessionId) { text in
+                QueueList(store: store, queue: session.queue, running: running, sessionId: sessionId) { text in
                     input = input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? text : input + "\n" + text
                 }
             }
@@ -220,6 +220,7 @@ private struct PendingChip: View {
 
 // 排着队、等这一轮答完再发的消息：撤回到输入框，被停止或出错后可以现在就发
 private struct QueueList: View {
+    let store: CodeStore
     let queue: [QueuedMessage]
     let running: Bool
     let sessionId: Int
@@ -238,13 +239,13 @@ private struct QueueList: View {
                     Spacer()
                     if !running {
                         Button("现在发送", systemImage: "arrow.up.circle") {
-                            Task { await CodeAPI.sendQueued(sessionId, item: item.id) }
+                            Task { await store.sendQueued(sessionId, item: item.id) }
                         }
                         .labelStyle(.iconOnly)
                     }
                     Button("撤回到输入框", systemImage: "arrow.uturn.backward.circle") {
                         Task {
-                            if let text = await CodeAPI.withdraw(sessionId, item: item.id) { onWithdraw(text) }
+                            if let text = await store.withdraw(sessionId, item: item.id) { onWithdraw(text) }
                         }
                     }
                     .labelStyle(.iconOnly)
@@ -306,7 +307,7 @@ private struct ModelMenu: View {
             }
         } label: {
             HStack(spacing: 3) {
-                Text(selected?.name ?? choice.model.map { Agents.modelName(choice.agent, $0) } ?? Agents.name(choice.agent))
+                Text(selected?.name ?? choice.model ?? Agents.name(choice.agent))
                 if let effort = choice.effort {
                     Text("· \(Agents.effortName(effort))").foregroundStyle(.secondary)
                 }

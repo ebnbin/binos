@@ -25,16 +25,51 @@ struct AppRegistry: Codable {
     var external: [ExternalApp]
 }
 
+struct BuiltinApp: Decodable, Hashable {
+    let id: String
+    let name: String
+}
+
+// 服务端给出的全部 app：内置 app 的名称和注册表里的外部 app。连上全局通知时和收到 apps 通知时重新读取
+@Observable
+final class AppsStore {
+    static let shared = AppsStore()
+
+    private(set) var builtin: [BuiltinApp] = []
+    fileprivate(set) var registry: AppRegistry?
+    // 改动之前发出的读取，返回的是旧的清单，不用
+    @ObservationIgnored fileprivate var latest = 0
+
+    private init() {}
+
+    private struct Apps: Decodable {
+        @Lossy var builtin: [BuiltinApp]
+        let external: [ExternalApp]
+    }
+
+    func refresh() async {
+        latest += 1
+        let request = latest
+        guard let apps: Apps = try? await API.shared.get("/api/apps"), request == latest else { return }
+        builtin = apps.builtin
+        registry = AppRegistry(external: apps.external)
+    }
+
+    // activity、记忆的范围和来源里的 app 只有 id；读到清单之前先用 id
+    func name(_ id: String) -> String {
+        builtin.first { $0.id == id }?.name ?? registry?.external.first { $0.id == id }?.name ?? id
+    }
+}
+
 // 外部 app：独立部署的网页 app，在 app 里的网页视图打开；清单所有设备共用
 struct ExternalAppsSection: View {
-    @State private var registry: AppRegistry?
     @State private var editing: ExternalApp?
     @State private var error: String?
-    private let hub = EventHub.shared
+    private let store = AppsStore.shared
 
     var body: some View {
         Section {
-            ForEach(registry?.external ?? []) { app in
+            ForEach(store.registry?.external ?? []) { app in
                 NavigationLink {
                     if let url = URL(string: app.url) { WebAppView(url: url, title: app.name) }
                 } label: {
@@ -60,7 +95,6 @@ struct ExternalAppsSection: View {
                 .labelStyle(.iconOnly)
             }
         }
-        .task(id: hub.apps) { registry = try? await API.shared.get("/api/apps") }
         .sheet(item: $editing) { app in
             ExternalAppEditor(app: app) { updated in
                 save { registry in
@@ -74,18 +108,19 @@ struct ExternalAppsSection: View {
         }
     }
 
-    // 整份替换；失败时重新读取
+    // 整份替换，先在界面上生效；失败时重新读取
     private func save(_ change: (inout AppRegistry) -> Void) {
-        guard var next = registry else { return }
+        guard var next = store.registry else { return }
         change(&next)
-        registry = next
+        store.latest += 1
+        store.registry = next
         Task {
             do {
-                let _: Ignored = try await API.shared.send("PUT", "/api/apps", body: next)
+                try await API.shared.put("/api/apps", body: next)
                 error = nil
             } catch {
                 self.error = "保存失败：\(error.localizedDescription)"
-                registry = try? await API.shared.get("/api/apps")
+                await store.refresh()
             }
         }
     }

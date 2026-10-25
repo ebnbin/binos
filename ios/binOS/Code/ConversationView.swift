@@ -9,8 +9,8 @@ struct ConversationView: View {
     let sessionId: Int?
     // 新对话所属的项目
     var project: String = "binos"
-    // 从搜索结果跳过来时定位到的条目
-    var targetItem: Int?
+    // 从搜索结果跳过来时定位到的事件的 seq
+    var targetSeq: Int?
     var onCreated: (Int, String) -> Void = { _, _ in }
 
     @State private var stream: KitaSessionStream?
@@ -34,7 +34,7 @@ struct ConversationView: View {
                 newConversation
             } else if let stream, stream.loaded {
                 // 补发完了再排版，初始位置才能直接落在底部
-                TranscriptScroll(stream: stream, notice: notice, targetItem: targetItem)
+                TranscriptScroll(stream: stream, notice: notice, targetSeq: targetSeq)
                     .id(stream.thread)
             } else if store.sessions != nil, session == nil, createdThread == nil {
                 ContentUnavailableView("这个对话不存在", systemImage: "questionmark.bubble")
@@ -65,7 +65,7 @@ struct ConversationView: View {
             Button("取消", role: .cancel) {}
             Button("保存") {
                 if let sessionId, !title.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Task { await CodeAPI.edit(sessionId, .init(title: title)) }
+                    Task { await store.edit(sessionId, .init(title: title)) }
                 }
             }
         }
@@ -76,9 +76,6 @@ struct ConversationView: View {
             next.start()
             stream = next
         }
-        // 推入文件改动等页面时会消失，回来后从已收到的条数接着订阅
-        .onAppear { stream?.start() }
-        .onDisappear { stream?.stop() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { stream?.reconnectIfStale() }
         }
@@ -117,10 +114,10 @@ struct ConversationView: View {
                         renaming = true
                     }
                     Button(session.pinned ? "取消置顶" : "置顶", systemImage: session.pinned ? "pin.slash" : "pin") {
-                        Task { await CodeAPI.edit(sessionId, .init(pinned: !session.pinned)) }
+                        Task { await store.edit(sessionId, .init(pinned: !session.pinned)) }
                     }
                     Button(session.archived ? "取消归档" : "归档", systemImage: "archivebox") {
-                        Task { await CodeAPI.edit(sessionId, .init(archived: !session.archived)) }
+                        Task { await store.edit(sessionId, .init(archived: !session.archived)) }
                     }
                     if !session.prs.isEmpty {
                         Section("Pull Request") {
@@ -168,7 +165,7 @@ struct ConversationView: View {
                 createdThread = sent.kitaSession
                 onCreated(sent.id, sent.kitaSession)
             }
-            await store.refreshSessions()
+            await store.refreshSession(sent.id)
             return true
         } catch {
             notice = error.localizedDescription
@@ -181,9 +178,9 @@ struct ConversationView: View {
 struct TranscriptScroll: View {
     let stream: KitaSessionStream
     let notice: String?
-    // 从搜索结果跳过来时定位到的条目
-    var targetItem: Int?
-    @State private var turns: [TranscriptTurn] = []
+    // 从搜索结果跳过来时定位到的事件的 seq
+    var targetSeq: Int?
+    @State private var turns: [TranscriptTurn]
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var atBottom = true
     @State private var nearTop = false
@@ -191,6 +188,14 @@ struct TranscriptScroll: View {
 
     // 补读更早的轮时，离顶部还有这么远就开始读
     private static let olderMargin: CGFloat = 1500
+
+    // 第一次排版就带着内容，初始位置才落在底部
+    init(stream: KitaSessionStream, notice: String?, targetSeq: Int? = nil) {
+        self.stream = stream
+        self.notice = notice
+        self.targetSeq = targetSeq
+        _turns = State(initialValue: TranscriptTurn.split(stream.events))
+    }
 
     var body: some View {
         ScrollView {
@@ -233,30 +238,30 @@ struct TranscriptScroll: View {
                 .accessibilityLabel("回到底部")
             }
         }
-        .task(id: "\(nearTop)-\(stream.offset)") {
-            if nearTop, located || targetItem == nil { await stream.loadOlder() }
+        .task(id: "\(nearTop)-\(stream.firstSeq ?? 0)") {
+            if nearTop, located || targetSeq == nil { await stream.loadOlder() }
         }
         .onChange(of: stream.revision, initial: true) {
-            turns = TranscriptTurn.split(stream.items, previous: turns, offset: stream.offset)
+            turns = TranscriptTurn.split(stream.events, previous: turns)
             locate()
         }
     }
 
-    // 目标在已读到的条目之前时先补读到它，再滚过去
+    // 目标在已读到的事件之前时先补读到它，再滚过去
     private func locate() {
-        guard let targetItem, !located else { return }
-        if targetItem < stream.offset {
-            Task { await stream.loadOlder(until: targetItem) }
+        guard let targetSeq, !located else { return }
+        if let first = stream.firstSeq, targetSeq < first {
+            Task { await stream.loadOlder(until: targetSeq) }
             return
         }
         located = true
-        guard let turn = turns.last(where: { $0.start <= targetItem }) else { return }
+        guard let turn = turns.last(where: { $0.first.seq <= targetSeq }) else { return }
         atBottom = false
         Task {
             try? await Task.sleep(for: .milliseconds(300))
-            position.scrollTo(id: turn.start, anchor: .top)
+            position.scrollTo(id: turn.id, anchor: .top)
             try? await Task.sleep(for: .milliseconds(300))
-            withAnimation { position.scrollTo(id: "\(targetItem)", anchor: .center) }
+            withAnimation { position.scrollTo(id: "\(targetSeq)", anchor: .center) }
         }
     }
 }

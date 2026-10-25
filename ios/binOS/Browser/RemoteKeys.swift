@@ -60,12 +60,13 @@ struct RemoteKey: Hashable {
 
     private static func named(_ name: String) -> RemoteKey { RemoteKey(key: name, code: name) }
 
-    // 按键栏上的功能键，都是服务端换算得出键码的
+    // 按键栏上的功能键，键码由服务端按 key 和 code 换算
     static let bar: [(label: String, key: RemoteKey)] = [
         ("esc", named("Escape")), ("tab", named("Tab")),
         ("arrow.left", named("ArrowLeft")), ("arrow.up", named("ArrowUp")), ("arrow.down", named("ArrowDown")), ("arrow.right", named("ArrowRight")),
-        ("home", named("Home")), ("end", named("End")), ("pgup", named("PageUp")), ("pgdn", named("PageDown")), ("del", named("Delete")),
-    ]
+        ("home", named("Home")), ("end", named("End")), ("pgup", named("PageUp")), ("pgdn", named("PageDown")),
+        ("ins", named("Insert")), ("del", named("Delete")),
+    ] + (1...12).map { ("f\($0)", named("F\($0)")) }
 }
 
 // 软键盘上方的按键栏：修饰键按一下亮起，和下一个键一起发出；功能键直接发

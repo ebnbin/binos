@@ -63,7 +63,7 @@ struct AgentAccountsView: View {
                     if account.agent == "claude", let auth = status?.auth.claude {
                         ClaudeAuthRows(auth: auth)
                     }
-                    if let attention = account.agent == "claude" ? AgentAttention.claude(status?.auth.claude, now: .now) : AgentAttention.codex(status?.auth.codex) {
+                    if let attention = status?.attention[account.agent].map({ AttentionNotice.notice(account.agent, $0, now: .now) }) {
                         Label(attention.text, systemImage: "exclamationmark.triangle.fill")
                             .foregroundStyle(attention.bad ? .red : .orange)
                     }
@@ -126,7 +126,7 @@ private struct ClaudeAuthRows: View {
                 .foregroundStyle(auth.mode == "none" ? .red : .secondary)
         }
         LabeledContent {
-            Text(full == nil ? "没有" : full?.broken == true ? "已失效" : fullExpiry.map { fullExpired ? "已过期" : "还有 \(AgentAttention.daysLeft($0, now: now)) 天" } ?? "已登录")
+            Text(full == nil ? "没有" : full?.broken == true ? "已失效" : fullExpiry.map { fullExpired ? "已过期" : "还有 \(AttentionNotice.daysLeft($0, now: now)) 天" } ?? "已登录")
                 .foregroundStyle(full == nil || full?.broken == true || fullExpired ? .red : .secondary)
         } label: {
             Text("完整登录")
@@ -137,7 +137,7 @@ private struct ClaudeAuthRows: View {
             }
         }
         LabeledContent {
-            Text(auth.backup.map { backup in backup.expiresAt.flatMap(Date.init(iso:)).map { "还有 \(AgentAttention.daysLeft($0, now: now)) 天" } ?? "已存好" } ?? "没有")
+            Text(auth.backup.map { backup in backup.expiresAt.flatMap(Date.init(iso:)).map { "还有 \(AttentionNotice.daysLeft($0, now: now)) 天" } ?? "已存好" } ?? "没有")
         } label: {
             Text("备用 token")
             Text("完整登录过期或失效时自动换用，只能回答，没有 claude.ai 的连接器")
@@ -182,7 +182,7 @@ private struct ClaudeLoginView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("取消") {
-                    if let id = flow?.id { Task { try? await API.shared.post("/api/kita/claude/login/\(id)/cancel") } }
+                    if let id = flow?.id { Task { try? await API.shared.delete("/api/kita/claude/login/\(id)") } }
                     dismiss()
                 }
             }
@@ -242,7 +242,7 @@ private struct CodexLoginView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("取消") {
-                    if let id = flow?.id { Task { try? await API.shared.post("/api/kita/codex/login/\(id)/cancel") } }
+                    if let id = flow?.id { Task { try? await API.shared.delete("/api/kita/codex/login/\(id)") } }
                     dismiss()
                 }
             }

@@ -73,12 +73,26 @@ struct BuildsSnapshot: Decodable {
 enum BuildsAPI {
     static let base = "/api/apps/builds"
 
-    struct Request: Encodable {
-        let action: String
-        var ref: String?
-        var targets: [String]?
-        var id: String?
-        var automatic: Bool?
+    // 构建的操作：route 是 base 之后的部分，都返回操作后的快照
+    struct Action {
+        var method = "POST"
+        let route: String
+        var body: (any Encodable)?
+
+        struct Enqueue: Encodable {
+            let ref: String
+            let targets: [String]
+        }
+
+        struct Settings: Encodable {
+            let automatic: Bool
+        }
+
+        static func enqueue(ref: String, targets: [String]) -> Action { Action(route: "", body: Enqueue(ref: ref, targets: targets)) }
+        static func settings(automatic: Bool) -> Action { Action(method: "PUT", route: "/settings", body: Settings(automatic: automatic)) }
+        static let poll = Action(route: "/poll")
+        static func cancel(_ id: String) -> Action { Action(route: "/\(id)/cancel") }
+        static func retry(_ id: String) -> Action { Action(route: "/\(id)/retry") }
     }
 
     static let targetNames = ["web": "Web", "android": "Android", "ios": "iOS"]
@@ -110,9 +124,9 @@ final class BuildsStore {
         }
     }
 
-    func send(_ request: BuildsAPI.Request) async {
+    func send(_ action: BuildsAPI.Action) async {
         do {
-            let result: BuildsSnapshot = try await API.shared.send("POST", BuildsAPI.base, body: request)
+            let result: BuildsSnapshot = try await API.shared.send(action.method, BuildsAPI.base + action.route, body: action.body)
             latest += 1
             snapshot = result
             error = nil
@@ -229,7 +243,7 @@ struct BuildsView: View {
                     ForEach(["web", "android", "ios"], id: \.self) { Text(BuildsAPI.targetNames[$0]!).tag($0) }
                 }
                 Button("开始构建", systemImage: "hammer") {
-                    run(.init(action: "enqueue", ref: ref.trimmingCharacters(in: .whitespaces), targets: targets == "both" ? ["android", "ios"] : [targets]))
+                    run(.enqueue(ref: ref.trimmingCharacters(in: .whitespaces), targets: targets == "both" ? ["android", "ios"] : [targets]))
                 }
                 .disabled(busy || store.snapshot == nil || ref.trimmingCharacters(in: .whitespaces).isEmpty)
             } header: {
@@ -248,7 +262,7 @@ struct BuildsView: View {
             if let current = store.snapshot {
                 if let settings = current.settings {
                     Section {
-                        Toggle("自动构建 main 和 PR", isOn: Binding(get: { settings.automatic }, set: { run(.init(action: "settings", automatic: $0)) }))
+                        Toggle("自动构建 main 和 PR", isOn: Binding(get: { settings.automatic }, set: { run(.settings(automatic: $0)) }))
                             .disabled(busy)
                     }
                 }
@@ -282,7 +296,7 @@ struct BuildsView: View {
         .navigationTitle("构建")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("检查更新", systemImage: "arrow.clockwise") { run(.init(action: "poll")) }
+                Button("检查更新", systemImage: "arrow.clockwise") { run(.poll) }
                     .disabled(busy)
             }
         }
@@ -304,10 +318,10 @@ struct BuildsView: View {
         }
     }
 
-    private func run(_ request: BuildsAPI.Request) {
+    private func run(_ action: BuildsAPI.Action) {
         busy = true
         Task {
-            await store.send(request)
+            await store.send(action)
             busy = false
         }
     }
@@ -373,7 +387,7 @@ private struct BuildDetail: View {
     let id: String
     // 构建结束满 3 天后会被删掉，删掉后仍显示最后看到的样子
     let initial: BuildsSnapshot.Build
-    @State private var log = ""
+    @State private var log = BuildLog()
     @State private var error: String?
     @State private var busy = false
     @Environment(\.openURL) private var openURL
@@ -402,9 +416,9 @@ private struct BuildDetail: View {
                     Text(message).foregroundStyle(.red)
                 }
                 if build.live {
-                    Button("取消构建", role: .destructive) { run(.init(action: "cancel", id: build.id)) }.disabled(busy)
+                    Button("取消构建", role: .destructive) { run(.cancel(build.id)) }.disabled(busy)
                 } else {
-                    Button("重新构建") { run(.init(action: "retry", id: build.id)) }.disabled(busy)
+                    Button("重新构建") { run(.retry(build.id)) }.disabled(busy)
                 }
             }
             let artifacts = build.artifacts.filter { if case .other = $0 { false } else { true } }
@@ -421,7 +435,7 @@ private struct BuildDetail: View {
             }
             if let message = error ?? store.error { Text(message).foregroundStyle(.red) }
             Section {
-                Text(log.isEmpty ? "等待构建日志…" : log)
+                Text(log.text.isEmpty ? (log.ended ? "没有日志" : "等待构建日志…") : log.text)
                     .font(.system(.caption2, design: .monospaced))
                     .textSelection(.enabled)
             } header: {
@@ -429,7 +443,7 @@ private struct BuildDetail: View {
                     Text("日志")
                     Spacer()
                     Button("下载完整日志") {
-                        FilePresenter.shared.present(url: API.shared.url("\(BuildsAPI.base)/\(build.id)/log", query: ["download": "1"]), name: "build.log")
+                        FilePresenter.shared.present(url: API.shared.url("\(BuildsAPI.base)/\(build.id)/log"), name: "build.log")
                     }
                     .font(.footnote)
                 }
@@ -438,17 +452,8 @@ private struct BuildDetail: View {
         .navigationTitle(build.targetName)
         .navigationBarTitleDisplayMode(.inline)
         .task(id: hub.builds) { await store.refresh() }
-        // 日志不在通知里：没编完时定时重读，编完再读最后一次
-        .task(id: build.live) {
-            repeat {
-                if let data = try? await API.shared.data(API.shared.request(API.shared.url("\(BuildsAPI.base)/\(build.id)/log"))) {
-                    // 只显示末尾，避免太长的日志拖慢列表
-                    log = String(String(decoding: data, as: UTF8.self).suffix(60_000))
-                }
-                guard build.live else { break }
-                try? await Task.sleep(for: .seconds(2))
-            } while !Task.isCancelled
-        }
+        .onAppear { log.start(build.id) }
+        .onDisappear { log.stop() }
     }
 
     // Android 下载安装包；iOS 无线安装（下载的 IPA 在设备上装不上）；Web 打开 PR 预览
@@ -484,10 +489,10 @@ private struct BuildDetail: View {
         }
     }
 
-    private func run(_ request: BuildsAPI.Request) {
+    private func run(_ action: BuildsAPI.Action) {
         busy = true
         Task {
-            await store.send(request)
+            await store.send(action)
             busy = false
         }
     }
@@ -503,5 +508,58 @@ private struct BuildDetail: View {
         } catch {
             self.error = error.localizedDescription
         }
+    }
+}
+
+// 构建日志由服务端按字节偏移推送：断线后从读到的位置接着读，构建结束、读完了收到 end 就关上
+@Observable
+private final class BuildLog {
+    private(set) var text = ""
+    private(set) var ended = false
+    @ObservationIgnored private var stream: EventStream?
+    @ObservationIgnored private var offset: Int?
+
+    // 只显示末尾，避免太长的日志拖慢列表
+    private static let shownLimit = 60_000
+
+    private struct Message: Decodable {
+        let type: String
+        let offset: Int?
+        let text: String?
+    }
+
+    func start(_ id: String) {
+        guard stream == nil, !ended else { return }
+        let stream = EventStream(
+            url: { [weak self] in
+                API.shared.url("\(BuildsAPI.base)/\(id)/log/stream", query: self?.offset.map { ["from": String($0)] } ?? [:])
+            },
+            onMessage: { [weak self] message in self?.receive(message) },
+            onRejected: { [weak self] error in
+                self?.ended = true
+                self?.text += "\n日志读取失败：\(error.localizedDescription)"
+            }
+        )
+        self.stream = stream
+        stream.start()
+    }
+
+    func stop() {
+        stream?.stop()
+        stream = nil
+    }
+
+    private func receive(_ message: SSEMessage) {
+        guard let value = try? JSONDecoder.api.decode(Message.self, from: Data(message.data.utf8)) else { return }
+        if value.type == "end" {
+            ended = true
+            stop()
+            return
+        }
+        guard let chunk = value.text else { return }
+        if offset == nil, (value.offset ?? 0) > 0 { text = "[仅显示日志末尾]\n" }
+        if let id = message.id.flatMap(Int.init) { offset = id }
+        text += chunk
+        if text.count > Self.shownLimit { text = String(text.suffix(Self.shownLimit)) }
     }
 }

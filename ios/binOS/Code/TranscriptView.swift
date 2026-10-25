@@ -7,7 +7,7 @@ struct TranscriptView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if stream.offset > 0 {
+            if stream.hasOlder {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
                     Text("正在读取更早的消息")
@@ -17,18 +17,17 @@ struct TranscriptView: View {
                 .frame(maxWidth: .infinity)
                 .id("older")
             }
-            ForEach(Array(turns.enumerated()), id: \.element.start) { position, turn in
+            ForEach(Array(turns.enumerated()), id: \.element.id) { position, turn in
                 let last = position == turns.count - 1
                 TurnSection(
                     thread: stream.thread,
-                    agent: stream.agent,
                     turn: turn,
-                    previous: position > 0 ? turns[position - 1].main.last?.entry.time : nil,
+                    previous: position > 0 ? turns[position - 1].main.last?.data.time : nil,
                     live: last ? stream.live : nil,
                     last: last
                 )
                 .equatable()
-                .id(turn.start)
+                .id(turn.id)
             }
         }
         .scrollTargetLayout()
@@ -38,19 +37,18 @@ struct TranscriptView: View {
 // 主对话的一轮。没变的轮跳过重新排版：只有最后一轮带 live，推送只让它跟着动
 private struct TurnSection: View, Equatable {
     let thread: String
-    let agent: String?
     let turn: TranscriptTurn
     let previous: String?
     let live: Live?
     let last: Bool
 
     nonisolated static func == (a: Self, b: Self) -> Bool {
-        a.turn === b.turn && a.thread == b.thread && a.agent == b.agent && a.previous == b.previous && a.live == b.live && a.last == b.last
+        a.turn === b.turn && a.thread == b.thread && a.previous == b.previous && a.live == b.live && a.last == b.last
     }
 
     var body: some View {
         let blocks = turn.blocks(live: live != nil, previous: previous)
-        let context = TranscriptContext(thread: thread, agent: agent, index: turn, live: live)
+        let context = TranscriptContext(thread: thread, index: turn, live: live)
         VStack(alignment: .leading, spacing: 14) {
             ForEach(blocks) { block in
                 BlockRow(block: block, context: context, isLast: last && block == blocks.last)
@@ -65,7 +63,6 @@ private struct TurnSection: View, Equatable {
 
 struct TranscriptContext {
     let thread: String
-    let agent: String?
     let index: TranscriptTurn
     let live: Live?
 }
@@ -307,8 +304,8 @@ private struct LiveTail: View {
 
     // 主对话里还没有结果的最后一次工具调用
     private var runningTool: String? {
-        for item in turn.main.reversed() {
-            if case .toolCall(let call) = item.entry, turn.results[item.index] == nil { return call.name }
+        for event in turn.main.reversed() {
+            if case .toolCall(let call) = event.data, turn.results[event.itemId ?? ""] == nil { return call.name }
         }
         return nil
     }
@@ -327,7 +324,7 @@ private struct LiveTail: View {
 
     private func elapsed(_ now: Date) -> String {
         // 这一轮从 mode 为 start 的 input 开始
-        guard case .input(let input) = turn.first, input.mode == "start", let start = Date(iso: input.time) else { return "" }
+        guard case .input(let input) = turn.first.data, input.mode == "start", let start = Date(iso: input.time) else { return "" }
         let seconds = max(Int(now.timeIntervalSince(start)), 0)
         return seconds < 60 ? " · \(seconds) 秒" : " · \(seconds / 60) 分 \(seconds % 60) 秒"
     }
@@ -373,7 +370,7 @@ private struct TurnEndView: View {
         parts.append("用时 \(Format.duration(entry.durationMs / 1000))")
         if let tokens = entry.outputTokens { parts.append("输出 \(Format.tokens(tokens)) token") }
         if let context = entry.context, context.window > 0 { parts.append("上下文 \(context.tokens * 100 / context.window)%") }
-        if let model = entry.model { parts.append(context.agent.map { Agents.modelName($0, model) } ?? model) }
+        if let model = entry.modelName ?? entry.model { parts.append(model) }
         return parts.joined(separator: " · ")
     }
 }
@@ -425,7 +422,7 @@ struct FileChangesPage: View {
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
                 ForEach(file.calls) { state in
-                    if case .edit(_, let change?) = state.call.tool {
+                    if case .edit(_, let change?, _) = state.call.tool {
                         DiffView(lines: Diff.lines(for: change))
                     }
                 }
@@ -443,13 +440,15 @@ struct DiffView: View {
 
     var body: some View {
         ScrollView(.horizontal) {
-            LazyVStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 ForEach(lines.prefix(limit)) { line in
                     HStack(spacing: 6) {
                         Text(symbol(line.kind))
                             .foregroundStyle(color(line.kind))
                             .frame(width: 10)
+                        // 横向滚动，长行不折行
                         Text(line.text.isEmpty ? " " : line.text)
+                            .fixedSize()
                     }
                     .font(.system(.caption, design: .monospaced))
                     .padding(.horizontal, 8)

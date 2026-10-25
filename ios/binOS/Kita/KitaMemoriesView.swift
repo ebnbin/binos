@@ -2,7 +2,7 @@ import SwiftUI
 
 enum MemoryKind {
     static func name(_ kind: String) -> String { kind == "inferred" ? "推测" : "已确认" }
-    static func scopeName(_ scope: String) -> String { scope == "personal" ? "个人" : KitaAPI.appName(scope) }
+    static func scopeName(_ scope: String) -> String { scope == "personal" ? "个人" : AppsStore.shared.name(scope) }
 }
 
 // 长期记忆：推测的待确认，和已确认的分开放
@@ -117,7 +117,7 @@ struct MemorySourceLabel: View {
                 Text(conversation.title.isEmpty ? "对话" : conversation.title)
             }
         } else {
-            Text(KitaAPI.appName(source.owner ?? ""))
+            Text(AppsStore.shared.name(source.owner ?? ""))
         }
     }
 }

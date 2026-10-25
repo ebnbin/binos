@@ -3,20 +3,26 @@ import Observation
 
 enum APIError: LocalizedError {
     // Cloudflare Access 要求登录：被重定向到登录页，或者拿到 401
-    case unauthorized
-    case http(Int, String)
+    case unauthorized(String?)
+    // code 是服务端的错误标识（server/src/errors.ts 的 ErrorCode），不是服务端的响应时没有
+    case http(Int, code: String?, message: String)
     case invalidResponse
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: "需要登录"
-        case .http(let status, let message): message.isEmpty ? "请求失败（\(status)）" : message
+        case .unauthorized(let message): message ?? "需要登录"
+        case .http(let status, _, let message): message.isEmpty ? "请求失败（\(status)）" : message
         case .invalidResponse: "无法识别服务器的返回"
         }
     }
 
     var status: Int? {
-        if case .http(let status, _) = self { return status }
+        if case .http(let status, _, _) = self { return status }
+        return nil
+    }
+
+    var code: String? {
+        if case .http(_, let code, _) = self { return code }
         return nil
     }
 }
@@ -104,18 +110,30 @@ final class API {
     // 被重定向去了别的域名（Access 的登录页）或者 401：需要登录
     func check(_ response: URLResponse, data: Data?) throws -> HTTPURLResponse {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        let error = data.flatMap { try? JSONDecoder.api.decode(ErrorBody.self, from: $0).error }
         if http.url?.host() != baseURL.host() || http.statusCode == 401 {
             if server.requiresLogin { needsLogin = true }
-            throw APIError.unauthorized
+            throw APIError.unauthorized(error?.message)
         }
         guard (200..<300).contains(http.statusCode) else {
-            let message = data.flatMap { try? JSONDecoder.api.decode(ErrorBody.self, from: $0).error } ?? ""
-            throw APIError.http(http.statusCode, message)
+            throw APIError.http(http.statusCode, code: error?.code, message: error?.message ?? "")
         }
         return http
     }
 
-    private struct ErrorBody: Decodable { let error: String }
+    private struct ErrorBody: Decodable {
+        struct Detail: Decodable {
+            let code: String
+            let message: String
+        }
+        let error: Detail
+    }
+
+    // 没有响应内容的接口（204）用 Ignored，不解码
+    private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        if let ignored = Ignored() as? T { return ignored }
+        return try JSONDecoder.api.decode(T.self, from: data)
+    }
 
     func data(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await session.data(for: request)
@@ -125,21 +143,31 @@ final class API {
 
     func get<T: Decodable>(_ path: String, query: [String: String] = [:], as type: T.Type = T.self) async throws -> T {
         let data = try await data(request(url(path, query: query)))
-        return try JSONDecoder.api.decode(T.self, from: data)
+        return try decode(T.self, from: data)
     }
 
-    // 写操作都带 JSON 的 Content-Type，后端以此拒绝跨站请求
+    // 写操作都带 JSON 的 Content-Type，后端以此拒绝跨站请求；不带请求体的 DELETE 例外
     @discardableResult
-    func send<T: Decodable>(_ method: String, _ path: String, body: (any Encodable)? = nil, as type: T.Type = T.self) async throws -> T {
-        var request = request(url(path), method: method)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try body.map { try JSONEncoder().encode($0) } ?? Data("{}".utf8)
+    func send<T: Decodable>(_ method: String, _ path: String, query: [String: String] = [:], body: (any Encodable)? = nil, as type: T.Type = T.self) async throws -> T {
+        var request = request(url(path, query: query), method: method)
+        if method != "DELETE" || body != nil {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try body.map { try JSONEncoder().encode($0) } ?? Data("{}".utf8)
+        }
         let data = try await data(request)
-        return try JSONDecoder.api.decode(T.self, from: data)
+        return try decode(T.self, from: data)
     }
 
     func post(_ path: String, body: (any Encodable)? = nil) async throws {
         let _: Ignored = try await send("POST", path, body: body)
+    }
+
+    func put(_ path: String, body: any Encodable) async throws {
+        let _: Ignored = try await send("PUT", path, body: body)
+    }
+
+    func delete(_ path: String, query: [String: String] = [:]) async throws {
+        let _: Ignored = try await send("DELETE", path, query: query)
     }
 
     // 上传文件：请求体就是文件本身
@@ -149,13 +177,14 @@ final class API {
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         let (data, response) = try await session.upload(for: request, from: body)
         _ = try check(response, data: data)
-        return try JSONDecoder.api.decode(T.self, from: data)
+        return try decode(T.self, from: data)
     }
 
     // 下载到临时目录，给系统的预览、分享用；文件名保留原样
     func download(_ url: URL, name: String) async throws -> URL {
         let (temp, response) = try await session.download(for: request(url))
-        _ = try check(response, data: nil)
+        let ok = (response as? HTTPURLResponse).map { (200..<300).contains($0.statusCode) } ?? false
+        _ = try check(response, data: ok ? nil : try? Data(contentsOf: temp))
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let target = directory.appending(path: name.isEmpty ? (response.suggestedFilename ?? "file") : name)
@@ -166,5 +195,6 @@ final class API {
 
 // 不关心内容的返回
 struct Ignored: Decodable {
+    init() {}
     init(from decoder: Decoder) throws {}
 }

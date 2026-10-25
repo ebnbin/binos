@@ -25,7 +25,7 @@ enum TerminalAPI {
     }
 
     static func close(_ id: String) async throws {
-        let _: Ignored = try await API.shared.send("DELETE", "\(base)/sessions/\(id)")
+        try await API.shared.delete("\(base)/sessions/\(id)")
     }
 }
 
@@ -92,13 +92,8 @@ struct TerminalRootView: View {
             }
             .refreshable { await load() }
             .onChange(of: router.terminal) { Task { await load() } }
-            .task {
-                // 列表没有推送，每 5 秒读一次
-                while !Task.isCancelled {
-                    await load()
-                    try? await Task.sleep(for: .seconds(5))
-                }
-            }
+            // 终端会话新建或结束时有 terminal 通知
+            .task(id: EventHub.shared.terminal) { await load() }
         }
     }
 

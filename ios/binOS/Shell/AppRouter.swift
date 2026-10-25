@@ -37,7 +37,7 @@ final class AppRouter {
             if parts.first == "new" {
                 code = .new(project: query.first { $0.name == "project" }?.value ?? "binos")
             } else if let id = parts.first.flatMap(Int.init) {
-                code = .session(id, item: query.first { $0.name == "item" }?.value.flatMap(Int.init))
+                code = .session(id, seq: query.first { $0.name == "seq" }?.value.flatMap(Int.init))
             } else if parts.first == "builds" {
                 code = .builds(ref: query.first { $0.name == "ref" }?.value ?? "main")
             } else if parts.first == "devices" {

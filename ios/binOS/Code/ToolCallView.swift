@@ -26,10 +26,9 @@ struct ToolCallView: View {
                             .truncationMode(.middle)
                     }
                     Spacer(minLength: 4)
-                    if case .edit(_, let change?) = state.call.tool {
-                        let counts = Diff.counts(for: change)
-                        Text("+\(counts.added)").foregroundStyle(.green)
-                        Text("−\(counts.removed)").foregroundStyle(.red)
+                    if case .edit(_, _, let lines?) = state.call.tool {
+                        Text("+\(lines.added)").foregroundStyle(.green)
+                        Text("−\(lines.removed)").foregroundStyle(.red)
                     }
                     CallStatusIcon(state: state)
                 }
@@ -83,8 +82,8 @@ private struct FullCall: ViewModifier {
             }
             .task(id: state.result) {
                 guard state.call.clipped || state.result?.clipped == true,
-                      let loaded = await KitaSessionStream.fullCall(thread: thread, index: state.index) else { return }
-                let value = CallState(index: state.index, call: loaded.call, result: loaded.result ?? state.result, live: state.live)
+                      let loaded = await KitaSessionStream.fullCall(thread: thread, seq: state.seq) else { return }
+                let value = CallState(seq: state.seq, itemId: state.itemId, call: loaded.call, result: loaded.result ?? state.result, live: state.live)
                 full = (state.result, value)
                 shown = value
             }
@@ -108,7 +107,7 @@ private struct ToolBody: View {
             switch state.call.tool {
             case .command(let command):
                 CodeBlock(code: command, language: "shell")
-            case .edit(_, let change?):
+            case .edit(_, let change?, _):
                 DiffView(lines: Diff.lines(for: change), limit: 400)
             case .webFetch(_, let prompt?):
                 Text(prompt).font(.footnote).foregroundStyle(.secondary)
@@ -133,17 +132,32 @@ private struct ToolBody: View {
                         }
                     }
                 }
-                if let output = result.output, !output.isEmpty {
+                if !result.links.isEmpty {
+                    WebLinks(links: result.links)
+                }
+                if let output = result.output, !output.isEmpty, case .webSearch = state.call.tool {
+                    MarkdownView(text: output, thread: context.thread)
+                        .font(.footnote)
+                } else if let output = result.output, !output.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
                         if result.truncated || result.clipped {
                             Text("前面的输出已省略").font(.caption2).foregroundStyle(.tertiary)
                         }
+                        let shown = output.count > 20_000 ? String(output.suffix(20_000)) : output
                         ScrollView([.horizontal, .vertical]) {
-                            Text(output.count > 20_000 ? String(output.suffix(20_000)) : output)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(result.status == "error" ? .red : .primary)
-                                .textSelection(.enabled)
-                                .padding(8)
+                            HStack(alignment: .top, spacing: 8) {
+                                if let startLine = result.startLine, case .read = state.call.tool {
+                                    let dropped = output.dropLast(shown.count).count { $0 == "\n" }
+                                    Text(lineNumbers(shown, from: startLine + dropped))
+                                        .foregroundStyle(.tertiary)
+                                        .multilineTextAlignment(.trailing)
+                                }
+                                Text(shown)
+                                    .foregroundStyle(result.status == "error" ? .red : .primary)
+                                    .textSelection(.enabled)
+                            }
+                            .font(.system(.caption, design: .monospaced))
+                            .padding(8)
                         }
                         .frame(maxHeight: 280)
                         .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 8))
@@ -152,6 +166,12 @@ private struct ToolBody: View {
             }
         }
         .modifier(FullCall(thread: context.thread, state: self.state, shown: $shown))
+    }
+
+    // 读文件的结果去掉了行号，按 startLine 另外标在左边
+    private func lineNumbers(_ output: String, from start: Int) -> String {
+        let count = output.split(separator: "\n", omittingEmptySubsequences: false).count
+        return (start..<start + count).map(String.init).joined(separator: "\n")
     }
 
     // 摘要显示不全时带着原始参数
@@ -201,7 +221,7 @@ struct SubagentView: View {
                         }
                         .font(.footnote)
                     }
-                    let children = context.index.children[state.index] ?? []
+                    let children = context.index.children[state.itemId] ?? []
                     if !children.isEmpty {
                         let blocks = context.index.blocks(children, live: state.live)
                         ForEach(blocks) { block in
@@ -270,6 +290,27 @@ private struct SubagentBlock: View {
             DividerLabel(text: text)
         default:
             EmptyView()
+        }
+    }
+}
+
+// 网页搜索搜到的网页
+private struct WebLinks: View {
+    let links: [WebLink]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(links, id: \.url) { link in
+                if let url = URL(string: link.url) {
+                    Link(destination: url) {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(link.title.isEmpty ? link.url : link.title).lineLimit(1)
+                            Text(url.host() ?? link.url).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                    }
+                    .font(.footnote)
+                }
+            }
         }
     }
 }

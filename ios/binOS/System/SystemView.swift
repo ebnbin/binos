@@ -61,11 +61,12 @@ struct MonitorStatus: Decodable {
     let collectionError: String?
 }
 
-// 系统：宿主 Mac 的状态，每 5 秒更新
+// 系统：宿主 Mac 的状态，服务端每采样一次推送一次
 struct SystemView: View {
     @State private var status: MonitorStatus?
     @State private var error: String?
     @State private var refreshing = false
+    @State private var stream: EventStream?
     private let hub = EventHub.shared
 
     var body: some View {
@@ -139,24 +140,36 @@ struct SystemView: View {
                 Button("刷新", systemImage: "arrow.clockwise") {
                     Task {
                         refreshing = true
-                        if let result: MonitorStatus = try? await API.shared.send("POST", "/api/apps/system/refresh") { status = result }
+                        do {
+                            status = try await API.shared.send("POST", "/api/apps/system/refresh")
+                        } catch {
+                            self.error = error.localizedDescription
+                        }
                         refreshing = false
                     }
                 }
                 .disabled(refreshing)
             }
         }
-        .task {
-            while !Task.isCancelled {
-                do {
-                    status = try await API.shared.get("/api/apps/system/status")
+        .onAppear {
+            guard stream == nil else { return }
+            let next = EventStream(
+                url: { API.shared.url("/api/apps/system/stream") },
+                onMessage: { message in
+                    guard let value = try? JSONDecoder.api.decode(MonitorStatus.self, from: Data(message.data.utf8)) else { return }
+                    status = value
                     error = nil
-                } catch is CancellationError {
-                } catch {
-                    self.error = "监控连接异常：\(error.localizedDescription)"
+                },
+                onConnectedChange: { connected in
+                    if !connected { error = "监控连接中断" }
                 }
-                try? await Task.sleep(for: .seconds(5))
-            }
+            )
+            stream = next
+            next.start()
+        }
+        .onDisappear {
+            stream?.stop()
+            stream = nil
         }
     }
 

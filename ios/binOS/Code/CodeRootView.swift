@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum CodeRoute: Hashable {
-    case session(Int, item: Int? = nil)
+    case session(Int, seq: Int? = nil)
     case new(project: String)
     // ref：构建页预填的构建来源
     case builds(ref: String = "main")
@@ -21,8 +21,8 @@ struct CodeRootView: View {
         } detail: {
             NavigationStack {
                 switch router.code {
-                case .session(let id, let item):
-                    ConversationView(store: store, sessionId: id, targetItem: item)
+                case .session(let id, let seq):
+                    ConversationView(store: store, sessionId: id, targetSeq: seq)
                         .id(router.code)
                 case .new(let project):
                     ConversationView(store: store, sessionId: nil, project: project) { id, _ in
@@ -39,7 +39,13 @@ struct CodeRootView: View {
                 }
             }
         }
-        .task(id: hub.sessions + hub.projects) { await store.refreshSessions() }
+        .alert("没能完成", isPresented: Binding(get: { store.actionError != nil }, set: { if !$0 { store.actionError = nil } })) {
+            Button("好", role: .cancel) {}
+        } message: {
+            Text(store.actionError ?? "")
+        }
+        .task(id: hub.connections) { await store.refreshSessions() }
+        .task(id: hub.projects) { await store.refreshProjects() }
         .task(id: hub.agent) { await store.refreshAgents() }
         .task(id: hub.builds) { await BuildsStore.shared.refresh() }
     }
@@ -77,7 +83,10 @@ struct SessionListView: View {
             guard !Task.isCancelled else { return }
             results = try? await CodeAPI.search(needle)
         }
-        .refreshable { await store.refreshSessions() }
+        .refreshable {
+            await store.refreshSessions()
+            await store.refreshProjects()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("新对话", systemImage: "square.and.pencil") { route = .new(project: "binos") }
@@ -106,7 +115,7 @@ struct SessionListView: View {
             Button("取消", role: .cancel) {}
             Button("保存") {
                 if let id = renaming?.id, !title.trimmingCharacters(in: .whitespaces).isEmpty {
-                    Task { await CodeAPI.edit(id, .init(title: title)) }
+                    Task { await store.edit(id, .init(title: title)) }
                 }
             }
         }
@@ -165,13 +174,13 @@ struct SessionListView: View {
         }
         .swipeActions(edge: .trailing) {
             Button(session.archived ? "取消归档" : "归档", systemImage: "archivebox") {
-                Task { await CodeAPI.edit(session.id, .init(archived: !session.archived)) }
+                Task { await store.edit(session.id, .init(archived: !session.archived)) }
             }
             .tint(.indigo)
         }
         .swipeActions(edge: .leading) {
             Button(session.pinned ? "取消置顶" : "置顶", systemImage: session.pinned ? "pin.slash" : "pin") {
-                Task { await CodeAPI.edit(session.id, .init(pinned: !session.pinned)) }
+                Task { await store.edit(session.id, .init(pinned: !session.pinned)) }
             }
             .tint(.orange)
         }
@@ -181,10 +190,10 @@ struct SessionListView: View {
                 renaming = session
             }
             Button(session.pinned ? "取消置顶" : "置顶", systemImage: "pin") {
-                Task { await CodeAPI.edit(session.id, .init(pinned: !session.pinned)) }
+                Task { await store.edit(session.id, .init(pinned: !session.pinned)) }
             }
             Button(session.archived ? "取消归档" : "归档", systemImage: "archivebox") {
-                Task { await CodeAPI.edit(session.id, .init(archived: !session.archived)) }
+                Task { await store.edit(session.id, .init(archived: !session.archived)) }
             }
         }
     }
@@ -194,7 +203,7 @@ struct SessionListView: View {
         if let results {
             Section(results.total > results.results.count ? "找到 \(results.total) 处，显示前 \(results.results.count) 处" : "找到 \(results.total) 处") {
                 ForEach(Array(results.results.enumerated()), id: \.offset) { _, result in
-                    NavigationLink(value: CodeRoute.session(result.id, item: result.item)) {
+                    NavigationLink(value: CodeRoute.session(result.id, seq: result.seq)) {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(result.title).font(.subheadline.weight(.semibold)).lineLimit(1)
@@ -230,8 +239,8 @@ private struct SessionRow: View {
                     .lineLimit(2)
                 HStack(spacing: 6) {
                     Text(session.updated, format: .relative(presentation: .named))
-                    if let model = session.model {
-                        Text(Agents.modelName(session.agent, model))
+                    if let model = session.modelName ?? session.model {
+                        Text(model)
                     }
                     if let pr = session.prs.last {
                         Label("#\(pr.number)", systemImage: pr.state == "merged" ? "arrow.triangle.merge" : "arrow.triangle.pull")
@@ -280,7 +289,7 @@ struct AgentStatusHeader: View {
                         QuotaRow(agent: agent, limits: limits)
                     }
                 }
-                ForEach(AgentAttention.all(status.auth), id: \.text) { attention in
+                ForEach(AttentionNotice.all(status), id: \.text) { attention in
                     Button {
                         AppRouter.shared.tab = .more
                         AppRouter.shared.more = [.accounts]
@@ -428,41 +437,35 @@ enum Quota {
 }
 
 // 登录要留意的事，和网页的 services/kita/claude/view.tsx、codex/view.tsx 一致。bad：用不了了；action：处理它的按钮上的字
-struct AgentAttention: Hashable {
+// 服务端给出的登录要处理的事（AgentAttention）怎么说，和网页的 claude/view.tsx、codex/view.tsx 一致
+struct AttentionNotice: Hashable {
     let text: String
     let bad: Bool
     let action: String
 
-    // 完整登录剩不到这么多天时提醒重新登录，备用 token 剩不到这么多天时提醒更新
-    private static let loginWarnDays = 7.0
-    private static let backupWarnDays = 30.0
-
-    static func all(_ auth: AgentAuths, now: Date = .now) -> [AgentAttention] {
-        [claude(auth.claude, now: now), codex(auth.codex)].compactMap { $0 }
+    static func all(_ status: AgentStatus, now: Date = .now) -> [AttentionNotice] {
+        status.attention.keys.sorted().compactMap { agent in status.attention[agent].map { notice(agent, $0, now: now) } }
     }
 
     // 还剩几天，不足一天按 0
     static func daysLeft(_ date: Date, now: Date) -> Int { max(Int((date.timeIntervalSince(now) / 86400).rounded(.down)), 0) }
 
-    static func claude(_ auth: ClaudeAuth?, now: Date) -> AgentAttention? {
-        guard let auth else { return nil }
-        if auth.mode == "none" { return AgentAttention(text: "Claude 没有能用的登录", bad: true, action: "重新登录") }
-        if auth.mode == "token" {
-            return AgentAttention(text: auth.login?.broken == true ? "Claude 的登录失效了，正在用备用 token" : "Claude 的登录过期了，正在用备用 token", bad: false, action: "重新登录")
+    static func notice(_ agent: String, _ attention: AgentAttention, now: Date) -> AttentionNotice {
+        let bad = !attention.usable
+        let days = attention.expiresAt.flatMap(Date.init(iso:)).map { daysLeft($0, now: now) } ?? 0
+        let left = days == 0 ? "今天" : "还有 \(days) 天"
+        if agent == "claude" {
+            switch attention.reason {
+            case "logged-out": return AttentionNotice(text: "Claude 没有能用的登录", bad: bad, action: "重新登录")
+            case "login-broken": return AttentionNotice(text: attention.usable ? "Claude 的登录失效了，正在用备用 token" : "Claude 的登录失效了", bad: bad, action: "重新登录")
+            case "login-expired": return AttentionNotice(text: attention.usable ? "Claude 的登录过期了，正在用备用 token" : "Claude 的登录过期了", bad: bad, action: "重新登录")
+            case "login-expiring": return AttentionNotice(text: "Claude 的登录\(left)到期", bad: bad, action: "重新登录")
+            case "backup-expiring": return AttentionNotice(text: "Claude 的备用 token \(left)到期", bad: bad, action: "更新")
+            default: break
+            }
         }
-        if let expiry = auth.login?.expiresAt.flatMap(Date.init(iso:)), expiry.timeIntervalSince(now) < loginWarnDays * 86400 {
-            let days = daysLeft(expiry, now: now)
-            return AgentAttention(text: "Claude 的登录\(days == 0 ? "今天" : "还有 \(days) 天")到期", bad: false, action: "重新登录")
-        }
-        if let expiry = auth.backup?.expiresAt.flatMap(Date.init(iso:)), expiry.timeIntervalSince(now) < backupWarnDays * 86400 {
-            return AgentAttention(text: "Claude 的备用 token 还有 \(daysLeft(expiry, now: now)) 天到期", bad: false, action: "更新")
-        }
-        return nil
-    }
-
-    // Codex 只在回答时认证失败过才提醒：没登录过 Codex 也照样能用别的 agent
-    static func codex(_ auth: CodexAuth?) -> AgentAttention? {
-        auth?.broken == true ? AgentAttention(text: "Codex 的登录失效了，回答时认证失败了", bad: true, action: "重新登录") : nil
+        let text = attention.reason == "login-broken" ? "\(Agents.name(agent)) 的登录失效了，回答时认证失败了" : "\(Agents.name(agent)) 的登录要重新处理"
+        return AttentionNotice(text: text, bad: bad, action: "重新登录")
     }
 }
 

@@ -29,15 +29,57 @@ enum FilesAPI {
         API.shared.url("\(base)/download", query: ["path": path])
     }
 
-    struct Operation: Encodable {
-        let action: String
+    // 在 path 目录里新建 name，或者把 path 改名为 name
+    private struct Name: Encodable {
         let path: String
-        var name: String?
+        let name: String
+    }
+
+    static func createDirectory(in path: String, name: String) async throws {
+        try await API.shared.post("\(base)/directories", body: Name(path: path, name: name))
+    }
+
+    static func rename(_ path: String, to name: String) async throws {
+        try await API.shared.post("\(base)/rename", body: Name(path: path, name: name))
+    }
+
+    // 批量操作逐项返回结果，顺序和请求里的一样
+    private struct Results: Decodable {
+        struct Result: Decodable {
+            struct Failure: Decodable { let message: String }
+            let path: String
+            let error: Failure?
+        }
+        let results: [Result]
+    }
+
+    struct PartialFailure: LocalizedError {
+        let errorDescription: String?
+    }
+
+    enum Batch {
+        case copy(paths: [String], destination: String)
+        case move(paths: [String], destination: String)
+        case trash(paths: [String])
+    }
+
+    private struct Transfer: Encodable {
+        let paths: [String]
         var destination: String?
     }
 
-    static func operate(_ operation: Operation) async throws {
-        try await API.shared.post("\(base)/operation", body: operation)
+    // 有没做成的项时报出个数和第一个的原因，其余的照样做完
+    static func run(_ batch: Batch) async throws {
+        let (route, body): (String, Transfer) = switch batch {
+        case .copy(let paths, let destination): ("copy", Transfer(paths: paths, destination: destination))
+        case .move(let paths, let destination): ("move", Transfer(paths: paths, destination: destination))
+        case .trash(let paths): ("trash", Transfer(paths: paths))
+        }
+        let response: Results = try await API.shared.send("POST", "\(base)/\(route)", body: body)
+        let failed = response.results.compactMap(\.error)
+        if let first = failed.first {
+            throw PartialFailure(errorDescription: "\(failed.count) 项没有完成：\(first.message)")
+        }
     }
 
     static func upload(directory: String, name: String, data: Data) async throws {
@@ -103,7 +145,8 @@ private struct FolderView: View {
     @State private var goPath = ""
 
     var body: some View {
-        List(selection: $selection) {
+        // 只在选择时绑定选中：绑着时点按文件夹会变成选中它，不再打开
+        List(selection: editMode.isEditing ? $selection : nil) {
             if let error {
                 Text(error).foregroundStyle(.red).font(.footnote)
             }
@@ -113,6 +156,8 @@ private struct FolderView: View {
         }
         .listStyle(.plain)
         .environment(\.editMode, $editMode)
+        // 选择时底部是对选中项的操作，标签栏会盖住它
+        .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
         .overlay {
             if listing == nil && error == nil { ProgressView() }
             else if listing != nil && entries.isEmpty { ContentUnavailableView(query.isEmpty ? "空文件夹" : "没有匹配的文件", systemImage: "folder") }
@@ -127,14 +172,14 @@ private struct FolderView: View {
             TextField("名称", text: $newName)
             Button("取消", role: .cancel) {}
             Button("保存") {
-                if let entry = renaming { run(.init(action: "rename", path: entry.path, name: newName)) }
+                if let entry = renaming { run { try await FilesAPI.rename(entry.path, to: newName) } }
             }
         }
         .alert("新建文件夹", isPresented: $creatingFolder) {
             TextField("名称", text: $newName)
             Button("取消", role: .cancel) {}
             Button("创建") {
-                if let current = listing?.path { run(.init(action: "mkdir", path: current, name: newName)) }
+                if let current = listing?.path { run { try await FilesAPI.createDirectory(in: current, name: newName) } }
             }
         }
         .alert("前往文件夹", isPresented: $goingTo) {
@@ -152,7 +197,7 @@ private struct FolderView: View {
         ) { items in
             Button("移到废纸篓", role: .destructive) {
                 finishSelecting()
-                run(items.map { FilesAPI.Operation(action: "trash", path: $0.path) })
+                run { try await FilesAPI.run(.trash(paths: items.map(\.path))) }
             }
         } message: { items in
             Text(items.count == 1 ? items[0].name : "文件会移到 macOS 的废纸篓。")
@@ -303,9 +348,8 @@ private struct FolderView: View {
                     Button("上传照片", systemImage: "photo.on.rectangle") { pickingPhotos = true }
                     if let clipboard, let current = listing?.path {
                         Button("粘贴 \(clipboard.paths.count) 项", systemImage: "doc.on.clipboard") {
-                            let action = clipboard.move ? "move" : "copy"
-                            run(clipboard.paths.map { FilesAPI.Operation(action: action, path: $0, destination: current) }) {
-                                self.clipboard = nil
+                            run(onSuccess: { self.clipboard = nil }) {
+                                try await FilesAPI.run(clipboard.move ? .move(paths: clipboard.paths, destination: current) : .copy(paths: clipboard.paths, destination: current))
                             }
                         }
                     }
@@ -345,21 +389,18 @@ private struct FolderView: View {
         }
     }
 
-    private func run(_ operation: FilesAPI.Operation) {
-        run([operation])
-    }
-
-    // 多个项目逐个操作，遇到失败就停下
-    private func run(_ operations: [FilesAPI.Operation], onSuccess: @escaping () -> Void = {}) {
+    private func run(onSuccess: @escaping () -> Void = {}, _ operation: @escaping () async throws -> Void) {
         Task {
+            var failure: String?
             do {
-                for operation in operations { try await FilesAPI.operate(operation) }
-                error = nil
+                try await operation()
                 onSuccess()
             } catch {
-                self.error = error.localizedDescription
+                failure = error.localizedDescription
             }
+            // 重新读取会清掉错误，没做成的原因在读完之后再显示
             await load()
+            if let failure { error = failure }
         }
     }
 }
