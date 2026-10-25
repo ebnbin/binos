@@ -3,6 +3,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden auto;
+  padding-bottom: var(--dock-overlap, 0px);
   overscroll-behavior: contain;
   background: var(--wallpaper);
 }

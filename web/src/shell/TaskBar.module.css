@@ -192,3 +192,86 @@
   border-radius: var(--radius-full);
   background: var(--color-on-chrome);
 }
+
+/* 手机上 Dock 在底部时，这一条就是屏幕下面的安全区。Dock 浮在屏幕底边之上，不挤 app 的高度；收起后只剩安全区正中的一颗胶囊 */
+.bar[data-compact='true'] {
+  --capsule: 28px;
+  position: absolute;
+  right: env(safe-area-inset-right);
+  bottom: 0;
+  left: env(safe-area-inset-left);
+  height: var(--dock-strip);
+  padding: 0;
+}
+
+.bar[data-compact='true'] .dock {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  inset-inline: 0;
+  width: fit-content;
+  max-height: none;
+  margin-inline: auto;
+  background: linear-gradient(var(--material-dock), var(--material-dock)), color-mix(in srgb, var(--color-chrome) 72%, transparent);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  backdrop-filter: var(--material-blur);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
+}
+
+.bar[data-collapsed='true'] .dock {
+  opacity: 0;
+  transform: translateY(var(--space-6)) scale(0.6);
+}
+
+.capsule {
+  position: absolute;
+  top: calc((100% - var(--capsule)) / 2);
+  inset-inline: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: fit-content;
+  max-width: calc(100% - var(--space-16));
+  height: var(--capsule);
+  margin-inline: auto;
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--material-dock);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
+  color: var(--color-on-chrome);
+  font-size: var(--font-size-footnote);
+  font-weight: var(--font-weight-medium);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
+}
+
+.capsule:active {
+  filter: brightness(0.8);
+}
+
+.bar[data-collapsed='false'] .capsule {
+  opacity: 0;
+  transform: translateY(calc(var(--space-2) * -1)) scale(1.4);
+}
+
+.capsuleIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.capsuleTitle {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar[data-compact='true'] .dock,
+  .capsule {
+    transition: none;
+  }
+}

@@ -18,6 +18,17 @@
   flex-direction: row;
 }
 
+/* 手机上 Dock 在底部时，底部只留安全区（没有安全区时留一小条）放 Dock 收起后的胶囊，展开的 Dock 浮在屏幕上 */
+.shell[data-compact='true'] {
+  --dock-strip: max(env(safe-area-inset-bottom), 32px);
+  padding-bottom: var(--dock-strip);
+}
+
+/* 展开的 Dock 盖住的高度：Dock 本身加上它离屏幕底边的距离 */
+.shell[data-compact='true'] .screen {
+  --dock-overlap: calc(44px + var(--space-0-5) * 2 + var(--space-2));
+}
+
 /* 键盘挡住了底部的安全区域 */
 .shell[data-bar='hidden'] {
   padding-bottom: 0;

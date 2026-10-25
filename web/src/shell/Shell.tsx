@@ -4,6 +4,7 @@ import { useApplicationsLoaded } from '../apps/index.ts'
 import { useElementSize } from '../ui/useElementSize.ts'
 import { useBarPlacement } from './bar-placement.ts'
 import { ConnectionStatus } from './ConnectionStatus.tsx'
+import { useDockCapsule } from './dock-capsule.ts'
 import { useShellController } from './controller/useShellController.ts'
 import { Desktop } from './Desktop.tsx'
 import styles from './Shell.module.css'
@@ -15,6 +16,9 @@ export function Shell() {
   const [main, size] = useElementSize<HTMLDivElement>()
   const controller = useShellController(size)
   const placement = useBarPlacement()
+  const compact = placement === 'bottom' && window.matchMedia('(pointer: coarse)').matches
+  const { collapsed, dock, onScroll, expand, collapse, touch } = useDockCapsule(compact, controller.home)
+  const focusedWindow = controller.windows.find(item => item.id === controller.focused)
   const [musicCollapsed, setMusicCollapsed] = useState(false)
   const musicVisible = !controller.home && controller.windows.some(item => item.window.applicationId === 'music' && controller.panes.includes(item.id))
   const [previousMusicVisible, setPreviousMusicVisible] = useState(musicVisible)
@@ -24,9 +28,9 @@ export function Shell() {
   }
 
   return (
-    <div className={styles.shell} data-bar={placement}>
+    <div className={styles.shell} data-bar={placement} data-compact={compact}>
       <div className={styles.titleBar} />
-      <div ref={main} className={styles.screen}>
+      <div ref={main} className={styles.screen} onScrollCapture={onScroll}>
         {loaded && size && (
           <>
             <Workspace
@@ -56,7 +60,9 @@ export function Shell() {
       </div>
       {placement !== 'hidden' && (
         <TaskBar
+          ref={dock}
           placement={placement}
+          capsule={compact ? { collapsed: collapsed && !!focusedWindow, current: focusedWindow, onExpand: expand, onActivity: touch } : undefined}
           accessory={!musicVisible && <MusicStatusButton collapsed={musicCollapsed} onToggle={() => setMusicCollapsed(value => !value)} />}
           windows={controller.windows}
           groups={controller.groups}
@@ -69,7 +75,10 @@ export function Shell() {
           allowed={controller.allowed}
           portrait={controller.portrait}
           onHome={controller.toggleHome}
-          onShow={controller.show}
+          onShow={(id) => {
+            controller.show(id)
+            collapse()
+          }}
           onSplit={controller.split}
           onClose={controller.close}
         />

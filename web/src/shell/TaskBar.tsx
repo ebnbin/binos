@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
@@ -20,8 +21,11 @@ function LayoutGlyph({ layout, portrait, active }: { layout: LayoutId; portrait:
   )
 }
 
-// 屏幕外面的 Dock：回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口
+// 屏幕外面的 Dock：回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
+// 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 的一颗胶囊
 export function TaskBar({
+  ref,
+  capsule,
   placement,
   accessory,
   windows,
@@ -39,6 +43,8 @@ export function TaskBar({
   onSplit,
   onClose,
 }: {
+  ref?: Ref<HTMLElement>
+  capsule?: { collapsed: boolean; current?: OpenWindow; onExpand: () => void; onActivity: () => void }
   placement: Exclude<BarPlacement, 'hidden'>
   accessory?: ReactNode
   windows: OpenWindow[]
@@ -60,10 +66,52 @@ export function TaskBar({
   // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
   const focusedUrl = findApplication(apps, windows.find((item) => item.id === focused)?.window.applicationId ?? '')?.url
   const canPick = !home && !locked && !groups.some((group) => focused && group.slots.includes(focused)) && allowed.length > 1
+  const capsuleApp = capsule?.current && findApplication(apps, capsule.current.window.applicationId)
+  const dockId = useId()
+  const dock = useRef<HTMLDivElement>(null)
+  const capsuleButton = useRef<HTMLButtonElement>(null)
+  // 用键盘展开或收起时，焦点跟着移到显示出来的那一边，不留在被隐藏的按钮上
+  const moveFocus = useRef<'dock' | 'capsule' | null>(null)
+  const collapsed = capsule?.collapsed
+  useEffect(() => {
+    const target = moveFocus.current === 'dock'
+      ? dock.current?.querySelector<HTMLElement>('[aria-pressed="true"]') ?? dock.current?.querySelector<HTMLElement>('button')
+      : moveFocus.current === 'capsule' ? capsuleButton.current : null
+    moveFocus.current = null
+    target?.focus()
+  }, [collapsed])
+  const focusVisibleInside = (element: Element | null) => !!element?.contains(document.activeElement) && !!document.activeElement?.matches(':focus-visible')
 
   return (
-    <nav inert={locked} className={styles.bar} data-placement={placement}>
-      <div className={styles.dock}>
+    <nav
+      ref={ref}
+      inert={locked}
+      className={styles.bar}
+      data-placement={placement}
+      data-compact={!!capsule}
+      data-collapsed={collapsed}
+      onPointerDown={capsule?.onActivity}
+      onKeyDown={capsule?.onActivity}
+    >
+      {capsule?.current && (
+        <button
+          ref={capsuleButton}
+          type="button"
+          className={styles.capsule}
+          inert={!collapsed}
+          aria-label={`${capsule.current.title}，展开 Dock`}
+          aria-expanded={false}
+          aria-controls={dockId}
+          onClick={(event) => {
+            if (event.currentTarget.matches(':focus-visible')) moveFocus.current = 'dock'
+            capsule.onExpand()
+          }}
+        >
+          {capsuleApp && <AppIcon app={capsuleApp} className={styles.capsuleIcon} />}
+          <span className={styles.capsuleTitle}>{capsule.current.title}</span>
+        </button>
+      )}
+      <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
         <button type="button" className={styles.item} aria-label="桌面" title="桌面" aria-pressed={home} onClick={onHome}>
           <BrandMark size={30} inverted />
         </button>
@@ -87,7 +135,10 @@ export function TaskBar({
                 title={title}
                 aria-pressed={!home && members.some((member) => member.id === focused)}
                 data-visible={!home && members.some((member) => panes.includes(member.id))}
-                onClick={() => onShow(members.find((member) => member.id === focused)?.id ?? item.id)}
+                onClick={() => {
+                  if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
+                  onShow(members.find((member) => member.id === focused)?.id ?? item.id)
+                }}
               >
                 {members.map((member) => {
                   const app = findApplication(apps, member.window.applicationId)
