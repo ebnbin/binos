@@ -234,6 +234,10 @@
   font-size: var(--font-size-footnote);
 }
 
+.trailing {
+  display: none;
+}
+
 /* 提高优先级，盖过 IconButton 自身的 display */
 .bar .singleColumnOnly {
   display: none;
@@ -245,8 +249,9 @@
     padding: 0 var(--space-margin);
   }
 
-  .bar:has(.heading:last-child)::after {
-    content: '';
+  /* 右边没有按钮时占住和返回按钮一样宽的位置，标题才居中 */
+  .trailing {
+    display: block;
     width: var(--size-toolbar-item);
     flex: none;
   }
