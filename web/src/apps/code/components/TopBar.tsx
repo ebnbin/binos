@@ -42,7 +42,11 @@ export function TopBar({
           </>
         )}
       </div>
-      {sessionId !== null && prs.length > 0 && <PrMenu prs={prs} project={session?.project} onNavigate={onNavigate} />}
+      {sessionId !== null && prs.length > 0 ? (
+        <PrMenu prs={prs} project={session?.project} onNavigate={onNavigate} />
+      ) : (
+        <span className={styles.trailing} aria-hidden="true" />
+      )}
     </header>
   )
 }
