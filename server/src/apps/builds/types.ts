@@ -21,5 +21,7 @@ export type Build = {
 }
 export type Settings = { automatic: boolean }
 // prs 是上次检查时开着的 PR，还没检查过时没有
-export type Snapshot = { builds: Build[]; settings: Settings; pollError?: string; checkedAt?: string; prs?: { number: number; title: string }[]; mode: 'real' | 'mock'; version: string }
-export type Request = { action: 'status' | 'poll' | 'stop' | 'handoff' } | { action: 'enqueue'; ref: string; targets: Target[] } | { action: 'cancel' | 'retry'; id: string } | { action: 'settings'; automatic: boolean }
+export type BuildsSnapshot = { builds: Build[]; settings: Settings; pollError?: string; checkedAt?: string; prs?: { number: number; title: string }[]; mode: 'real' | 'mock'; version: string }
+export type BuildRequest = { action: 'status' | 'poll' } | { action: 'stop' | 'handoff' } | { action: 'enqueue'; ref: string; targets: Target[] } | { action: 'cancel' | 'retry'; id: string } | { action: 'settings'; automatic: boolean }
+// iOS 的安装链接，expiresIn 秒内有效
+export type InstallLink = { url: string; expiresIn: number }

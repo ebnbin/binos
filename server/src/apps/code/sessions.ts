@@ -4,6 +4,7 @@ import { defaultProject } from './projects.js'
 import { appDir } from '../../paths.js'
 import { codeKita } from './kita.js'
 import type { KitaSession } from '../../services/kita/index.js'
+import type { SearchResult, SearchResults } from './types.js'
 
 // session.json：对话对应的 thread 和用户在列表上的整理（改的名字、置顶、归档、最后一次看它的时间），
 // 以及从 thread 的条目里算出的（scanned 是算到了第几条）：默认的标题，开过的 PR 和还没有结果的 gh pr create 调用
@@ -141,9 +142,9 @@ export function searchSessions(ids: number[], query: string): Set<number> {
   )
 }
 
-export function searchContent(query: string) {
+export function searchContent(query: string): SearchResults {
   const needle = query.trim().toLowerCase()
-  const results: { id: number; title: string; archived: boolean; item?: number; kind: 'title' | 'input' | 'text'; before: string; match: string; after: string }[] = []
+  const results: SearchResult[] = []
   let total = 0
   if (!needle) return { results, total }
   const add = (id: number, text: string, kind: 'title' | 'input' | 'text', item?: number) => {

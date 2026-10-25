@@ -9,13 +9,15 @@ import { serverApps } from './apps/index.js'
 import { onChange } from './events.js'
 import { kitaApi } from './services/kita/api.js'
 import { codeDir } from './paths.js'
+import { protocolId, schemaPath } from './protocol-id.js'
 import { connectedPreamble, keepAlive } from './sse.js'
 import { parseExternalApps, readRegistry, saveRegistry } from './registry.js'
-import type { ChangeEvent } from './types.js'
+import type { ChangeEvent, Health } from './types.js'
 
 // VERSION 由上线脚本写进构建目录，开发时没有
 const versionFile = path.join(codeDir, 'VERSION')
 const version = existsSync(versionFile) ? readFileSync(versionFile, 'utf8').trim() : 'dev'
+const protocol = protocolId(readFileSync(schemaPath, 'utf8'))
 
 // 写操作只接受 JSON 和上传文件用的 octet-stream：浏览器跨站提交这两种都需要预检，其他网站无法借你的登录状态发起请求
 const requirePreflight: MiddlewareHandler = async (c, next) => {
@@ -34,7 +36,7 @@ export function createApi(authorize: MiddlewareHandler = requireOwner) {
   const api = new Hono()
     .basePath('/api')
     // 上线脚本在本机检查它，拿不到 Access 凭证，所以注册在身份校验之前
-    .get('/health', (c) => c.json({ version }))
+    .get('/health', (c) => c.json({ version, protocol } satisfies Health))
     .use(authorize, requirePreflight)
     // app 注册表：整份读取，整份替换
     .get('/apps', (c) => c.json(readRegistry()))

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { validator } from 'hono/validator'
 import { agentIds, defaultAgent } from '../../services/kita/types.js'
 import type { AgentId } from '../../services/kita/types.js'
+import type { ConversationMessage } from './types.js'
 import { deleteConversation, kita, listConversations, sendMessage, startConversation, stopConversation } from './conversations.js'
 
 const maxText = 100_000
@@ -13,14 +14,13 @@ const conversationParam = validator('param', (value: Record<string, string>, c) 
 
 const isAgent = (value: unknown): value is AgentId => agentIds.includes(value as AgentId)
 
-// temporary：新对话是临时的；agent：新对话用哪个，不给是默认的。已有的对话不看这两项
 const messageBody = validator('json', (value, c) => {
-  const body = value as { text?: unknown; temporary?: unknown; agent?: unknown } | null
+  const body = value as { [K in keyof ConversationMessage]?: unknown } | null
   const text = typeof body?.text === 'string' ? body.text.trim() : ''
   if (!text || text.length > maxText || (body?.temporary !== undefined && typeof body.temporary !== 'boolean') || (body?.agent !== undefined && !isAgent(body.agent))) {
     return c.text('Bad Request', 400)
   }
-  const message: { text: string; temporary?: boolean; agent?: AgentId } = {
+  const message: ConversationMessage = {
     text,
     ...(body?.temporary === true && { temporary: true }),
     ...(isAgent(body?.agent) && { agent: body.agent }),

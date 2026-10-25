@@ -30,3 +30,5 @@ export type Request =
   | { action: 'screenshot'; device: string; owner?: string; lease?: string }
   | { action: 'run'; owner: string; lease: string; command: string[]; cwd: string; timeout: number }
 export const emptyState = (): State => ({ version: 2, devices: [], leases: [], queue: [], ended: [], events: [] })
+// image 是 base64 编码的图片，at 是截图的时间
+export type DeviceScreenshot = { image: string; mime: string; at: number }

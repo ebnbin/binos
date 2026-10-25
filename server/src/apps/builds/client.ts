@@ -4,8 +4,8 @@ import { createConnection } from 'node:net'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { dataDir, mock, socketPath, version } from './config.js'
-import type { Request, Snapshot } from './types.js'
-function send<T>(request: Request): Promise<T> {
+import type { BuildRequest, BuildsSnapshot } from './types.js'
+function send<T>(request: BuildRequest): Promise<T> {
   return new Promise((resolve, reject) => {
     const socket = createConnection(socketPath)
     let output = ''
@@ -22,7 +22,7 @@ let starting: Promise<void> | undefined
 async function ensure() {
   if (starting) return starting
   try {
-    const status = await send<Snapshot>({ action: 'status' })
+    const status = await send<BuildsSnapshot>({ action: 'status' })
     if (status.mode !== (mock ? 'mock' : 'real')) throw new Error('构建服务模式不匹配')
     if (status.version === version) return
     // runner 独立于管理进程，切换版本时构建继续运行。
@@ -40,4 +40,4 @@ async function ensure() {
   })().finally(() => { starting = undefined })
   return starting
 }
-export async function buildRequest<T = Snapshot>(request: Request): Promise<T> { await ensure(); return send<T>(request) }
+export async function buildRequest<T = BuildsSnapshot>(request: BuildRequest): Promise<T> { await ensure(); return send<T>(request) }

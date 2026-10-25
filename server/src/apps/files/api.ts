@@ -5,6 +5,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
 import { serveFile } from '../../files.js'
+import type { Directory, FileEntry } from './types.js'
 
 function absolute(value: unknown): string {
   if (typeof value !== 'string' || !path.isAbsolute(value) || value.includes('\0')) throw new Error('请输入绝对路径')
@@ -22,7 +23,7 @@ export const filesApi = new Hono()
     const dir = absolute(c.req.query('path') || os.homedir())
     const names = await readdir(dir)
     const entries = await Promise.all(
-      names.map(async (name) => {
+      names.map(async (name): Promise<FileEntry> => {
         const file = path.join(dir, name)
         try {
           const info = await lstat(file)
@@ -33,7 +34,7 @@ export const filesApi = new Hono()
         }
       }),
     )
-    return c.json({ path: dir, parent: path.dirname(dir), home: os.homedir(), entries })
+    return c.json({ path: dir, parent: path.dirname(dir), home: os.homedir(), entries } satisfies Directory)
   })
   .get('/download', async (c) => {
     const file = absolute(c.req.query('path'))

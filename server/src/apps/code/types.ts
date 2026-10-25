@@ -1,5 +1,12 @@
 import type { AgentId, Context, Tokens } from '../../services/kita/types.js'
 
+// 新建 session 和发消息的请求体，各项的含义见 api.ts 里的 messageBody
+export type MessageBody = { project?: string; text: string; attachments?: Upload[]; interrupt?: boolean; queue?: boolean; agent?: AgentId; model?: string; effort?: string }
+// 新建项目、给项目关联仓库的请求体：repository 是 owner/name，create 是在 GitHub 上新建它
+export type RepositoryBody = { name: string; repository: string; create?: boolean }
+// 改名、置顶、归档，没给的项不动
+export type SessionEdit = { title?: string; pinned?: boolean; archived?: boolean }
+
 // 用户上传、还没随消息发出的附件。file 是 uploads/ 里的文件名，name 是原来的文件名
 export type Upload = { file: string; name: string }
 
@@ -45,3 +52,11 @@ export type SessionSummary = {
 // 当前这个 7 天窗口（resetsAt 时重置）里 binOS 用能折算花费的 agent 大约用了它周额度的多少（0 到 1），估不出来时没有 week。
 // 窗口是整个订阅共用的，其余的是别处用的（见 usage.ts）。每次读取时现算
 export type CodeUsage = { resetsAt: number; week?: number }
+
+// 新建 session 或发出消息后：kitaSession 是页面显示对话内容用的
+export type SessionRef = { id: number; kitaSession: string }
+
+// 搜索命中的一处：item 是命中的条目在对话里的位置，标题命中时没有；before、match、after 是命中处和前后的文字
+export type SearchResult = { id: number; title: string; archived: boolean; item?: number; kind: 'title' | 'input' | 'text'; before: string; match: string; after: string }
+// results 最多 200 条，total 是一共命中多少处
+export type SearchResults = { results: SearchResult[]; total: number }

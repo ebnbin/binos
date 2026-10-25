@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { deviceRequest } from './client.js'
 import { platforms } from './protocol.js'
-import type { LeaseResult, Snapshot } from './types.js'
+import type { DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
 
 const argv = process.argv.slice(2)
 const command = argv.shift()
@@ -45,7 +45,7 @@ try {
       print(await deviceRequest({ action: 'cancel', owner: identity(), requestId })); break
     }
     case 'screenshot': {
-      const result = await deviceRequest<{ image: string; mime: string; at: number }>({ action: 'screenshot', device: argv[0], owner: identity(), lease: lease() })
+      const result = await deviceRequest<DeviceScreenshot>({ action: 'screenshot', device: argv[0], owner: identity(), lease: lease() })
       const output = flag('output')
       if (!output) throw new Error('需要 --output <截图文件>')
       writeFileSync(output, Buffer.from(result.image, 'base64'))

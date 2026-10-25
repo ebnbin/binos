@@ -159,8 +159,10 @@ export function windowStart(id: string, size: number, before?: number): number {
 
 const journals = new Map<string, { size: number; events: Event[] }>()
 
+export type CallDetail = { call: Entry; result?: Entry }
+
 // index 处的工具调用和它的结果（在同一轮里按调用 id 对应），不是工具调用时返回 undefined
-export function readCall(id: string, index: number): { call: Entry; result?: Entry } | undefined {
+export function readCall(id: string, index: number): CallDetail | undefined {
   const events = readJournal(id)
   const call = events[index]
   if (call?.data.type !== 'tool_call') return undefined
