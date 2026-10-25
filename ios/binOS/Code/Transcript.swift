@@ -71,36 +71,59 @@ enum Block: Hashable, Identifiable {
     }
 }
 
-struct TranscriptIndex {
-    // 按调用所在的下标关联结果和子 agent 的条目；vendor 的调用 id 只在当前轮内唯一
-    var results: [Int: ToolResultEntry] = [:]
-    var children: [Int: [IndexedEntry]] = [:]
-    var main: [IndexedEntry] = []
+// 一轮：从 mode 为 start 的 input 到下一个之前，第一轮之前的条目单独成一组。start 和条目的 index 都是在整个 thread 里的位置。
+// vendor 的调用 id 只在当前轮内唯一，按调用所在的位置关联结果和子 agent 的条目
+final class TranscriptTurn {
+    let start: Int
+    let first: Entry
+    let size: Int
+    private(set) var results: [Int: ToolResultEntry] = [:]
+    private(set) var children: [Int: [IndexedEntry]] = [:]
+    private(set) var main: [IndexedEntry] = []
+    // 答完的轮的块不会再变，算过就记下来
+    private var settled: (previous: String?, blocks: [Block])?
 
-    init(_ items: [Entry]) {
-        var turn: [IndexedEntry] = []
-        func flush() {
-            var calls: [String: Int] = [:]
-            for item in turn {
-                if case .toolCall(let call) = item.entry { calls[call.id] = item.index }
-            }
-            for item in turn {
-                if case .toolResult(let result) = item.entry, let call = calls[result.callId] {
-                    results[call] = result
-                }
-                if let parent = item.entry.parent, let call = calls[parent] {
-                    children[call, default: []].append(item)
-                } else {
-                    main.append(item)
-                }
-            }
-            turn = []
+    init(_ items: ArraySlice<Entry>, offset: Int) {
+        start = offset + items.startIndex
+        first = items.first!
+        size = items.count
+        var calls: [String: Int] = [:]
+        for (index, entry) in zip(items.indices, items) {
+            if case .toolCall(let call) = entry { calls[call.id] = offset + index }
         }
+        for (index, entry) in zip(items.indices, items) {
+            let item = IndexedEntry(index: offset + index, entry: entry)
+            if case .toolResult(let result) = entry, let call = calls[result.callId] {
+                results[call] = result
+            }
+            if let parent = entry.parent, let call = calls[parent] {
+                children[call, default: []].append(item)
+            } else {
+                main.append(item)
+            }
+        }
+    }
+
+    // items 是从 offset 开始的条目。条目只会在两头增加：和 previous 里同一段条目的轮沿用原来的对象，界面上这些轮可以跳过重新排版
+    static func split(_ items: [Entry], previous: [TranscriptTurn] = [], offset: Int = 0) -> [TranscriptTurn] {
+        let reusable = Dictionary(previous.map { ($0.start, $0) }, uniquingKeysWith: { first, _ in first })
+        var starts: [Int] = []
         for (index, entry) in items.enumerated() {
-            if case .input(let input) = entry, input.mode == "start" { flush() }
-            turn.append(IndexedEntry(index: index, entry: entry))
+            if index == 0 { starts.append(index) } else if case .input(let input) = entry, input.mode == "start" { starts.append(index) }
         }
-        flush()
+        return starts.enumerated().map { i, start in
+            let end = i + 1 < starts.count ? starts[i + 1] : items.count
+            if let old = reusable[offset + start], old.size == end - start, old.first == items[start] { return old }
+            return TranscriptTurn(items[start..<end], offset: offset)
+        }
+    }
+
+    // 这一轮的块；previous 是上一轮最后一条的时间
+    func blocks(live: Bool, previous: String?) -> [Block] {
+        if !live, let settled, settled.previous == previous { return settled.blocks }
+        let blocks = blocks(main, live: live, previous: previous)
+        if !live { settled = (previous, blocks) }
+        return blocks
     }
 
     func state(_ index: Int, _ call: ToolCallEntry, live: Bool) -> CallState {
@@ -119,11 +142,11 @@ struct TranscriptIndex {
     // 一轮开始时离上一条超过这么久或者跨了天，先显示一条时间
     private static let dividerGap: TimeInterval = 30 * 60
 
-    func blocks(_ entries: [IndexedEntry], live: Bool) -> [Block] {
+    func blocks(_ entries: [IndexedEntry], live: Bool, previous: String? = nil) -> [Block] {
         var blocks: [Block] = []
         var replies: [String] = []
         var edits: [CallState] = []
-        var lastTime: Date?
+        var lastTime = previous.flatMap(Date.init(iso:))
         func addStep(_ step: Step, at index: Int) {
             if case .steps(let first, var steps) = blocks.last {
                 steps.append(step)
@@ -287,9 +310,16 @@ enum Diff {
         }
     }
 
+    // 条目不会变，算过的记下来：每次排版都对整段内容做 diff 太慢
+    private static var countCache: [FileChange: (added: Int, removed: Int)] = [:]
+
     static func counts(for change: FileChange) -> (added: Int, removed: Int) {
+        if let cached = countCache[change] { return cached }
         let lines = lines(for: change)
-        return (lines.count { $0.kind == .added }, lines.count { $0.kind == .removed })
+        let counts = (lines.count { $0.kind == .added }, lines.count { $0.kind == .removed })
+        if countCache.count > 2000 { countCache.removeAll() }
+        countCache[change] = counts
+        return counts
     }
 
     private static func split(_ text: String) -> [String] {

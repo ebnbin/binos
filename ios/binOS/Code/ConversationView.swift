@@ -35,6 +35,7 @@ struct ConversationView: View {
             } else if let stream, stream.loaded {
                 // 补发完了再排版，初始位置才能直接落在底部
                 TranscriptScroll(stream: stream, notice: notice, targetItem: targetItem)
+                    .id(stream.thread)
             } else if store.sessions != nil, session == nil, createdThread == nil {
                 ContentUnavailableView("这个对话不存在", systemImage: "questionmark.bubble")
             } else {
@@ -170,31 +171,25 @@ struct ConversationView: View {
     }
 }
 
-// 对话的滚动区：新内容到来时贴着底部；往上翻看时出现回到底部的按钮
-private struct TranscriptScroll: View {
+// 对话的滚动区：新内容到来时贴着底部，往上翻看时出现回到底部的按钮；离顶部不远时往前补读更早的轮
+struct TranscriptScroll: View {
     let stream: KitaSessionStream
     let notice: String?
-    let targetItem: Int?
-    @State private var blocks: [Block]
-    @State private var index: TranscriptIndex
+    // 从搜索结果跳过来时定位到的条目
+    var targetItem: Int?
+    @State private var turns: [TranscriptTurn] = []
     @State private var position = ScrollPosition(edge: .bottom)
     @State private var atBottom = true
+    @State private var nearTop = false
     @State private var located = false
-    @State private var limit = 60
 
-    init(stream: KitaSessionStream, notice: String?, targetItem: Int?) {
-        self.stream = stream
-        self.notice = notice
-        self.targetItem = targetItem
-        let index = TranscriptIndex(stream.items)
-        _index = State(initialValue: index)
-        _blocks = State(initialValue: index.blocks(index.main, live: stream.live != nil))
-    }
+    // 补读更早的轮时，离顶部还有这么远就开始读
+    private static let olderMargin: CGFloat = 1500
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                TranscriptView(stream: stream, blocks: blocks, index: index, limit: $limit)
+                TranscriptView(stream: stream, turns: turns)
                 if let notice {
                     Label(notice, systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
@@ -208,12 +203,14 @@ private struct TranscriptScroll: View {
         }
         .scrollPosition($position)
         .defaultScrollAnchor(.bottom, for: .initialOffset)
-        .defaultScrollAnchor(atBottom ? .bottom : nil, for: .sizeChanges)
+        // 前面补上更早的轮时按底部对齐，正在看的内容不动
+        .defaultScrollAnchor(atBottom || stream.prepending ? .bottom : nil, for: .sizeChanges)
         .scrollDismissesKeyboard(.interactively)
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.visibleRect.maxY >= geometry.contentSize.height - 80
-        } action: { _, bottom in
-            atBottom = bottom
+        .onScrollGeometryChange(for: [Bool].self) { geometry in
+            [geometry.visibleRect.maxY >= geometry.contentSize.height - 80, geometry.visibleRect.minY < Self.olderMargin]
+        } action: { _, value in
+            atBottom = value[0]
+            nearTop = value[1]
         }
         .overlay(alignment: .bottomTrailing) {
             if !atBottom {
@@ -230,18 +227,30 @@ private struct TranscriptScroll: View {
                 .accessibilityLabel("回到底部")
             }
         }
+        .task(id: "\(nearTop)-\(stream.offset)") {
+            if nearTop, located || targetItem == nil { await stream.loadOlder() }
+        }
         .onChange(of: stream.revision, initial: true) {
-            index = TranscriptIndex(stream.items)
-            blocks = index.blocks(index.main, live: stream.live != nil)
-            if let targetItem, !located, let offset = blocks.firstIndex(where: { $0.id == "\(targetItem)" }) {
-                located = true
-                limit = max(limit, blocks.count - offset)
-                atBottom = false
-                Task {
-                    try? await Task.sleep(for: .milliseconds(300))
-                    withAnimation { position.scrollTo(id: "\(targetItem)", anchor: .center) }
-                }
-            }
+            turns = TranscriptTurn.split(stream.items, previous: turns, offset: stream.offset)
+            locate()
+        }
+    }
+
+    // 目标在已读到的条目之前时先补读到它，再滚过去
+    private func locate() {
+        guard let targetItem, !located else { return }
+        if targetItem < stream.offset {
+            Task { await stream.loadOlder(until: targetItem) }
+            return
+        }
+        located = true
+        guard let turn = turns.last(where: { $0.start <= targetItem }) else { return }
+        atBottom = false
+        Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            position.scrollTo(id: turn.start, anchor: .top)
+            try? await Task.sleep(for: .milliseconds(300))
+            withAnimation { position.scrollTo(id: "\(targetItem)", anchor: .center) }
         }
     }
 }

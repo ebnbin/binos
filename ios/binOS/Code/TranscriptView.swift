@@ -1,42 +1,72 @@
 import SwiftUI
 
-// 对话内容：按块排列，回答进行中的临时内容接在最后
+// 对话内容：按轮分节，回答进行中的临时内容接在最后一轮里
 struct TranscriptView: View {
     let stream: KitaSessionStream
-    let blocks: [Block]
-    let index: TranscriptIndex
-    // 长对话只排最近的这么多块，往上翻时再加
-    @Binding var limit: Int
+    let turns: [TranscriptTurn]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if blocks.count > limit {
-                Button("显示更早的 \(min(blocks.count - limit, 60)) 项", systemImage: "arrow.up") { limit += 60 }
-                    .font(.footnote)
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.bordered)
+            if stream.offset > 0 {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("正在读取更早的消息")
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .id("older")
             }
-            ForEach(blocks.suffix(limit)) { block in
-                BlockRow(block: block, context: context, isLast: block == blocks.last)
-                    .id(block.id)
-            }
-            if let live = stream.live {
-                LiveTail(live: live, stream: stream, index: index)
-                    .id("live")
+            ForEach(Array(turns.enumerated()), id: \.element.start) { position, turn in
+                let last = position == turns.count - 1
+                TurnSection(
+                    thread: stream.thread,
+                    agent: stream.agent,
+                    turn: turn,
+                    previous: position > 0 ? turns[position - 1].main.last?.entry.time : nil,
+                    live: last ? stream.live : nil,
+                    last: last
+                )
+                .equatable()
+                .id(turn.start)
             }
         }
         .scrollTargetLayout()
     }
+}
 
-    private var context: TranscriptContext {
-        TranscriptContext(thread: stream.thread, agent: stream.agent, index: index, live: stream.live)
+// 主对话的一轮。没变的轮跳过重新排版：只有最后一轮带 live，推送只让它跟着动
+private struct TurnSection: View, Equatable {
+    let thread: String
+    let agent: String?
+    let turn: TranscriptTurn
+    let previous: String?
+    let live: Live?
+    let last: Bool
+
+    nonisolated static func == (a: Self, b: Self) -> Bool {
+        a.turn === b.turn && a.thread == b.thread && a.agent == b.agent && a.previous == b.previous && a.live == b.live && a.last == b.last
+    }
+
+    var body: some View {
+        let blocks = turn.blocks(live: live != nil, previous: previous)
+        let context = TranscriptContext(thread: thread, agent: agent, index: turn, live: live)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(blocks) { block in
+                BlockRow(block: block, context: context, isLast: last && block == blocks.last)
+                    .id(block.id)
+            }
+            if let live {
+                LiveTail(live: live, thread: thread, turn: turn)
+            }
+        }
     }
 }
 
 struct TranscriptContext {
     let thread: String
     let agent: String?
-    let index: TranscriptIndex
+    let index: TranscriptTurn
     let live: Live?
 }
 
@@ -252,8 +282,8 @@ struct ThinkingView: View {
 
 private struct LiveTail: View {
     let live: Live
-    let stream: KitaSessionStream
-    let index: TranscriptIndex
+    let thread: String
+    let turn: TranscriptTurn
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -261,7 +291,7 @@ private struct LiveTail: View {
                 ThinkingView(text: live.thinking, durationMs: nil, live: true)
             }
             if !live.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                MarkdownView(text: live.text, files: live.files, thread: stream.thread)
+                MarkdownView(text: live.text, files: live.files, thread: thread)
             }
             TimelineView(.periodic(from: .now, by: 1)) { timeline in
                 HStack(spacing: 6) {
@@ -277,8 +307,8 @@ private struct LiveTail: View {
 
     // 主对话里还没有结果的最后一次工具调用
     private var runningTool: String? {
-        for item in index.main.reversed() {
-            if case .toolCall(let call) = item.entry, index.results[item.index] == nil { return call.name }
+        for item in turn.main.reversed() {
+            if case .toolCall(let call) = item.entry, turn.results[item.index] == nil { return call.name }
         }
         return nil
     }
@@ -296,13 +326,10 @@ private struct LiveTail: View {
     }
 
     private func elapsed(_ now: Date) -> String {
-        for entry in stream.items.reversed() {
-            if case .input(let input) = entry, input.mode == "start", let start = Date(iso: input.time) {
-                let seconds = max(Int(now.timeIntervalSince(start)), 0)
-                return seconds < 60 ? " · \(seconds) 秒" : " · \(seconds / 60) 分 \(seconds % 60) 秒"
-            }
-        }
-        return ""
+        // 这一轮从 mode 为 start 的 input 开始
+        guard case .input(let input) = turn.first, input.mode == "start", let start = Date(iso: input.time) else { return "" }
+        let seconds = max(Int(now.timeIntervalSince(start)), 0)
+        return seconds < 60 ? " · \(seconds) 秒" : " · \(seconds / 60) 分 \(seconds % 60) 秒"
     }
 }
 

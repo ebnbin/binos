@@ -68,11 +68,42 @@ struct CallStatusIcon: View {
     }
 }
 
+// 发给页面时省略过的调用，展开时读完整的；还没读到或读不到时用已有的。结果是读完之后才到的，就还用已有的
+private struct FullCall: ViewModifier {
+    let thread: String
+    let state: CallState
+    @Binding var shown: CallState
+
+    @State private var full: (for: ToolResultEntry?, state: CallState)?
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: state, initial: true) {
+                shown = full.flatMap { $0.for == state.result ? $0.state : nil } ?? state
+            }
+            .task(id: state.result) {
+                guard state.call.clipped || state.result?.clipped == true,
+                      let loaded = await KitaSessionStream.fullCall(thread: thread, index: state.index) else { return }
+                let value = CallState(index: state.index, call: loaded.call, result: loaded.result ?? state.result, live: state.live)
+                full = (state.result, value)
+                shown = value
+            }
+    }
+}
+
 private struct ToolBody: View {
     let state: CallState
     let context: TranscriptContext
+    @State private var shown: CallState
+
+    init(state: CallState, context: TranscriptContext) {
+        self.state = state
+        self.context = context
+        _shown = State(initialValue: state)
+    }
 
     var body: some View {
+        let state = shown
         VStack(alignment: .leading, spacing: 8) {
             switch state.call.tool {
             case .command(let command):
@@ -104,8 +135,8 @@ private struct ToolBody: View {
                 }
                 if let output = result.output, !output.isEmpty {
                     VStack(alignment: .leading, spacing: 4) {
-                        if result.truncated {
-                            Text("只显示结果的末尾").font(.caption2).foregroundStyle(.tertiary)
+                        if result.truncated || result.clipped {
+                            Text("前面的输出已省略").font(.caption2).foregroundStyle(.tertiary)
                         }
                         ScrollView([.horizontal, .vertical]) {
                             Text(output.count > 20_000 ? String(output.suffix(20_000)) : output)
@@ -120,11 +151,12 @@ private struct ToolBody: View {
                 }
             }
         }
+        .modifier(FullCall(thread: context.thread, state: self.state, shown: $shown))
     }
 
     // 摘要显示不全时带着原始参数
     private var needsInput: Bool {
-        switch state.call.tool {
+        switch shown.call.tool {
         case .mcp, .browser, .other, .edit, .todo, .skill: true
         default: false
         }
@@ -176,10 +208,9 @@ struct SubagentView: View {
                             SubagentBlock(block: block, context: context)
                         }
                     }
-                    if let output = state.result?.output, !output.isEmpty {
+                    if children.isEmpty, state.result?.output?.isEmpty == false {
                         Divider()
-                        MarkdownView(text: output)
-                            .font(.footnote)
+                        SubagentResult(state: state, context: context)
                     }
                 }
                 .padding([.horizontal, .bottom], 10)
@@ -202,6 +233,25 @@ struct SubagentView: View {
         if let uses = progress.toolUses { parts.append("\(uses) 次工具") }
         if let tokens = progress.tokens { parts.append("\(Format.tokens(tokens)) token") }
         return parts.joined(separator: " · ")
+    }
+}
+
+// 没有过程的记录时交回的结果，发给页面时省略过就读完整的
+private struct SubagentResult: View {
+    let state: CallState
+    let context: TranscriptContext
+    @State private var shown: CallState
+
+    init(state: CallState, context: TranscriptContext) {
+        self.state = state
+        self.context = context
+        _shown = State(initialValue: state)
+    }
+
+    var body: some View {
+        MarkdownView(text: shown.result?.output ?? "")
+            .font(.footnote)
+            .modifier(FullCall(thread: context.thread, state: state, shown: $shown))
     }
 }
 

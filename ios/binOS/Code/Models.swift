@@ -94,6 +94,8 @@ struct ToolCallEntry: Hashable {
     let tool: ToolDetail
     let input: JSONValue?
     let parent: String?
+    // 发给页面时省略过长的命令，完整的按调用的位置另外读
+    let clipped: Bool
 }
 
 struct ToolResultEntry: Hashable {
@@ -104,6 +106,8 @@ struct ToolResultEntry: Hashable {
     let truncated: Bool
     let images: [String]
     let parent: String?
+    // 发给页面时只留了输出的末尾，完整的按调用的位置另外读
+    let clipped: Bool
 }
 
 struct TurnEndEntry: Hashable {
@@ -130,13 +134,14 @@ enum Entry: Decodable, Hashable {
 
     private enum Keys: String, CodingKey {
         case type, time, agent, mode, text, attachments, model, effort, durationMs, files, parent, id, name, tool, input
-        case callId, status, output, truncated, images, trigger, preTokens, postTokens, outcome, error, outputTokens, context
+        case callId, status, output, truncated, images, trigger, preTokens, postTokens, outcome, error, outputTokens, context, clipped
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         let time = (try? c.decode(String.self, forKey: .time)) ?? ""
         let parent = try? c.decode(String.self, forKey: .parent)
+        let clipped = (try? c.decode(Bool.self, forKey: .clipped)) ?? false
         func string(_ key: Keys) -> String { (try? c.decode(String.self, forKey: key)) ?? "" }
         switch try c.decode(String.self, forKey: .type) {
         case "session":
@@ -154,12 +159,12 @@ enum Entry: Decodable, Hashable {
             self = .toolCall(ToolCallEntry(
                 time: time, id: string(.id), name: string(.name),
                 tool: (try? c.decode(ToolDetail.self, forKey: .tool)) ?? .other,
-                input: try? c.decode(JSONValue.self, forKey: .input), parent: parent))
+                input: try? c.decode(JSONValue.self, forKey: .input), parent: parent, clipped: clipped))
         case "tool_result":
             self = .toolResult(ToolResultEntry(
                 time: time, callId: string(.callId), status: string(.status), output: try? c.decode(String.self, forKey: .output),
                 truncated: (try? c.decode(Bool.self, forKey: .truncated)) ?? false,
-                images: (try? c.decode([String].self, forKey: .images)) ?? [], parent: parent))
+                images: (try? c.decode([String].self, forKey: .images)) ?? [], parent: parent, clipped: clipped))
         case "compact":
             self = .compact(time: time, trigger: string(.trigger), preTokens: try? c.decode(Int.self, forKey: .preTokens), postTokens: try? c.decode(Int.self, forKey: .postTokens), parent: parent)
         case "turn_end":
@@ -194,13 +199,13 @@ enum Entry: Decodable, Hashable {
 }
 
 // 回答进行中的临时内容
-struct TaskProgress: Decodable, Hashable {
+nonisolated struct TaskProgress: Decodable, Hashable {
     let activity: String?
     let toolUses: Int?
     let tokens: Int?
 }
 
-enum LiveStatus: Decodable, Hashable {
+nonisolated enum LiveStatus: Decodable, Hashable {
     case requesting, thinking, compacting
     case tool(String)
     case retrying(Int)
@@ -223,7 +228,7 @@ enum LiveStatus: Decodable, Hashable {
     }
 }
 
-struct Live: Decodable, Hashable {
+nonisolated struct Live: Decodable, Hashable {
     var thinking: String
     var text: String
     var status: LiveStatus?
@@ -231,9 +236,17 @@ struct Live: Decodable, Hashable {
     var files: [String: String]
 }
 
-// 订阅 session 收到的一条
+// 发给页面的一条事件：seq 是到它为止的条数
+struct PageEvent: Decodable {
+    let seq: Int
+    let data: Entry
+}
+
+// 订阅 session 收到的一条。window：只要最后几轮时最先收到，from 是补发的第一条之前的条数；events：订阅时补发的条目，一次发完
 enum KitaSessionEvent: Decodable {
-    case event(seq: Int, entry: Entry)
+    case window(from: Int, session: Entry)
+    case events([PageEvent])
+    case event(PageEvent)
     case live(Live?)
     case thinking(String)
     case text(String)
@@ -242,18 +255,14 @@ enum KitaSessionEvent: Decodable {
     case file(path: String, name: String)
     case unknown
 
-    private enum Keys: String, CodingKey { case type, event, live, text, status, callId, progress, path, name }
-    private struct Wrapped: Decodable {
-        let seq: Int
-        let data: Entry
-    }
+    private enum Keys: String, CodingKey { case type, event, events, from, session, live, text, status, callId, progress, path, name }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         switch try c.decode(String.self, forKey: .type) {
-        case "event":
-            let wrapped = try c.decode(Wrapped.self, forKey: .event)
-            self = .event(seq: wrapped.seq, entry: wrapped.data)
+        case "window": self = .window(from: try c.decode(Int.self, forKey: .from), session: try c.decode(Entry.self, forKey: .session))
+        case "events": self = .events(try c.decode([PageEvent].self, forKey: .events))
+        case "event": self = .event(try c.decode(PageEvent.self, forKey: .event))
         case "live": self = .live(try c.decodeIfPresent(Live.self, forKey: .live))
         case "thinking": self = .thinking(try c.decode(String.self, forKey: .text))
         case "text": self = .text(try c.decode(String.self, forKey: .text))
