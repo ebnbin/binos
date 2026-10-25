@@ -16,7 +16,7 @@ Code 的「构建」页面管理 binOS 的 Android 和 iOS 构建，「设备」
 
 正式环境默认启用 Ad Hoc 构建，每 60 秒检查 origin/main 和最多 100 个打开的同仓库 PR；跨仓库 PR 不自动执行。只构建包含构建脚本的提交。同一提交、同一目标自动构建一次，失败、取消和中断都不会自动重新构建。新提交替换相同来源尚未开始的旧任务，PR 关闭或合并后移除它尚未开始的任务；运行中的任务继续。全局一次执行一个目标，各目标独立成功或失败。网页可关闭自动构建、关闭或启用自动 Ad Hoc，手动检查更新、指定 main/PR/完整提交构建、取消和重试。手动检查更新即使关闭自动构建也会检查并入队。
 
-服务使用权限 0600 的 Unix socket。数据保存在 `Library/Apps/builds/`：`state.json` 为登记簿，`results/<构建ID>/` 包含日志、runner 身份、结果和 outputs，`work/` 是临时源码。保留最近 50 次已结束构建，排队和运行中的任务不清除。日志网页显示末尾 512 KiB，可下载完整日志。产物记录大小与 SHA-256，通过已有用户认证下载。成功的 Ad Hoc 构建可在 iPhone / iPad 上点击安装，通过 `itms-services` 获取安装清单和 IPA；链接有效期 24 小时，绑定构建 ID，后端重启即失效。系统安装器不携带浏览器凭据，因此 `/install/` 路径独立校验签名令牌，失效、被篡改、已删除构建均返回 404。仅已登录用户可签发安装链接。
+服务使用权限 0600 的 Unix socket。数据保存在 `Library/Apps/builds/`：`state.json` 为登记簿，`results/<构建ID>/` 包含日志、runner 身份、结果和 outputs，`work/` 是临时源码。构建删除后只能重编，因此 main 最近 5 个提交和每个打开的 PR 最新提交的构建一直保留，其余构建结束满 3 天后删除，排队和运行中的任务不清除。日志网页显示末尾 512 KiB，可下载完整日志。产物记录大小与 SHA-256，通过已有用户认证下载。成功的 Ad Hoc 构建可在 iPhone / iPad 上点击安装，通过 `itms-services` 获取安装清单和 IPA；链接有效期 24 小时，绑定构建 ID，后端重启即失效。系统安装器不携带浏览器凭据，因此 `/install/` 路径独立校验签名令牌，失效、被篡改、已删除构建均返回 404。仅已登录用户可签发安装链接。
 
 runner 独立于管理服务和后端，管理服务重启后接续读取运行状态与结果。取消、60 分钟超时会结束构建进程组；runner 意外退出时管理服务核对遗留子进程身份后回收，并标记中断。失败与中断可手动重试。没有构建任务时服务可停止，下一请求重新启动。
 
@@ -30,6 +30,7 @@ binos builds enqueue main android,ios-simulator
 binos builds enqueue pr/123 ios-adhoc
 binos builds retry <构建ID>
 binos builds cancel <构建ID>
+binos builds log <构建ID> [行数]
 binos builds poll
 binos builds stop
 ```

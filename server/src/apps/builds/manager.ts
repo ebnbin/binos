@@ -13,6 +13,20 @@ const now = () => new Date().toISOString()
 const git = async (...args: string[]) => (await exec('git', args, { cwd: repository, timeout: 120_000, maxBuffer: 4 << 20 })).stdout.trim()
 const read = <T>(file: string): T | undefined => { try { return JSON.parse(readFileSync(file, 'utf8')) as T } catch { return undefined } }
 type State = { mode: string; builds: Build[]; settings: Settings; sequence: number }
+const day = 86_400_000
+// 构建删了只能重编，老提交重编的结果未必相同，所以只删用不上的：main 最近 5 个提交、开着的 PR 最新提交的构建一直保留，
+// 其余结束满 3 天才删。openPrs 未知时所有 PR 都当作开着。
+export function expired(builds: Build[], openPrs: Set<number> | undefined, at: number) {
+  const keep = new Set<string>()
+  const main: string[] = []
+  const prs = new Map<number, string>()
+  for (const b of [...builds].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    if (b.trigger === 'main' && !main.includes(b.commit) && main.length < 5) main.push(b.commit)
+    if (b.trigger === 'pr' && b.pr && !prs.has(b.pr) && (!openPrs || openPrs.has(b.pr))) prs.set(b.pr, b.commit)
+  }
+  for (const b of builds) if ((b.trigger === 'main' && main.includes(b.commit)) || (b.trigger === 'pr' && prs.get(b.pr!) === b.commit)) keep.add(b.id)
+  return builds.filter((b) => !['queued', 'running'].includes(b.status) && !keep.has(b.id) && at - Date.parse(b.endedAt ?? b.createdAt) >= 3 * day)
+}
 export class Manager {
   private state: State
   private polling = false
@@ -20,6 +34,7 @@ export class Manager {
   private active?: string
   private pollError?: string
   private checkedAt?: string
+  private openPrs?: Set<number>
   constructor() {
     mkdirSync(resultsDir, { recursive: true }); mkdirSync(workDir, { recursive: true })
     const stored = read<State>(statePath)
@@ -99,7 +114,8 @@ export class Manager {
       const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
       const prs = JSON.parse(stdout) as { number: number; headRefOid: string; isCrossRepository: boolean }[]
       // 已关闭或合并的 PR 不再构建尚未开始的任务。
-      this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !prs.some((pr) => pr.number === b.pr)))
+      this.openPrs = new Set(prs.map((pr) => pr.number))
+      this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !this.openPrs!.has(b.pr!)))
       this.save()
       for (const pr of prs) {
         if (pr.isCrossRepository) continue
@@ -114,6 +130,7 @@ export class Manager {
     if (this.ticking) return
     this.ticking = true
     try {
+      await this.prune()
       if (this.active) {
         const b = this.find(this.active)
         const result = read<Pick<Build, 'status' | 'endedAt' | 'error' | 'artifacts'>>(path.join(resultsDir, b.id, 'result.json'))
@@ -151,13 +168,12 @@ export class Manager {
         b.status = 'failed'; b.error = e instanceof Error ? e.message : String(e); b.endedAt = now(); this.save()
         writeFileSync(path.join(result, 'result.json'), JSON.stringify({ status: b.status, error: b.error, endedAt: b.endedAt, artifacts: [] }))
       }
-      await this.prune()
     } finally { this.ticking = false }
   }
   private async prune() {
-    // 保留最近 50 次终态构建；删除不会触及正在排队或运行的记录。
-    const finished = this.state.builds.filter((b) => !['queued', 'running'].includes(b.status))
-    for (const b of finished.slice(0, Math.max(0, finished.length - 50))) {
+    const old = expired(this.state.builds, this.openPrs, Date.now())
+    if (!old.length) return
+    for (const b of old) {
       await rm(path.join(resultsDir, b.id), { recursive: true, force: true, maxRetries: 3 })
       this.state.builds = this.state.builds.filter((item) => item.id !== b.id)
     }
