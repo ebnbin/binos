@@ -6,6 +6,7 @@ import { streamSSE } from 'hono/streaming'
 import { validator } from 'hono/validator'
 import { requireOwner } from './access.js'
 import { ApiException, badRequest, errorHandler, notFound } from './errors.js'
+import { builtinApps } from './apps/builtin.js'
 import { serverApps } from './apps/index.js'
 import { onChange } from './events.js'
 import { kitaApi } from './services/kita/api.js'
@@ -13,7 +14,7 @@ import { codeDir } from './paths.js'
 import { protocolId, schemaPath } from './protocol-id.js'
 import { connectedPreamble, keepAlive } from './sse.js'
 import { parseExternalApps, readRegistry, saveRegistry } from './registry.js'
-import type { ChangeEvent, Health } from './types.js'
+import type { Apps, ChangeEvent, Health } from './types.js'
 
 // VERSION 由上线脚本写进构建目录，开发时没有
 const versionFile = path.join(codeDir, 'VERSION')
@@ -44,8 +45,8 @@ export function createApi(authorize: MiddlewareHandler = requireOwner) {
     // 上线脚本在本机检查它，拿不到 Access 凭证，所以注册在身份校验之前
     .get('/health', (c) => c.json({ version, protocol } satisfies Health))
     .use(authorize, requirePreflight)
-    // app 注册表：整份读取，整份替换
-    .get('/apps', (c) => c.json(readRegistry()))
+    // 全部 app；外部 app 的注册表整份替换
+    .get('/apps', (c) => c.json({ builtin: builtinApps, ...readRegistry() } satisfies Apps))
     .put('/apps', registryBody, (c) => {
       saveRegistry(c.req.valid('json'))
       return c.body(null, 204)

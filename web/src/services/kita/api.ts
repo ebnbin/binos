@@ -78,7 +78,7 @@ export async function uploadPhoto(file: File): Promise<string | undefined> {
   const res = await fetch(client.profile.photos.$url(), {
     method: 'POST',
     body: file,
-    headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
+    headers: { 'Content-Type': 'application/octet-stream' },
   }).catch(() => undefined)
   if (res?.ok) return undefined
   return errorMessage(res, `上传 ${file.name} 失败`)

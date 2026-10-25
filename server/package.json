@@ -28,6 +28,7 @@
     "./apps/builds/types": "./src/apps/builds/types.ts",
     "./apps/files/types": "./src/apps/files/types.ts",
     "./apps/music/commands": "./src/apps/music/commands.ts",
+    "./apps/music/queue-operation": "./src/apps/music/queue-operation.ts",
     "./apps/browser/protocol": "./src/apps/browser/protocol.ts"
   },
   "scripts": {

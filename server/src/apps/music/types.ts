@@ -17,18 +17,21 @@ export type CatalogPage = { tracks: Track[]; nextPage?: string; warning?: string
 export type MusicErrorCode = 'configuration' | 'invalid-input' | 'unavailable' | 'quota' | 'network' | 'unsupported'
 export type PlayerErrorCode = 'invalid-input' | 'not-found' | 'busy' | 'conflict' | 'capacity'
 
-export type QueueOperation = { type: 'add' | 'initialize'; tracks: Track[] } | { type: 'remove'; ref: TrackRef } | { type: 'clear' }
+// move：把 ref 这首移到第 index 首（从 0 开始，超出范围的放到两头）
+export type QueueOperation = { type: 'add' | 'initialize'; tracks: Track[] } | { type: 'remove'; ref: TrackRef } | { type: 'move'; ref: TrackRef; index: number } | { type: 'clear' }
 export type QueueSnapshot = { revision: number; tracks: Track[] }
 export type QueueMutation = { id: string; operation: QueueOperation }
 
 export type Capability = { state: 'available' } | { state: 'unsupported' } | { state: 'configuration-required'; reason: string }
 export type ProviderCapabilities = Record<'search' | 'resolve' | 'playlist' | 'recommendations' | 'lyrics' | 'playback', Capability>
+// stream：这个来源的曲目能直接取音频流时，用哪个来源的 /providers/<provider>/stream?id=<曲目的 id>
 export type ProviderInfo = {
   id: string
   name: string
   description: string
   input: { references: { pattern: string; capability: 'resolve' | 'playlist' }[] }
   capabilities: ProviderCapabilities
+  stream?: { provider: string }
   configuration: { fields: { id: string; label: string; description: string; secret: boolean; configured: boolean; links?: { label: string; url: string }[] }[] }
 }
 // 改来源设置的请求体：键是 ProviderInfo 里 configuration.fields 的 id，null 是删掉这一项

@@ -94,7 +94,7 @@ function MemoryItem({ memory, conversations, onOpen }: { memory: Memory; convers
       <div className={styles.meta}>
         <span>
           <Source source={memory.source} conversations={conversations} onOpen={onOpen} /> · {formatMoment(memory.updatedAt)}
-          {memory.scope !== 'personal' && ` · ${memory.scope}`}
+          {memory.scope !== 'personal' && <> · <AppName id={memory.scope} /></>}
         </span>
         <span className={styles.actions}>
           {memory.kind === 'inferred' && <IconButton icon={Check} label="确认" onClick={() => void updateMemory(memory.id, { kind: 'stated' })} />}
@@ -108,7 +108,6 @@ function MemoryItem({ memory, conversations, onOpen }: { memory: Memory; convers
 }
 
 function Source({ source, conversations, onOpen }: { source: MemorySource; conversations: Conversation[] | undefined; onOpen(id: string): void }) {
-  const applications = useApplications()
   if (source.type === 'user') return <>手动添加</>
   const conversation = source.owner === 'kita' ? conversations?.find((item) => item.id === source.session) : undefined
   if (conversation) {
@@ -118,5 +117,9 @@ function Source({ source, conversations, onOpen }: { source: MemorySource; conve
       </button>
     )
   }
-  return <>{applications.find((app) => app.id === source.owner)?.name ?? source.owner}</>
+  return <AppName id={source.owner} />
+}
+
+function AppName({ id }: { id: string }) {
+  return <>{useApplications().find((app) => app.id === id)?.name ?? id}</>
 }

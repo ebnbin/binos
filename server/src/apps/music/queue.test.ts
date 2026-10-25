@@ -33,3 +33,10 @@ it('拒绝无效队列数据，按 provider 和 id 删除', async () => {
   const response = await mutate('remove', { type: 'remove', ref: track('a').ref })
   expect(await response.json()).toMatchObject({ tracks: [{ ref: { provider: 'other', id: 'a' } }] })
 })
+it('按 provider 和 id 调整顺序，超出范围的放到两头', async () => {
+  await mutate('add', { type: 'add', tracks: [track('a'), track('b'), track('c')] })
+  const ids = async (id: string, operation: unknown) => ((await (await mutate(id, operation)).json()) as { tracks: Track[] }).tracks.map((item) => item.ref.id)
+  expect(await ids('move-1', { type: 'move', ref: track('c').ref, index: 0 })).toEqual(['c', 'a', 'b'])
+  expect(await ids('move-2', { type: 'move', ref: track('c').ref, index: 99 })).toEqual(['a', 'b', 'c'])
+  expect((await mutate('move-3', { type: 'move', ref: track('a').ref, index: 1.5 })).status).toBe(400)
+})

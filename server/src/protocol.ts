@@ -8,7 +8,7 @@ import type { BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settin
 import type { codeApi } from './apps/code/api.js'
 import type { CodeUsage, MessageBody, Project, RepositoryBody, SearchResults, SessionEdit, SessionRef, SessionSummary } from './apps/code/types.js'
 import type { devicesApi, DevicesSnapshot } from './apps/devices/api.js'
-import type { DeviceScreenshot, LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
+import type { LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
 import type { filesApi } from './apps/files/api.js'
 import type { Directory, FileName, FileResults, FileTransfer, FileTrash } from './apps/files/types.js'
 import type { kitaAppApi } from './apps/kita/api.js'
@@ -18,7 +18,7 @@ import type { CatalogPage, CommandResult, Lyrics, PlaybackSource, PlayerCommandR
 import type { systemApi } from './apps/system/api.js'
 import type { MonitorStatus } from './apps/system/types.js'
 import type { terminalApi } from './apps/terminal/api.js'
-import type { TerminalClientMessage, TerminalServerMessage, TerminalStreamMessage } from './apps/terminal/connection.js'
+import type { TerminalClientMessage, TerminalServerMessage } from './apps/terminal/connection.js'
 import type { TerminalSession } from './apps/terminal/sessions.js'
 import type { ApiError } from './errors.js'
 import type { FileInfo } from './files.js'
@@ -28,7 +28,7 @@ import type { codexApi } from './services/kita/drivers/codex/api.js'
 import type { CodexLoginStart, CodexLoginStatus } from './services/kita/drivers/codex/login.js'
 import type { CallDetail, Item, PageEvent, SessionMetadata, Turn } from './services/kita/journal.js'
 import type { Activity, AgentAccount, AgentCatalog, AgentStatus, KitaSessionEvent, KitaSessionSummary, Memory, MemoryChange, NewMemory, Profile } from './services/kita/types.js'
-import type { AppRegistry, ChangeEvent, Health } from './types.js'
+import type { AppRegistry, Apps, ChangeEvent, Health } from './types.js'
 
 // 客户端收发的全部 JSON：pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 protocol-id.ts。
 // http 的 request 是 JSON 请求体（请求体是文件本身时没有），成功时：有 response 的返回这个 JSON，
@@ -42,7 +42,7 @@ export type Protocol = {
 
 export type Http = {
   'GET /api/health': { response: Health }
-  'GET /api/apps': { response: AppRegistry }
+  'GET /api/apps': { response: Apps }
   'PUT /api/apps': { request: AppRegistry }
 
   'GET /api/kita/status': { response: AgentStatus }
@@ -107,7 +107,8 @@ export type Http = {
   'DELETE /api/apps/devices/leases/:id': {}
   'DELETE /api/apps/devices/queue/:requestId': {}
   'DELETE /api/apps/devices/:id': {}
-  'GET /api/apps/devices/:id/screenshot': { response: DeviceScreenshot }
+  // Last-Modified 是截图的时间
+  'GET /api/apps/devices/:id/screenshot': { file: 'image/*' }
 
   'GET /api/apps/files': { response: Directory }
   // ?info=1 时
@@ -146,7 +147,6 @@ export type Http = {
   'GET /api/apps/terminal': { response: { available: boolean; sessions: TerminalSession[] } }
   'POST /api/apps/terminal/sessions': { response: TerminalSession }
   'DELETE /api/apps/terminal/sessions/:id': {}
-  'POST /api/apps/terminal/connections/:token': { request: TerminalClientMessage; response: { ok: true } }
 }
 
 // 每条消息是一个 data 字段里的 JSON；event 为 ping 的是保活，没有 JSON
@@ -157,7 +157,6 @@ export type Sse = {
   'GET /api/apps/builds/:id/log/stream': BuildLogMessage
   'GET /api/apps/system/stream': MonitorStatus
   'GET /api/apps/music/players/connect': PlayerMessage
-  'GET /api/apps/terminal/sessions/:id/stream': TerminalStreamMessage
 }
 
 // 每条消息是一个 JSON 文本帧

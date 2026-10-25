@@ -54,5 +54,9 @@ export const devicesApi = new Hono()
     await adminDeviceRequest(valid({ action: 'control', device: c.req.param('id'), operation: 'destroy' }))
     return c.body(null, 204)
   })
-  .get('/:id/screenshot', async (c) => c.json(await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id') })))
+  // 图片本身，Last-Modified 是截图的时间
+  .get('/:id/screenshot', async (c) => {
+    const { image, mime, at } = await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id') })
+    return c.body(Buffer.from(image, 'base64'), 200, { 'Content-Type': mime, 'Last-Modified': new Date(at).toUTCString() })
+  })
 export type DevicesApi = typeof devicesApi

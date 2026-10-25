@@ -47,3 +47,16 @@ describe('喜多的记忆', () => {
     expect(listMemories().some((item) => item.id === memory.id)).toBe(false)
   })
 })
+
+describe('喜多的照片', () => {
+  const upload = (body: Uint8Array) => kitaApi.request('/profile/photos', { method: 'POST', body, headers: { 'Content-Type': 'application/octet-stream' } })
+
+  it('按内容认格式，不看文件名；认不出的拒绝', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0])
+    const res = await upload(png)
+    expect(res.status).toBe(201)
+    expect(((await res.json()) as { file: string }).file).toMatch(/^[0-9a-f]{32}\.png$/)
+    const rejected = await upload(new TextEncoder().encode('<svg></svg>'))
+    expect(rejected.status).toBe(415)
+  })
+})

@@ -14,4 +14,9 @@ export const acquireDevices = (platforms: Platform[], reason: string, requestId:
 export const releaseDevices = (id: string) => request(`/leases/${encodeURIComponent(id)}`, undefined, 'DELETE')
 export const cancelDevices = (requestId: string) => request(`/queue/${encodeURIComponent(requestId)}`, undefined, 'DELETE')
 export const destroyDevice = (id: string) => request(`/${encodeURIComponent(id)}`, undefined, 'DELETE')
-export const captureDevice = (id: string) => request<{ image: string; mime: string; at: number }>(`/${encodeURIComponent(id)}/screenshot`)
+// 截图的地址（页面不用时要 revoke）和截图的时间
+export async function captureDevice(id: string): Promise<{ url: string; at: number }> {
+  const response = await fetch(`${base}/${encodeURIComponent(id)}/screenshot`)
+  if (!response.ok) throw new Error(await errorMessage(response, '截图失败'))
+  return { url: URL.createObjectURL(await response.blob()), at: Date.parse(response.headers.get('Last-Modified') ?? '') || Date.now() }
+}

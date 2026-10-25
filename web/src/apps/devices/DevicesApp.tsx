@@ -106,12 +106,13 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
 function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: DevicesSnapshot; ctx: WindowContext; busy: boolean; act: (operation: () => Promise<unknown>) => Promise<void> }) {
   const [confirmDestroy, setConfirmDestroy] = useState(false)
   const [capture, setCapture] = useState<Awaited<ReturnType<typeof captureDevice>>>()
+  useEffect(() => () => { if (capture) URL.revokeObjectURL(capture.url) }, [capture])
   const lease = data.leases.find((item) => item.devices.includes(device.id))
   const session = lease && data.owners[lease.owner]
   return (
     <article className={styles.card}>
       <div className={styles.cardTitle}><span className={styles.cardIcon}><Smartphone size={18} strokeWidth={1.75} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
-      {capture ? <img className={styles.screenshot} src={`data:${capture.mime};base64,${capture.image}`} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><Smartphone size={40} strokeWidth={1.25} /><span>按需查看设备画面</span></div>}
+      {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><Smartphone size={40} strokeWidth={1.25} /><span>按需查看设备画面</span></div>}
       {capture && <p className={styles.caption}>截图于 {moment(capture.at)} · 非实时画面</p>}
       <dl className={styles.details}><div><dt>设备</dt><dd>{device.id}</dd></div><div><dt>占用</dt><dd>{session && ctx.openApplication ? <button className={styles.link} onClick={() => ctx.openApplication?.('code', `/${session.session}`)}>{session.title || `会话 ${session.session}`}</button> : lease ? ownerName(lease.owner) : '无'}</dd></div>{lease && <><div><dt>用途</dt><dd>{lease.reason || '未填写'}</dd></div><div><dt>开始</dt><dd>{moment(lease.createdAt)}</dd></div></>}</dl>
       {device.error && <p className={styles.error}>{device.error}</p>}

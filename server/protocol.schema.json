@@ -45,7 +45,7 @@
           "type": "object",
           "properties": {
             "response": {
-              "$ref": "#/definitions/AppRegistry"
+              "$ref": "#/definitions/Apps"
             }
           },
           "required": [
@@ -949,12 +949,13 @@
         "GET /api/apps/devices/:id/screenshot": {
           "type": "object",
           "properties": {
-            "response": {
-              "$ref": "#/definitions/DeviceScreenshot"
+            "file": {
+              "type": "string",
+              "const": "image/*"
             }
           },
           "required": [
-            "response"
+            "file"
           ],
           "additionalProperties": false
         },
@@ -1382,32 +1383,6 @@
         "DELETE /api/apps/terminal/sessions/:id": {
           "type": "object",
           "additionalProperties": false
-        },
-        "POST /api/apps/terminal/connections/:token": {
-          "type": "object",
-          "properties": {
-            "request": {
-              "$ref": "#/definitions/TerminalClientMessage"
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "request",
-            "response"
-          ],
-          "additionalProperties": false
         }
       },
       "required": [
@@ -1496,8 +1471,7 @@
         "POST /api/apps/system/refresh",
         "GET /api/apps/terminal",
         "POST /api/apps/terminal/sessions",
-        "DELETE /api/apps/terminal/sessions/:id",
-        "POST /api/apps/terminal/connections/:token"
+        "DELETE /api/apps/terminal/sessions/:id"
       ],
       "additionalProperties": false
     },
@@ -1517,9 +1491,16 @@
       ],
       "additionalProperties": false
     },
-    "AppRegistry": {
+    "Apps": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
+        "builtin": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BuiltinApp"
+          }
+        },
         "external": {
           "type": "array",
           "items": {
@@ -1528,7 +1509,23 @@
         }
       },
       "required": [
+        "builtin",
         "external"
+      ]
+    },
+    "BuiltinApp": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
       ],
       "additionalProperties": false
     },
@@ -1553,6 +1550,21 @@
         "name",
         "icon",
         "url"
+      ],
+      "additionalProperties": false
+    },
+    "AppRegistry": {
+      "type": "object",
+      "properties": {
+        "external": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExternalApp"
+          }
+        }
+      },
+      "required": [
+        "external"
       ],
       "additionalProperties": false
     },
@@ -4245,26 +4257,6 @@
       ],
       "additionalProperties": false
     },
-    "DeviceScreenshot": {
-      "type": "object",
-      "properties": {
-        "image": {
-          "type": "string"
-        },
-        "mime": {
-          "type": "string"
-        },
-        "at": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "image",
-        "mime",
-        "at"
-      ],
-      "additionalProperties": false
-    },
     "Directory": {
       "type": "object",
       "properties": {
@@ -4998,6 +4990,27 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "move"
+            },
+            "ref": {
+              "$ref": "#/definitions/TrackRef"
+            },
+            "index": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "ref",
+            "index"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "clear"
             }
           },
@@ -5054,6 +5067,18 @@
         },
         "capabilities": {
           "$ref": "#/definitions/ProviderCapabilities"
+        },
+        "stream": {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "provider"
+          ],
+          "additionalProperties": false
         },
         "configuration": {
           "type": "object",
@@ -5583,78 +5608,6 @@
       ],
       "additionalProperties": false
     },
-    "TerminalClientMessage": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "input"
-            },
-            "data": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "type",
-            "data"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "resize"
-            },
-            "cols": {
-              "type": "number"
-            },
-            "rows": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "cols",
-            "rows"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "ack"
-            },
-            "size": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "type",
-            "size"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "const": "ping"
-            }
-          },
-          "required": [
-            "type"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
     "ApiError": {
       "type": "object",
       "properties": {
@@ -5697,9 +5650,6 @@
         },
         "GET /api/apps/music/players/connect": {
           "$ref": "#/definitions/PlayerMessage"
-        },
-        "GET /api/apps/terminal/sessions/:id/stream": {
-          "$ref": "#/definitions/TerminalStreamMessage"
         }
       },
       "required": [
@@ -5707,8 +5657,7 @@
         "GET /api/kita/sessions/:id/stream",
         "GET /api/apps/builds/:id/log/stream",
         "GET /api/apps/system/stream",
-        "GET /api/apps/music/players/connect",
-        "GET /api/apps/terminal/sessions/:id/stream"
+        "GET /api/apps/music/players/connect"
       ],
       "additionalProperties": false
     },
@@ -6311,27 +6260,117 @@
         }
       ]
     },
-    "TerminalStreamMessage": {
+    "WebSockets": {
+      "type": "object",
+      "properties": {
+        "GET /api/apps/terminal/sessions/:id/socket": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "$ref": "#/definitions/TerminalClientMessage"
+            },
+            "server": {
+              "$ref": "#/definitions/TerminalServerMessage"
+            }
+          },
+          "required": [
+            "client",
+            "server"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/browser/socket": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "$ref": "#/definitions/BrowserClientMessage"
+            },
+            "server": {
+              "$ref": "#/definitions/BrowserServerMessage"
+            }
+          },
+          "required": [
+            "client",
+            "server"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "GET /api/apps/terminal/sessions/:id/socket",
+        "GET /api/apps/browser/socket"
+      ],
+      "additionalProperties": false
+    },
+    "TerminalClientMessage": {
       "anyOf": [
         {
           "type": "object",
           "properties": {
             "type": {
               "type": "string",
-              "const": "connection"
+              "const": "input"
             },
-            "id": {
+            "data": {
               "type": "string"
             }
           },
           "required": [
             "type",
-            "id"
+            "data"
           ],
           "additionalProperties": false
         },
         {
-          "$ref": "#/definitions/TerminalServerMessage"
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "resize"
+            },
+            "cols": {
+              "type": "number"
+            },
+            "rows": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "cols",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ack"
+            },
+            "size": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "size"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ping"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
         }
       ]
     },
@@ -6389,48 +6428,6 @@
           "additionalProperties": false
         }
       ]
-    },
-    "WebSockets": {
-      "type": "object",
-      "properties": {
-        "GET /api/apps/terminal/sessions/:id/socket": {
-          "type": "object",
-          "properties": {
-            "client": {
-              "$ref": "#/definitions/TerminalClientMessage"
-            },
-            "server": {
-              "$ref": "#/definitions/TerminalServerMessage"
-            }
-          },
-          "required": [
-            "client",
-            "server"
-          ],
-          "additionalProperties": false
-        },
-        "GET /api/apps/browser/socket": {
-          "type": "object",
-          "properties": {
-            "client": {
-              "$ref": "#/definitions/BrowserClientMessage"
-            },
-            "server": {
-              "$ref": "#/definitions/BrowserServerMessage"
-            }
-          },
-          "required": [
-            "client",
-            "server"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "GET /api/apps/terminal/sessions/:id/socket",
-        "GET /api/apps/browser/socket"
-      ],
-      "additionalProperties": false
     },
     "BrowserClientMessage": {
       "anyOf": [

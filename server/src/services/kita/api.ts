@@ -165,17 +165,11 @@ export const kitaApi = new Hono()
     setDescription(c.req.valid('json').description)
     return c.body(null, 204)
   })
-  // 请求体就是照片本身，原来的文件名 URL 编码后放在 X-File-Name 里
+  // 请求体就是照片本身，按内容认格式
   .post('/profile/photos', async (c) => {
     const body = c.req.raw.body
     if (!body || c.req.header('Content-Type') !== 'application/octet-stream') throw new ApiException(415, 'unsupported-media-type', '请求体要是照片本身（application/octet-stream）')
-    let name = ''
-    try {
-      name = decodeURIComponent(c.req.header('X-File-Name') ?? '')
-    } catch {
-      // 文件名解不开就当没有，按格式不支持拒绝
-    }
-    return c.json({ file: await addPhoto(body, name) }, 201)
+    return c.json({ file: await addPhoto(body) }, 201)
   })
   .get('/profile/photos/:file', photoParam, (c) => serveFile(c, path.join(photosDir, c.req.valid('param').file), true))
   .delete('/profile/photos/:file', photoParam, (c) => {

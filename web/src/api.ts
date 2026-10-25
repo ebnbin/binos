@@ -1,6 +1,6 @@
 import type { AppType } from '@binos/server/api'
 import type { ApiError } from '@binos/server/errors'
-import type { AppRegistry } from '@binos/server/types'
+import type { AppRegistry, Apps } from '@binos/server/types'
 import { hc } from 'hono/client'
 
 const client = hc<AppType>(window.location.origin)
@@ -26,8 +26,8 @@ export function eventsUrl() {
   return client.api.events.$url().href
 }
 
-// 读不到时返回 undefined
-export async function readRegistry(): Promise<AppRegistry | undefined> {
+// 全部 app；读不到时返回 undefined
+export async function readApps(): Promise<Apps | undefined> {
   const res = await client.api.apps.$get().catch(() => undefined)
   return res?.ok ? await res.json() : undefined
 }

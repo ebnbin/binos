@@ -1,17 +1,14 @@
-import { randomUUID } from 'node:crypto'
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { streamSSE } from 'hono/streaming'
-import { badRequest, errorHandler, forbidden, notFound } from '../../errors.js'
+import { errorHandler, forbidden, notFound } from '../../errors.js'
 import { isCrossSite } from '../../websocket-origin.js'
 import { connectTerminal, parseMessage } from './connection.js'
-import type { TerminalServerMessage, TerminalStreamMessage } from './connection.js'
+import type { TerminalServerMessage } from './connection.js'
 import { createSession, hasSession, listSessions, runTmux, tmux } from './sessions.js'
 import { checkTerminals } from './watch.js'
 
 type Connection = ReturnType<typeof connectTerminal>
-const streams = new Map<string, Connection>()
 const counts = new Map<string, number>()
 const acquire = (id: string) => {
   const count = counts.get(id) ?? 0
@@ -87,47 +84,4 @@ export const terminalApi = new Hono()
         },
       }
     })(c, next)
-  })
-  // 旧版正式后端尚未支持 WebSocket 预览转发时，通过 SSE 和 POST 保持终端可用。
-  .get('/sessions/:id/stream', (c) => {
-    const release = acquire(c.req.param('id'))
-    return streamSSE(c, async (stream) => {
-      const token = randomUUID()
-      let connection: Connection | undefined
-      let finish: () => void = () => {}
-      const done = new Promise<void>((resolve) => {
-        finish = resolve
-      })
-      const dispose = () => {
-        streams.delete(token)
-        connection?.dispose()
-        finish()
-      }
-      stream.onAbort(dispose)
-      try {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'connection', id: token } satisfies TerminalStreamMessage) })
-        connection = connectTerminal(
-          c.req.param('id'),
-          (message) => {
-            void stream.writeSSE({ data: JSON.stringify(message) }).catch(dispose)
-          },
-          finish,
-        )
-        streams.set(token, connection)
-        await done
-      } catch (error) {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'error', message: String(error) } satisfies TerminalStreamMessage) }).catch(() => {})
-      } finally {
-        dispose()
-        release()
-      }
-    })
-  })
-  .post('/connections/:token', async (c) => {
-    const connection = streams.get(c.req.param('token'))
-    if (!connection) throw notFound('连接已断开')
-    const message = parseMessage(await c.req.json())
-    if (!message) throw badRequest('消息无效')
-    connection.receive(message)
-    return c.json({ ok: true })
   })
