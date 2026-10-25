@@ -261,7 +261,7 @@ private struct SessionRow: View {
     }
 }
 
-// 列表顶部：各个 agent 的额度，以及登录需要处理的提醒
+// 列表顶部：各个 agent 的额度，以及登录需要处理的提醒，点提醒去账号页处理
 struct AgentStatusHeader: View {
     let store: CodeStore
 
@@ -273,63 +273,189 @@ struct AgentStatusHeader: View {
                         QuotaRow(agent: agent, limits: limits)
                     }
                 }
-                if let attention = AgentAttention.claude(status.auth.claude) {
-                    Label(attention, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).font(.footnote)
-                }
-                if let codex = status.auth.codex, !codex.loggedIn || codex.broken == true {
-                    Label(codex.broken == true ? "Codex 的登录失效了" : "Codex 没有登录", systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                ForEach(AgentAttention.all(status.auth), id: \.text) { attention in
+                    Button {
+                        AppRouter.shared.tab = .more
+                        AppRouter.shared.more = [.accounts]
+                    } label: {
+                        HStack {
+                            Label(attention.text, systemImage: "exclamationmark.triangle.fill")
+                                .foregroundStyle(attention.bad ? .red : .orange)
+                            Spacer(minLength: 4)
+                            Text(attention.action).foregroundStyle(.tint)
+                        }
                         .font(.footnote)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
     }
 }
 
+// 一个 agent 的订阅额度：每个窗口用了多少、多久重置，进度条上的竖线是匀速用到现在该到的位置，
+// 下面一行是比匀速多用还是省、按现在的速度能不能撑到重置；被限流时先说卡在哪个窗口、什么时候恢复
 struct QuotaRow: View {
     let agent: String
     let limits: Limits
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(Agents.name(agent)).font(.footnote.weight(.semibold))
-                if limits.limited { Text("已限流").font(.caption).foregroundStyle(.red) }
-            }
-            ForEach(limits.windows, id: \.id) { window in
-                let current = window.resetsAt > Date.now.timeIntervalSince1970 ? window.utilization : 0
-                HStack(spacing: 8) {
-                    Text(QuotaFormat.name(window)).frame(width: 64, alignment: .leading)
-                    ProgressView(value: min(current, 1))
-                        .tint(current >= 0.95 || limits.limited ? .red : current >= 0.8 ? .orange : .accentColor)
-                    Text(Format.percent(current)).monospacedDigit().frame(width: 40, alignment: .trailing)
+        TimelineView(.periodic(from: .now, by: 60)) { timeline in
+            let now = timeline.date
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(Agents.name(agent)).font(.footnote.weight(.semibold))
+                    if limits.limited { Text("已限流").font(.caption).foregroundStyle(.red) }
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                if limits.limited {
+                    Text(Quota.blockingText(limits, now: now))
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                ForEach(limits.windows, id: \.id) { window in
+                    let state = Quota.state(window, now: now)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 8) {
+                            Text(Quota.name(window))
+                            Text("\(Int((state.used * 100).rounded()))%").monospacedDigit()
+                            Spacer(minLength: 4)
+                            Text(Quota.reset(window.resetsAt, now: now))
+                        }
+                        QuotaBar(used: state.used, expected: state.left == nil ? nil : state.expected, alert: state.used >= 0.95 || limits.limited)
+                        if state.left != nil {
+                            HStack {
+                                Text(state.pace > 0.005 ? "比匀速多用 \(Int((state.pace * 100).rounded()))%" : "比匀速省 \(Int((-state.pace * 100).rounded()))%")
+                                Spacer(minLength: 4)
+                                if let runsOut = state.runsOut {
+                                    Text(runsOut == 0 ? "已经用完" : "按现在的速度 \(Quota.span(runsOut))后用完").foregroundStyle(.red)
+                                } else {
+                                    Text("够用到重置")
+                                }
+                            }
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
             }
         }
     }
 }
 
-enum QuotaFormat {
+private struct QuotaBar: View {
+    let used: Double
+    // 匀速用到现在该到的位置，窗口已经重置时没有
+    let expected: Double?
+    let alert: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.quaternary)
+                Capsule().fill(alert ? Color.red : used >= 0.8 ? Color.orange : Color.accentColor)
+                    .frame(width: geometry.size.width * min(used, 1))
+                if let expected {
+                    Rectangle().fill(.primary.opacity(0.6))
+                        .frame(width: 1.5, height: 10)
+                        .offset(x: geometry.size.width * expected - 0.75)
+                }
+            }
+        }
+        .frame(height: 6)
+    }
+}
+
+// 和网页的 services/kita/quota.ts 一致
+enum Quota {
     // 5 小时、7 天，同样长的窗口不止一个时带上它的 label
     static func name(_ window: QuotaWindow) -> String {
         let minutes = window.minutes
         let length = minutes % (24 * 60) == 0 ? "\(minutes / 24 / 60) 天" : minutes % 60 == 0 ? "\(minutes / 60) 小时" : "\(minutes) 分钟"
         return window.label.map { "\($0) \(length)" } ?? length
     }
+
+    // 多久：45 分钟、3 小时、2 天
+    static func span(_ seconds: TimeInterval) -> String {
+        let minutes = max(Int((seconds / 60).rounded()), 1)
+        if minutes < 60 { return "\(minutes) 分钟" }
+        return minutes < 48 * 60 ? "\(Int((Double(minutes) / 60).rounded())) 小时" : "\(Int((Double(minutes) / 60 / 24).rounded())) 天"
+    }
+
+    // 什么时候重置：一天以内写还有多久，再远写哪天几点
+    static func reset(_ resetsAt: Double, now: Date) -> String {
+        let left = resetsAt - now.timeIntervalSince1970
+        if left <= 0 { return "已重置" }
+        if left < 86400 { return "\(span(left))后重置" }
+        let date = Date(timeIntervalSince1970: resetsAt)
+        return "\(date.formatted(.dateTime.weekday(.abbreviated).hour(.twoDigits(amPM: .omitted)).minute())) 重置"
+    }
+
+    // used 用了多少；left 还有多久重置（过了重置时间的没有）；expected 匀速用的话这时该用到多少；
+    // pace 比匀速多用（正）或少用（负）了多少；runsOut 按到现在为止的速度还有多久用完（重置前用不完时没有）
+    struct State {
+        var used = 0.0
+        var left: TimeInterval?
+        var expected = 0.0
+        var pace = 0.0
+        var runsOut: TimeInterval?
+    }
+
+    static func state(_ window: QuotaWindow, now: Date) -> State {
+        let length = Double(window.minutes) * 60
+        let left = window.resetsAt - now.timeIntervalSince1970
+        guard left > 0 else { return State() }
+        let used = min(window.utilization, 1)
+        let elapsed = min(max(length - left, 1), length)
+        let expected = elapsed / length
+        let rate = used / elapsed
+        let runsOut: TimeInterval? = used >= 1 ? 0 : rate > 0 && (1 - used) / rate < left ? (1 - used) / rate : nil
+        return State(used: used, left: left, expected: expected, pace: used - expected, runsOut: runsOut)
+    }
+
+    // 被限流时卡住的那个窗口：还没重置的窗口里用得最满的
+    static func blockingText(_ limits: Limits, now: Date) -> String {
+        let blocking = limits.windows.filter { $0.resetsAt > now.timeIntervalSince1970 }.max { $0.utilization < $1.utilization }
+        guard let blocking else { return "已被限流" }
+        return "已被限流：\(name(blocking))额度用满了，\(reset(blocking.resetsAt, now: now).replacing("重置", with: "恢复"))"
+    }
 }
 
-enum AgentAttention {
-    static func claude(_ auth: ClaudeAuth?) -> String? {
+// 登录要留意的事，和网页的 services/kita/claude/view.tsx、codex/view.tsx 一致。bad：用不了了；action：处理它的按钮上的字
+struct AgentAttention: Hashable {
+    let text: String
+    let bad: Bool
+    let action: String
+
+    // 完整登录剩不到这么多天时提醒重新登录，备用 token 剩不到这么多天时提醒更新
+    private static let loginWarnDays = 7.0
+    private static let backupWarnDays = 30.0
+
+    static func all(_ auth: AgentAuths, now: Date = .now) -> [AgentAttention] {
+        [claude(auth.claude, now: now), codex(auth.codex)].compactMap { $0 }
+    }
+
+    // 还剩几天，不足一天按 0
+    static func daysLeft(_ date: Date, now: Date) -> Int { max(Int((date.timeIntervalSince(now) / 86400).rounded(.down)), 0) }
+
+    static func claude(_ auth: ClaudeAuth?, now: Date) -> AgentAttention? {
         guard let auth else { return nil }
-        if auth.mode == "none" { return "Claude 没有能用的登录" }
-        if auth.mode == "token" { return auth.login?.broken == true ? "Claude 的登录失效了，正在用备用 token" : "Claude 的登录过期了，正在用备用 token" }
-        if let expiry = auth.login?.expiresAt.flatMap(Date.init(iso:)), expiry.timeIntervalSinceNow < 7 * 86400 {
-            let days = max(Int(expiry.timeIntervalSinceNow / 86400), 0)
-            return "Claude 的登录\(days == 0 ? "今天" : "还有 \(days) 天")到期"
+        if auth.mode == "none" { return AgentAttention(text: "Claude 没有能用的登录", bad: true, action: "重新登录") }
+        if auth.mode == "token" {
+            return AgentAttention(text: auth.login?.broken == true ? "Claude 的登录失效了，正在用备用 token" : "Claude 的登录过期了，正在用备用 token", bad: false, action: "重新登录")
+        }
+        if let expiry = auth.login?.expiresAt.flatMap(Date.init(iso:)), expiry.timeIntervalSince(now) < loginWarnDays * 86400 {
+            let days = daysLeft(expiry, now: now)
+            return AgentAttention(text: "Claude 的登录\(days == 0 ? "今天" : "还有 \(days) 天")到期", bad: false, action: "重新登录")
+        }
+        if let expiry = auth.backup?.expiresAt.flatMap(Date.init(iso:)), expiry.timeIntervalSince(now) < backupWarnDays * 86400 {
+            return AgentAttention(text: "Claude 的备用 token 还有 \(daysLeft(expiry, now: now)) 天到期", bad: false, action: "更新")
         }
         return nil
+    }
+
+    // Codex 只在回答时认证失败过才提醒：没登录过 Codex 也照样能用别的 agent
+    static func codex(_ auth: CodexAuth?) -> AgentAttention? {
+        auth?.broken == true ? AgentAttention(text: "Codex 的登录失效了，回答时认证失败了", bad: true, action: "重新登录") : nil
     }
 }
 

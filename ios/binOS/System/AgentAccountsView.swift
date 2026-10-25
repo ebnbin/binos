@@ -61,13 +61,11 @@ struct AgentAccountsView: View {
                         }
                     }
                     if account.agent == "claude", let auth = status?.auth.claude {
-                        LabeledContent("正在用", value: ["login": "完整登录", "token": "备用 token", "none": "没有能用的登录"][auth.mode] ?? auth.mode)
-                        if let expiry = auth.login?.expiresAt.flatMap(Date.init(iso:)) {
-                            LabeledContent("完整登录到期", value: auth.login?.broken == true ? "已失效" : expiry.formatted(.relative(presentation: .named)))
-                        }
-                        if let expiry = auth.backup?.expiresAt.flatMap(Date.init(iso:)) {
-                            LabeledContent("备用 token 到期", value: expiry.formatted(.relative(presentation: .named)))
-                        }
+                        ClaudeAuthRows(auth: auth)
+                    }
+                    if let attention = account.agent == "claude" ? AgentAttention.claude(status?.auth.claude, now: .now) : AgentAttention.codex(status?.auth.codex) {
+                        Label(attention.text, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(attention.bad ? .red : .orange)
                     }
                     if let token = account.token, let expiry = token.expiresAt.flatMap(Date.init(iso:)) {
                         LabeledContent {
@@ -111,6 +109,39 @@ struct AgentAccountsView: View {
     private func load() async {
         struct Response: Decodable { let accounts: [AgentAccount] }
         if let response: Response = try? await API.shared.get("/api/kita/accounts") { accounts = response.accounts }
+    }
+}
+
+// Claude 的两份登录：正在用哪份、各自什么时候到期，和网页的 claude/view.tsx 的 authRows 一致
+private struct ClaudeAuthRows: View {
+    let auth: ClaudeAuth
+
+    var body: some View {
+        let now = Date.now
+        let full = auth.login
+        let fullExpiry = full?.expiresAt.flatMap(Date.init(iso:))
+        let fullExpired = fullExpiry.map { $0 <= now } ?? false
+        LabeledContent("正在用") {
+            Text(["login": "完整登录", "token": "备用 token", "none": "没有能用的登录"][auth.mode] ?? auth.mode)
+                .foregroundStyle(auth.mode == "none" ? .red : .secondary)
+        }
+        LabeledContent {
+            Text(full == nil ? "没有" : full?.broken == true ? "已失效" : fullExpiry.map { fullExpired ? "已过期" : "还有 \(AgentAttention.daysLeft($0, now: now)) 天" } ?? "已登录")
+                .foregroundStyle(full == nil || full?.broken == true || fullExpired ? .red : .secondary)
+        } label: {
+            Text("完整登录")
+            if let fullExpiry, full?.broken != true {
+                Text("\(fullExpiry.formatted(date: .abbreviated, time: .shortened))到期，之后只能重新登录")
+            } else {
+                Text("回答时认证失败了，重新登录后自动换回来")
+            }
+        }
+        LabeledContent {
+            Text(auth.backup.map { backup in backup.expiresAt.flatMap(Date.init(iso:)).map { "还有 \(AgentAttention.daysLeft($0, now: now)) 天" } ?? "已存好" } ?? "没有")
+        } label: {
+            Text("备用 token")
+            Text("完整登录过期或失效时自动换用，只能回答，没有 claude.ai 的连接器")
+        }
     }
 }
 
