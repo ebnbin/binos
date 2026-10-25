@@ -165,6 +165,8 @@ export const codeApi = new Hono()
     )
     return c.json({ sessions })
   })
+  // 一个对话的概况：收到带 id 的 session 通知时只读这一个
+  .get('/sessions/:id', sessionParam, async (c) => c.json(await summary(c.req.valid('param').id)))
   // 这 7 天 binOS 大约用了周额度的多少，能折算花费的 agent 的一轮结束时会变（随会话的通知重新读取）
   .get('/usage', (c) => c.json({ usage: codeUsage() ?? null }))
   // 请求体就是文件本身，原来的文件名 URL 编码后放在 X-File-Name 里

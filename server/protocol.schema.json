@@ -725,6 +725,18 @@
           ],
           "additionalProperties": false
         },
+        "GET /api/apps/code/sessions/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/SessionSummary"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
         "GET /api/apps/code/usage": {
           "type": "object",
           "properties": {
@@ -1439,6 +1451,7 @@
         "PUT /api/apps/code/projects/:project/repository",
         "GET /api/apps/code/search",
         "GET /api/apps/code/sessions",
+        "GET /api/apps/code/sessions/:id",
         "GET /api/apps/code/usage",
         "POST /api/apps/code/uploads",
         "POST /api/apps/code/sessions",

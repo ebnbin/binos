@@ -16,6 +16,14 @@ export async function listSessions(query?: string) {
   return (await res.json()).sessions
 }
 
+// 一个对话的概况；不存在了（被删掉）时返回 undefined，读不到时抛出
+export async function readSession(id: number) {
+  const res = await sessions[':id'].$get({ param: { id: String(id) } })
+  if (res.status === 404) return undefined
+  if (!res.ok) throw new Error(`读取 session 失败（${res.status}）`)
+  return res.json()
+}
+
 // interrupt：正在回答时先打断正在做的事；queue：正在回答时排到这一轮答完之后；
 // agent：新对话用哪个 agent；model、effort：开始新的一轮时用，不给就是默认
 export type SendOptions = { project?: string; interrupt?: boolean; queue?: true; agent?: AgentId; model?: string; effort?: string }

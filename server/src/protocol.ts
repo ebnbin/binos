@@ -89,6 +89,7 @@ export type Http = {
   'PUT /api/apps/code/projects/:project/repository': { request: RepositoryBody; response: { project: Project } }
   'GET /api/apps/code/search': { response: SearchResults }
   'GET /api/apps/code/sessions': { response: { sessions: SessionSummary[] } }
+  'GET /api/apps/code/sessions/:id': { response: SessionSummary }
   'GET /api/apps/code/usage': { response: { usage: CodeUsage | null } }
   'POST /api/apps/code/uploads': { response: { file: string } }
   'POST /api/apps/code/sessions': { request: MessageBody; response: SessionRef }
