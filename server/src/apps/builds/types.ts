@@ -25,5 +25,8 @@ export type BuildsSnapshot = { builds: Build[]; settings: Settings; pollError?: 
 // 手动构建：ref 是 main、pr/编号 或完整的提交号
 export type BuildEnqueue = { ref: string; targets: Target[] }
 export type BuildRequest = { action: 'status' | 'poll' } | { action: 'stop' | 'handoff' } | ({ action: 'enqueue' } & BuildEnqueue) | { action: 'cancel' | 'retry'; id: string } | ({ action: 'settings' } & Settings)
+// 构建日志的流：log 是从 offset（字节）起的一段文字，第一次连接时从末尾读起，offset 大于 0 表示前面省略了；
+// end 是构建结束了、日志也读完了
+export type BuildLogMessage = { type: 'log'; offset: number; text: string } | { type: 'end' }
 // iOS 的安装链接，expiresIn 秒内有效
 export type InstallLink = { url: string; expiresIn: number }

@@ -8,6 +8,7 @@ import { isCrossSite } from '../../websocket-origin.js'
 import { connectTerminal, parseMessage } from './connection.js'
 import type { TerminalServerMessage, TerminalStreamMessage } from './connection.js'
 import { createSession, hasSession, listSessions, runTmux, tmux } from './sessions.js'
+import { checkTerminals } from './watch.js'
 
 type Connection = ReturnType<typeof connectTerminal>
 const streams = new Map<string, Connection>()
@@ -28,7 +29,11 @@ export const terminalApi = new Hono()
   .onError(errorHandler([400, 'invalid-input']))
   .use(bodyLimit({ maxSize: 128 * 1024 }))
   .get('/', async (c) => c.json({ available: !!tmux, sessions: await listSessions() }))
-  .post('/sessions', async (c) => c.json(await createSession(), 201))
+  .post('/sessions', async (c) => {
+    const session = await createSession()
+    await checkTerminals()
+    return c.json(session, 201)
+  })
   .use('/sessions/:id/*', async (c, next) => {
     if (!(await hasSession(c.req.param('id')!))) throw notFound('终端会话已结束')
     await next()
@@ -37,6 +42,7 @@ export const terminalApi = new Hono()
     const id = c.req.param('id')
     if (!(await hasSession(id))) throw notFound('终端会话已结束')
     await runTmux(['kill-session', '-t', id])
+    await checkTerminals()
     return c.body(null, 204)
   })
   .get('/sessions/:id/socket', async (c, next) => {

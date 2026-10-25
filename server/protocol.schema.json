@@ -5676,6 +5676,12 @@
         "GET /api/kita/sessions/:id/stream": {
           "$ref": "#/definitions/KitaSessionEvent"
         },
+        "GET /api/apps/builds/:id/log/stream": {
+          "$ref": "#/definitions/BuildLogMessage"
+        },
+        "GET /api/apps/system/stream": {
+          "$ref": "#/definitions/MonitorStatus"
+        },
         "GET /api/apps/music/players/connect": {
           "$ref": "#/definitions/PlayerMessage"
         },
@@ -5686,6 +5692,8 @@
       "required": [
         "GET /api/events",
         "GET /api/kita/sessions/:id/stream",
+        "GET /api/apps/builds/:id/log/stream",
+        "GET /api/apps/system/stream",
         "GET /api/apps/music/players/connect",
         "GET /api/apps/terminal/sessions/:id/stream"
       ],
@@ -5767,6 +5775,19 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "players"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "devices"
             }
           },
@@ -5794,6 +5815,19 @@
             "type": {
               "type": "string",
               "const": "kita"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "terminal"
             }
           },
           "required": [
@@ -6183,6 +6217,44 @@
             "type",
             "path",
             "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BuildLogMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "log"
+            },
+            "offset": {
+              "type": "number"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "offset",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "end"
+            }
+          },
+          "required": [
+            "type"
           ],
           "additionalProperties": false
         }

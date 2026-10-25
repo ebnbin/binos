@@ -27,7 +27,7 @@ export const musicContract = {
     retry: '同一指令 ID、播放器和参数在一小时内返回同一记录；不要用新 ID 盲目重试超时操作。',
     concurrency: '每个播放器同时一条远程指令，忙时返回 409。',
     state: '共享队列持久保存；播放器与指令记录仅驻留内存。状态是带时间戳的快照。',
-    events: '共享队列和配置变化通过 /api/events 的 music 事件通知；收到后重读。播放指令结果可轮询 /commands/{id}。',
+    events: '共享队列和配置变化通过 /api/events 的 music 事件通知，播放器上线、下线和播放状态变化（不含按时间推进的进度）通过 players 事件通知；收到后重读。播放指令结果可轮询 /commands/{id}。',
     limits: '队列最多 500 首；曲目应直接使用曲库 API 返回的 Track；请求体最多 2 MiB。最多 32 个在线播放器、2000 条指令记录。',
     errors: '出错时返回 HTTP 4xx/5xx 和 {error: {code, message}}：code 是稳定的标识（如 invalid-input、not-found、busy、configuration、quota），message 是给人看的原因。',
     authentication: 'HTTP 入口校验 binOS owner 身份。本机 agent 可通过 BINOS_API_SOCKET 指向的 Unix socket 调用同一 API，无需 Cloudflare 凭证。',

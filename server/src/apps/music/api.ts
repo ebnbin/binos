@@ -17,7 +17,7 @@ import { youtubeMusic } from './youtubeMusic.js'
 
 const handleError = errorHandler()
 
-export function createMusicApi(adapters: MusicProvider[], players = new MusicPlayers()) {
+export function createMusicApi(adapters: MusicProvider[], players = new MusicPlayers(Date.now, () => notifyChange({ type: 'players' }))) {
   const providers = new Map(adapters.map(provider => [provider.info().id, provider]))
   const getProvider = (id: string) => {
     const provider = providers.get(id)

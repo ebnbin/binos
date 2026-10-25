@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Build, InstallLink, Target } from '@binos/server/apps/builds/types'
+import type { Build, BuildLogMessage, InstallLink, Target } from '@binos/server/apps/builds/types'
 import { errorMessage } from '../../api.ts'
 import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
@@ -32,16 +32,27 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   const [clock, setClock] = useState(() => Date.now())
   const running = Boolean(data?.builds.some((b) => b.status === 'running'))
   useEffect(() => { if (!running) return; const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer) }, [running])
-  // 日志不在通知里：没编完时定时重读，编完再读最后一次
-  const logStatus = data?.builds.find((b) => b.id === log?.id)?.status
-  const logLive = logStatus === 'queued' || logStatus === 'running'
+  // 日志由后端按偏移推送，断线后浏览器带着 Last-Event-ID 接着读；构建结束、读完了就关上
   useEffect(() => {
     if (!log) return
-    let active = true
-    const read = async () => { try { const r = await fetch(`${base}/${log.id}/log`); if (!r.ok) throw new Error('日志读取失败'); const value = await r.text(); if (active) setText(value) } catch (e) { if (active) setText(String(e)) } }
-    void read(); const timer = logLive ? setInterval(() => void read(), 2000) : undefined
-    return () => { active = false; clearInterval(timer) }
-  }, [log, logLive])
+    const source = new EventSource(`${base}/${log.id}/log/stream`)
+    let received = false
+    source.onmessage = (event) => {
+      const message = JSON.parse(event.data) as BuildLogMessage
+      if (message.type === 'end') {
+        source.close()
+        if (!received) setText('没有日志')
+        return
+      }
+      const first = !received
+      received = true
+      setText((value) => (first ? (message.offset > 0 ? '[仅显示日志末尾]\n' : '') : value) + message.text)
+    }
+    source.onerror = () => {
+      if (source.readyState === EventSource.CLOSED && !received) setText('日志读取失败')
+    }
+    return () => source.close()
+  }, [log])
   // 报错一般在最后：打开时滚到末尾，停在末尾时跟着新内容走，往上翻看时不打断
   const pre = useRef<HTMLPreElement>(null)
   const follow = useRef(true)
@@ -107,6 +118,6 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       </section>
     })}
     </div>
-    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log?download=1`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
+    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
   </section>
 }

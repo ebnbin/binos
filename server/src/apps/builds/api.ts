@@ -1,11 +1,13 @@
 import { Hono } from 'hono'
+import { streamSSE } from 'hono/streaming'
 import { validator } from 'hono/validator'
-import { lstat, open } from 'node:fs/promises'
+import { lstat } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { createReadStream } from 'node:fs'
 import { badRequest, errorHandler, notFound } from '../../errors.js'
 import { buildRequest } from './client.js'
+import { streamBuildLog } from './log.js'
 import { installableBuild, installationOrigin, installToken, ipaInfo } from './install.js'
 import { resultsDir } from './config.js'
 import { parseRequest } from './protocol.js'
@@ -53,19 +55,17 @@ export const buildsApi = new Hono()
     if (!ready) throw new Error('安装入口尚未就绪：请确认此版本已上线，并且 downloads.binos.app 已连接 Tunnel 并配置独立的 Cloudflare Access Bypass 策略')
     return c.json({ url: `itms-services://?action=download-manifest&url=${encodeURIComponent(url)}`, expiresIn: 86400 } satisfies InstallLink)
   })
-  .get('/:id/log', async (c) => {
-    const id = c.req.param('id')
-    if (!idValid(id)) throw notFound('构建不存在')
-    if (c.req.query('download') === '1') {
-      const file = path.join(resultsDir, id, 'build.log')
-      if (!(await lstat(file).catch(() => undefined))?.isFile()) throw notFound('还没有日志')
-      return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename=build.log', 'Cache-Control': 'no-store' } })
-    }
-    // 只读末尾 512 KiB，长构建日志不会耗尽后端内存。
-    const file = await open(path.join(resultsDir, id, 'build.log'), 'r').catch(() => undefined)
-    if (!file) return c.text('等待构建日志…')
-    try { const size = (await file.stat()).size; const buffer = Buffer.alloc(Math.min(size, 512 * 1024)); await file.read(buffer, 0, buffer.length, Math.max(0, size - buffer.length)); return c.text((size > buffer.length ? '[仅显示日志末尾]\n' : '') + buffer.toString()) }
-    finally { await file.close() }
+  // 完整的日志，下载用
+  .get('/:id/log', buildParam, async (c) => {
+    const file = path.join(resultsDir, c.req.valid('param').id, 'build.log')
+    if (!(await lstat(file).catch(() => undefined))?.isFile()) throw notFound('还没有日志')
+    return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename=build.log', 'Cache-Control': 'no-store' } })
+  })
+  .get('/:id/log/stream', buildParam, async (c) => {
+    const { id } = c.req.valid('param')
+    if (!(await buildRequest({ action: 'status' })).builds.some((b) => b.id === id)) throw notFound('构建不存在')
+    const from = Number(c.req.header('Last-Event-ID') ?? c.req.query('from') ?? NaN)
+    return streamSSE(c, (stream) => streamBuildLog(stream, id, Number.isSafeInteger(from) && from >= 0 ? from : undefined))
   })
   .get('/:id/artifacts/:name', async (c) => {
     const id = c.req.param('id'); const name = c.req.param('name')

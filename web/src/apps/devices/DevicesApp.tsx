@@ -26,10 +26,10 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
     catch (error) { if (latest.current === version) setError(error instanceof Error ? error.message : '读取失败') }
   }, [])
   useEffect(() => {
+    // 设备、租约、排队和操作记录变了后端发 devices 通知；重新连上时也重读
     const initial = setTimeout(() => void load(), 0)
-    const timer = setInterval(() => { if (!document.hidden) void load() }, 5000)
     const stop = onChange((event) => { if (event === null || event.type === 'devices') void load() })
-    return () => { clearTimeout(initial); clearInterval(timer); stop() }
+    return () => { clearTimeout(initial); stop() }
   }, [load])
   async function act(operation: () => Promise<unknown>) {
     setBusy(true)
