@@ -1,5 +1,6 @@
 package app.binos.net
 
+import app.binos.code.codeSerializers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ val json = Json {
     explicitNulls = false
     coerceInputValues = true
     encodeDefaults = false
+    serializersModule = codeSerializers
 }
 
 val jsonType = "application/json".toMediaType()

@@ -7,6 +7,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Folder
@@ -61,6 +63,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.binos.app
+import app.binos.more.buildState
+import app.binos.more.buildStateColor
+import app.binos.more.prBuilds
+import app.binos.more.rememberBuilds
+import app.binos.shell.BuildsRoute
 import app.binos.shell.FilePreviewRoute
 import app.binos.shell.LocalNav
 import app.binos.shell.NewSessionRoute
@@ -158,6 +165,10 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
     var renaming by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
+    val openPrs = session?.prs.orEmpty().filter { it.state == "open" || it.state == null }
+    // 构建服务只编 binOS 自己的仓库
+    val builds = rememberBuilds(session?.project == "binos" && openPrs.isNotEmpty()).snapshot?.builds
+    val prBuildStates = builds?.let { list -> openPrs.mapNotNull { pr -> buildState(prBuilds(list, pr.number))?.let { pr.number to it } } }.orEmpty()
 
     // 只在页面可见时跟着推送
     LaunchedEffect(thread) {
@@ -182,11 +193,19 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
                     Column {
                         Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                         session?.let {
-                            Text(
-                                listOfNotNull("#${it.id}", projects?.find { p -> p.id == it.project }?.name, agentName(it.agent)).joinToString(" · "),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    listOfNotNull("#${it.id}", projects?.find { p -> p.id == it.project }?.name, agentName(it.agent)).joinToString(" · "),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                prBuildStates.forEach { (number, state) ->
+                                    Text("#$number ${state.label}", style = MaterialTheme.typography.labelSmall, color = buildStateColor(state), maxLines = 1)
+                                }
+                            }
                         }
                     }
                 },
@@ -222,6 +241,12 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
                                             uriHandler.openUri(pr.url)
                                         },
                                     )
+                                    prBuildStates.find { it.first == pr.number }?.let { (number, state) ->
+                                        DropdownMenuItem(text = { Text("${state.label} #$number") }, leadingIcon = { Icon(Icons.Outlined.Build, null) }, onClick = {
+                                            menu = false
+                                            nav.navigate(BuildsRoute("pr/$number"))
+                                        })
+                                    }
                                     pr.preview?.let { preview ->
                                         DropdownMenuItem(text = { Text("预览 #${pr.number}") }, leadingIcon = { Icon(Icons.Outlined.OpenInNew, null) }, onClick = {
                                             menu = false

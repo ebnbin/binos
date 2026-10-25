@@ -79,6 +79,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import app.binos.app
 import app.binos.code.encode
+import app.binos.net.LossyList
 import app.binos.net.json
 import app.binos.shell.LocalNav
 import app.binos.shell.TerminalSessionRoute
@@ -93,10 +94,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromJsonElement
 
 @Serializable
-data class TerminalInfo(val id: String, val created: Long, val cwd: String = "", val command: String = "")
+data class TerminalInfo(val id: String, val created: Long = 0, val cwd: String = "", val command: String = "")
 
 @Serializable
-private data class TerminalList(val available: Boolean = true, val sessions: List<TerminalInfo> = emptyList())
+private data class TerminalList(val available: Boolean = true, @Serializable(LossyList::class) val sessions: List<TerminalInfo> = emptyList())
 
 private const val base = "/api/apps/terminal"
 

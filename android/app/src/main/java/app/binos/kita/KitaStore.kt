@@ -7,6 +7,7 @@ import android.webkit.MimeTypeMap
 import app.binos.app
 import app.binos.code.encode
 import app.binos.net.ApiException
+import app.binos.net.LossyList
 import app.binos.net.json
 import app.binos.net.octetType
 import kotlinx.coroutines.CancellationException
@@ -33,9 +34,9 @@ import okio.source
 @Serializable
 data class Conversation(
     val id: String,
-    val title: String,
+    val title: String = "",
     val temporary: Boolean = false,
-    val agent: String,
+    val agent: String = "claude",
     val state: String = "idle",
     val createdAt: String = "",
     val updatedAt: String = "",
@@ -46,14 +47,14 @@ data class Conversation(
 data class Photo(val file: String, val addedAt: String = "")
 
 @Serializable
-data class Profile(val description: String = "", val photos: List<Photo> = emptyList(), val avatar: String? = null)
+data class Profile(val description: String = "", @Serializable(LossyList::class) val photos: List<Photo> = emptyList(), val avatar: String? = null)
 
 // type 是 user（页面上的用户）或 session（某个 app 的 session 里的 agent）
 @Serializable
-data class MemorySource(val type: String, val owner: String? = null, val session: String? = null)
+data class MemorySource(val type: String = "", val owner: String? = null, val session: String? = null)
 
 @Serializable
-data class MemoryVersion(val text: String, val kind: String, val time: String, val source: MemorySource)
+data class MemoryVersion(val text: String, val kind: String = "", val time: String = "", val source: MemorySource = MemorySource())
 
 // kind：stated 是用户说过或确认过的，inferred 是推测的；history 是改动前的各个版本，从旧到新
 @Serializable
@@ -62,26 +63,26 @@ data class Memory(
     val text: String,
     val kind: String,
     val scope: String,
-    val source: MemorySource,
+    val source: MemorySource = MemorySource(),
     val createdAt: String = "",
     val updatedAt: String = "",
-    val history: List<MemoryVersion> = emptyList(),
+    @Serializable(LossyList::class) val history: List<MemoryVersion> = emptyList(),
 )
 
 @Serializable
-data class Activity(val session: String, val owner: String, val state: String, val since: String = "")
+data class Activity(val session: String, val owner: String = "", val state: String = "", val since: String = "")
 
 @Serializable
-private data class Conversations(val conversations: List<Conversation>)
+private data class Conversations(@Serializable(LossyList::class) val conversations: List<Conversation> = emptyList())
 
 @Serializable
 private data class Profiles(val profile: Profile)
 
 @Serializable
-private data class Memories(val memories: List<Memory>)
+private data class Memories(@Serializable(LossyList::class) val memories: List<Memory> = emptyList())
 
 @Serializable
-private data class Activities(val activity: List<Activity>)
+private data class Activities(@Serializable(LossyList::class) val activity: List<Activity> = emptyList())
 
 const val maxPhotoBytes = 20L * 1024 * 1024
 private val photoTypes = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "avif")

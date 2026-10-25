@@ -366,7 +366,7 @@ fun sessionFacts(session: SessionSummary): String = listOfNotNull(
     session.quota?.takeIf { it >= 0.005 }?.let { "≈${formatQuota(it)} 周额度" },
     session.prs.filter { it.state == "open" }.takeIf { it.isNotEmpty() }?.joinToString(" ") { "PR #${it.number}" },
     "排队 ${session.queue.size}".takeIf { session.queue.isNotEmpty() },
-    session.outcome?.takeIf { !session.running && !session.waiting }?.let { if (it == "error") "出错" else "已停止" },
+    session.outcome?.takeIf { !session.running && !session.waiting }?.let { mapOf("error" to "出错", "stopped" to "已停止")[it] },
 ).joinToString(" · ")
 
 // 全部历史内容的搜索结果，按对话分组，命中的文字加粗

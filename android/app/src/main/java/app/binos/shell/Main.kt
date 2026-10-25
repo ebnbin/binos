@@ -147,7 +147,7 @@ fun MainScreen() {
                     composable<SystemRoute> { SystemScreen() }
                     composable<AccountsRoute> { AccountsScreen() }
                     composable<CalendarRoute> { CalendarScreen() }
-                    composable<BuildsRoute> { BuildsScreen() }
+                    composable<BuildsRoute> { BuildsScreen(it.toRoute<BuildsRoute>().ref) }
                     composable<BuildLogRoute> { BuildLogScreen(it.toRoute<BuildLogRoute>().id) }
                     composable<DevicesRoute> { DevicesScreen() }
                     composable<BrowserRoute> { BrowserScreen(it.toRoute<BrowserRoute>().url) }

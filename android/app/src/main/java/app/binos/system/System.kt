@@ -63,6 +63,7 @@ import app.binos.code.agentName
 import app.binos.code.attention
 import app.binos.code.authRows
 import app.binos.code.loginActions
+import app.binos.net.LossyList
 import app.binos.shell.LocalNav
 import app.binos.ui.formatBytes
 import app.binos.ui.formatMoment
@@ -76,7 +77,7 @@ import java.time.Instant
 // 和 server/src/apps/system/types.ts 对应
 
 @Serializable
-data class Host(val name: String, val model: String = "", val chip: String = "", val os: String = "", val uptime: Double = 0.0, val cores: Int = 0)
+data class Host(val name: String = "", val model: String = "", val chip: String = "", val os: String = "", val uptime: Double = 0.0, val cores: Int = 0)
 
 @Serializable
 data class Cpu(val percent: Double? = null)
@@ -85,7 +86,7 @@ data class Cpu(val percent: Double? = null)
 data class Memory(val total: Double, val free: Double, val cached: Double? = null, val pressure: String = "unknown")
 
 @Serializable
-data class Volume(val filesystem: String, val mount: String, val total: Double, val available: Double, val used: Double)
+data class Volume(val filesystem: String = "", val mount: String, val total: Double, val available: Double, val used: Double)
 
 @Serializable
 data class Network(val receiveRate: Double? = null, val sendRate: Double? = null)
@@ -99,14 +100,14 @@ data class Runtime(val version: String = "", val uptime: Double = 0.0, val memor
 @Serializable
 data class Snapshot(
     val at: Double,
-    val host: Host,
-    val cpu: Cpu,
+    val host: Host = Host(),
+    val cpu: Cpu = Cpu(),
     val memory: Memory,
-    val volumes: List<Volume> = emptyList(),
+    @Serializable(LossyList::class) val volumes: List<Volume> = emptyList(),
     val network: Network = Network(),
     val power: Power = Power(),
     val runtime: Runtime = Runtime(),
-    val unavailable: List<String> = emptyList(),
+    @Serializable(LossyList::class) val unavailable: List<String> = emptyList(),
 )
 
 @Serializable

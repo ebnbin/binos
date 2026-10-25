@@ -109,6 +109,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.binos.BuildConfig
 import app.binos.app
+import app.binos.net.LossyList
 import app.binos.net.json
 import app.binos.shell.AccountsRoute
 import app.binos.shell.BrowserRoute
@@ -135,10 +136,10 @@ import java.util.UUID
 
 // 外部 app：独立部署的 web app，在应用内的 WebView 里打开
 @Serializable
-data class ExternalApp(val id: String, val name: String, val icon: String, val url: String)
+data class ExternalApp(val id: String, val name: String = "", val icon: String = "", val url: String)
 
 @Serializable
-data class AppRegistry(val external: List<ExternalApp> = emptyList())
+data class AppRegistry(@Serializable(LossyList::class) val external: List<ExternalApp> = emptyList())
 
 private data class Entry(val label: String, val icon: ImageVector, val route: Any)
 
@@ -147,7 +148,7 @@ private val builtins = listOf(
     Entry("系统", Icons.Outlined.Speed, SystemRoute),
     Entry("Agent", Icons.Outlined.SmartToy, AccountsRoute),
     Entry("日历", Icons.Outlined.CalendarMonth, CalendarRoute),
-    Entry("构建", Icons.Outlined.Build, BuildsRoute),
+    Entry("构建", Icons.Outlined.Build, BuildsRoute()),
     Entry("设备", Icons.Outlined.Smartphone, DevicesRoute),
     Entry("浏览器", Icons.Outlined.Language, BrowserRoute()),
     Entry("外部 app", Icons.Outlined.Apps, ExternalAppsRoute),
@@ -163,6 +164,7 @@ fun MoreScreen() {
         app.events.of("apps").collect { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it } }
     }
     LaunchedEffect(Unit) { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it } }
+    val builds = rememberBuilds().snapshot?.let { buildsSummary(it.builds) }
     Scaffold(topBar = { TopAppBar(title = { Text("更多") }) }) { padding ->
         LazyVerticalGrid(
             columns = GridCells.Adaptive(84.dp),
@@ -171,7 +173,7 @@ fun MoreScreen() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(builtins, key = { it.label }) { entry -> Launcher(entry.label, entry.icon) { nav.navigate(entry.route) } }
+            items(builtins, key = { it.label }) { entry -> Launcher(entry.label, entry.icon, if (entry.route is BuildsRoute) builds else null) { nav.navigate(entry.route) } }
             items(registry?.external.orEmpty(), key = { "external-${it.id}" }) { external ->
                 Launcher(external.name, externalIcon(external.icon)) { nav.navigate(WebAppRoute(external.name, external.url)) }
             }
@@ -179,13 +181,17 @@ fun MoreScreen() {
     }
 }
 
+// note：图标下面的一行状态，例如构建的概况
 @Composable
-private fun Launcher(label: String, icon: ImageVector, onClick: () -> Unit) {
+private fun Launcher(label: String, icon: ImageVector, note: Pair<String, BuildState>? = null, onClick: () -> Unit) {
     Column(Modifier.clickable(onClick = onClick).padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.secondaryContainer, modifier = Modifier.size(56.dp)) {
             Box(contentAlignment = Alignment.Center) { Icon(icon, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer) }
         }
         Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp), textAlign = TextAlign.Center)
+        note?.let { (text, state) ->
+            Text(text, style = MaterialTheme.typography.labelSmall, color = buildStateColor(state), fontWeight = if (state == BuildState.Failed) FontWeight.SemiBold else null, maxLines = 2, textAlign = TextAlign.Center)
+        }
     }
 }
 

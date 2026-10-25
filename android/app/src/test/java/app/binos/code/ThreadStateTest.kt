@@ -44,4 +44,30 @@ class ThreadStateTest {
         assertNull(first.results[state.items[1] as Entry.ToolCall])
         assertEquals("x", state.turns[1].results[state.items[3] as Entry.ToolCall]?.output)
     }
+
+    @Test
+    fun 不认识和解不开的条目占住序号_后面的条目位置不错() {
+        val state = ThreadState("t")
+        state.receive("""{"type":"window","from":0,"session":{"type":"session","time":"$time","agent":"claude"}}""")
+        state.receive("""{"type":"events","events":[${event(1, input("一"))},${event(2, """{"type":"future","time":"$time","extra":1}""")},${event(3, """{"type":"tool_call","time":"$time"}""")},{"seq":4}]}""")
+        state.receive("""{"type":"event","event":${event(5, """{"type":"tool_call","time":"$time","id":"c","name":"X","tool":{"kind":"future"}}""")}}""")
+        assertEquals(5, state.items.size)
+        assertEquals(listOf(Entry.Unknown::class, Entry.Unknown::class, Entry.Unknown::class), state.items.subList(1, 4).map { it::class })
+        assertEquals(ToolDetail.Other, (state.items[4] as Entry.ToolCall).tool)
+        state.receive("""{"type":"event","event":${event(6, input("二"))}}""")
+        assertEquals("二", (state.items[5] as Entry.Input).text)
+    }
+
+    @Test
+    fun 回答中的临时内容遇到不认识的状态和缺字段的事件不出错() {
+        val state = ThreadState("t")
+        state.receive("""{"type":"window","from":0}""")
+        state.receive("""{"type":"live","live":{"text":"半","status":{"type":"future"},"tasks":{"a":{"toolUses":1},"b":{"toolUses":"x"}},"extra":true}}""")
+        assertEquals(Status.Other, state.live?.status)
+        assertEquals(setOf("a"), state.live?.tasks?.keys)
+        state.receive("""{"type":"file"}""")
+        state.receive("""{"type":"task"}""")
+        state.receive("""{"type":"text","text":"截"}""")
+        assertEquals("半截", state.live?.text)
+    }
 }

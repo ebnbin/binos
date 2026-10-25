@@ -287,6 +287,7 @@ private fun countLines(call: Entry.ToolCall): LineChanges? {
                 LineChanges(body.count { it.startsWith("+") }, body.count { it.startsWith("-") })
             }
         }
+        FileChange.Other -> null
     }
 }
 

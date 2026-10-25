@@ -2,6 +2,8 @@ package app.binos.music
 
 import app.binos.app
 import app.binos.code.encode
+import app.binos.net.LossyList
+import app.binos.net.LossyMap
 import app.binos.net.json
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -31,18 +33,18 @@ data class Album(val id: String? = null, val title: String)
 data class Track(
     val ref: TrackRef,
     val title: String,
-    val artists: List<String> = emptyList(),
+    @Serializable(LossyList::class) val artists: List<String> = emptyList(),
     val album: Album? = null,
     val artworkUrl: String? = null,
     val durationMs: Long? = null,
-    val externalUrl: String,
+    val externalUrl: String = "",
 ) {
     val key get() = "${ref.provider}:${ref.id}"
     val artistText get() = artists.joinToString(" / ").ifEmpty { "未知艺人" }
 }
 
 @Serializable
-data class CatalogPage(val tracks: List<Track> = emptyList(), val nextPage: String? = null, val warning: String? = null)
+data class CatalogPage(@Serializable(LossyList::class) val tracks: List<Track> = emptyList(), val nextPage: String? = null, val warning: String? = null)
 
 @Serializable
 data class Capability(val state: String, val reason: String? = null)
@@ -51,25 +53,25 @@ data class Capability(val state: String, val reason: String? = null)
 data class ReferenceRule(val pattern: String, val capability: String)
 
 @Serializable
-data class ProviderInput(val references: List<ReferenceRule> = emptyList())
+data class ProviderInput(@Serializable(LossyList::class) val references: List<ReferenceRule> = emptyList())
 
 @Serializable
 data class SettingLink(val label: String, val url: String)
 
 // 连接来源要填的一项；configured：已经填过，值不会返回
 @Serializable
-data class SettingField(val id: String, val label: String, val description: String = "", val secret: Boolean = false, val configured: Boolean = false, val links: List<SettingLink> = emptyList())
+data class SettingField(val id: String, val label: String = "", val description: String = "", val secret: Boolean = false, val configured: Boolean = false, @Serializable(LossyList::class) val links: List<SettingLink> = emptyList())
 
 @Serializable
-data class ProviderConfiguration(val fields: List<SettingField> = emptyList())
+data class ProviderConfiguration(@Serializable(LossyList::class) val fields: List<SettingField> = emptyList())
 
 @Serializable
 data class ProviderInfo(
     val id: String,
-    val name: String,
+    val name: String = "",
     val description: String = "",
     val input: ProviderInput = ProviderInput(),
-    val capabilities: Map<String, Capability> = emptyMap(),
+    @Serializable(LossyMap::class) val capabilities: Map<String, Capability> = emptyMap(),
     val configuration: ProviderConfiguration = ProviderConfiguration(),
 ) {
     fun available(operation: String) = capabilities[operation]?.state == "available"
@@ -90,13 +92,13 @@ data class ProviderInfo(
 }
 
 @Serializable
-private data class Providers(val providers: List<ProviderInfo>)
+private data class Providers(@Serializable(LossyList::class) val providers: List<ProviderInfo> = emptyList())
 
 @Serializable
-data class QueueSnapshot(val revision: Int = 0, val tracks: List<Track> = emptyList())
+data class QueueSnapshot(val revision: Int = 0, @Serializable(LossyList::class) val tracks: List<Track> = emptyList())
 
 @Serializable
-data class Lyrics(val text: String, val attribution: String? = null)
+data class Lyrics(val text: String = "", val attribution: String? = null)
 
 private const val base = "/api/apps/music"
 

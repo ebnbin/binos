@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import app.binos.net.Api
 import app.binos.net.ApiException
+import app.binos.net.LossyList
 import app.binos.net.json
 import app.binos.net.octetType
 import kotlinx.serialization.Serializable
@@ -29,10 +30,10 @@ enum class SendMode { Send, Interrupt, Queue }
 data class Choice(val agent: String, val model: String? = null, val effort: String? = null)
 
 @Serializable
-private data class SessionsResponse(val sessions: List<SessionSummary>)
+private data class SessionsResponse(@Serializable(LossyList::class) val sessions: List<SessionSummary>)
 
 @Serializable
-private data class ProjectsResponse(val projects: List<Project>)
+private data class ProjectsResponse(@Serializable(LossyList::class) val projects: List<Project>)
 
 @Serializable
 private data class CreatedResponse(val id: Int, val kitaSession: String)
@@ -126,9 +127,9 @@ class CodeApi(private val api: Api) {
 
     suspend fun status(): AgentStatus = api.get("/api/kita/status")
 
-    suspend fun accounts(): List<AgentAccount> = json.decodeFromJsonElement(api.getJson("/api/kita/accounts").jsonObject["accounts"]!!)
+    suspend fun accounts(): List<AgentAccount> = json.decodeFromJsonElement(LossyList(AgentAccount.serializer()), api.getJson("/api/kita/accounts").jsonObject["accounts"]!!)
 
-    suspend fun catalogs(): List<AgentCatalog> = json.decodeFromJsonElement(api.getJson("/api/kita/agents").jsonObject["agents"]!!)
+    suspend fun catalogs(): List<AgentCatalog> = json.decodeFromJsonElement(LossyList(AgentCatalog.serializer()), api.getJson("/api/kita/agents").jsonObject["agents"]!!)
 
     fun fileUrl(thread: String, file: String, name: String? = null): String =
         api.url("/api/kita/sessions/${encode(thread)}/files/${encode(file)}").newBuilder().apply { name?.let { addQueryParameter("name", it) } }.build().toString()

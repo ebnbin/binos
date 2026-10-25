@@ -385,7 +385,7 @@ private fun ToolBody(state: CallState, context: TranscriptContext) {
                     "delete" -> Text("删除了这个文件", style = MaterialTheme.typography.bodySmall)
                     else -> DiffView(remember(change) { patchLines(change.diff) })
                 }
-                null -> Raw(call, result)
+                FileChange.Other, null -> Raw(call, result)
             }
             is ToolDetail.WebSearch -> result?.output?.let { WebSearchResults(it, context) }
             is ToolDetail.WebFetch -> {
@@ -657,7 +657,7 @@ private fun TurnChanges(files: List<ChangedFile>) {
                                 is FileChange.Replace -> DiffView(remember(change) { diffLines(change.before, change.after) })
                                 is FileChange.Diff -> if (change.op == "update") DiffView(remember(change) { patchLines(change.diff) })
                                 else if (change.op == "add") CodeBlock(change.diff.removeSuffix("\n"), lang = languageOf(tool.path), startLine = 1, maxHeight = 360)
-                                null -> Unit
+                                FileChange.Other, null -> Unit
                             }
                         }
                     }
@@ -675,5 +675,5 @@ fun statusText(live: Live, runningTool: String?): String = when (val status = li
     Status.Compacting -> "正在压缩上下文"
     is Status.Waiting -> "已答完，等待 ${status.tasks} 个后台任务"
     is Status.Retrying -> "请求失败，第 ${status.attempt} 次重试"
-    null -> if (live.text.isNotEmpty()) "正在回答" else runningTool?.let { "正在运行 $it" } ?: "正在处理"
+    Status.Other, null -> if (live.text.isNotEmpty()) "正在回答" else runningTool?.let { "正在运行 $it" } ?: "正在处理"
 }

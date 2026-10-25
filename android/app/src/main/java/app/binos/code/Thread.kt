@@ -16,10 +16,10 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 
 // 和 web/src/services/kita/session/useKitaSession.ts、useFullCall.ts 对应
 
@@ -29,9 +29,10 @@ private const val pageSize = 300
 // 事件的 seq 是到它为止的条数，也就是它的位置加一
 private data class PageEvent(val seq: Int, val entry: Entry)
 
+// 解不开的条目也占住它的序号
 private fun parsePageEvent(element: JsonElement): PageEvent? = (element as? JsonObject)?.let { event ->
-    val seq = event["seq"]?.jsonPrimitive?.content?.toIntOrNull() ?: return null
-    PageEvent(seq, parseEntry(event["data"] ?: return null))
+    val seq = (event["seq"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return null
+    PageEvent(seq, event["data"]?.let(::parseEntry) ?: Entry.Unknown())
 }
 
 // thread 的内容：items 是从 offset 开始的连续条目，offset 大于 0 时前面还有更早的，由 loadOlder 往前补读；
@@ -74,11 +75,11 @@ class ThreadState(val thread: String) {
     fun apply(signal: StreamSignal) {
         if (signal == StreamSignal.Open) loaded = true
         if (signal !is StreamSignal.Message) return
-        val event = runCatching { json.parseToJsonElement(signal.message.data).jsonObject }.getOrNull() ?: return
-        when (event["type"]?.jsonPrimitive?.content) {
+        val event = runCatching { json.parseToJsonElement(signal.message.data) }.getOrNull() as? JsonObject ?: return
+        when (event.string("type")) {
             // 从这里开始补发，之前收到的都不要了
             "window" -> {
-                val from = event["from"]?.jsonPrimitive?.content?.toIntOrNull() ?: return
+                val from = (event["from"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return
                 count = from
                 session = event["session"]?.let { parseEntry(it) as? Entry.Session }
                 live = null
@@ -92,11 +93,12 @@ class ThreadState(val thread: String) {
         }
     }
 
+    // 只接紧接着已收到位置、序号连续的那一段
     private fun append(events: List<PageEvent>) {
         val known = count ?: return
-        if (events.isEmpty() || events.first().seq != known + 1) return
-        count = known + events.size
-        val entries = events.map { it.entry }
+        val entries = events.dropWhile { it.seq <= known }.withIndex().takeWhile { (index, event) -> event.seq == known + 1 + index }.map { it.value.entry }
+        if (entries.isEmpty()) return
+        count = known + entries.size
         replace(items + entries, offset)
         for (entry in entries) live = live?.let { applyEntry(it, entry) }
     }
@@ -111,7 +113,8 @@ class ThreadState(val thread: String) {
                 val limit = maxOf(pageSize, end - (until ?: end))
                 val events = app.api.getJson("/api/kita/sessions/${encode(thread)}/events?before=$end&limit=$limit")
                     .jsonObject["events"]?.jsonArray.orEmpty().mapNotNull(::parsePageEvent)
-                if (events.isNotEmpty() && events.last().seq == end && offset == end) {
+                val contiguous = events.withIndex().all { (index, event) -> event.seq == events.first().seq + index }
+                if (events.isNotEmpty() && contiguous && events.last().seq == end && offset == end) {
                     replace(events.map { it.entry } + items, events.first().seq - 1)
                 }
             } catch (error: CancellationException) {
@@ -145,9 +148,11 @@ suspend fun readFullCall(thread: String, index: Int): Pair<Entry.ToolCall, Entry
     call to value.result?.let { parseEntry(it) as? Entry.ToolResult }
 }.getOrElse { if (it is CancellationException) throw it else null }
 
+private fun JsonObject.string(key: String): String? = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content
+
 private fun parseLive(element: JsonElement): Live = runCatching { json.decodeFromJsonElement(Live.serializer(), element) }.getOrElse {
-    val obj = element.jsonObject
-    Live(thinking = obj["thinking"]?.jsonPrimitive?.content ?: "", text = obj["text"]?.jsonPrimitive?.content ?: "")
+    val obj = element as? JsonObject
+    Live(thinking = obj?.string("thinking") ?: "", text = obj?.string("text") ?: "")
 }
 
 // 记成条目的思考和文字取代对应的临时内容
@@ -159,15 +164,18 @@ private fun applyEntry(live: Live, entry: Entry): Live = when {
 }
 
 private fun applyLiveEvent(live: Live, event: JsonObject): Live {
-    val text = { event["text"]?.jsonPrimitive?.content ?: "" }
-    return when (event["type"]?.jsonPrimitive?.content) {
+    val text = { event.string("text") ?: "" }
+    return when (event.string("type")) {
         "thinking" -> live.copy(thinking = live.thinking + text())
         "text" -> live.copy(text = live.text + text())
-        "file" -> live.copy(files = live.files + (event["path"]!!.jsonPrimitive.content to event["name"]!!.jsonPrimitive.content))
-        "status" -> live.copy(status = event["status"]?.takeIf { it !is JsonNull }?.let { runCatching { json.decodeFromJsonElement(Status.serializer(), it) }.getOrNull() })
+        "file" -> {
+            val path = event.string("path") ?: return live
+            live.copy(files = live.files + (path to (event.string("name") ?: path.substringAfterLast('/'))))
+        }
+        "status" -> live.copy(status = event["status"]?.takeIf { it !is JsonNull }?.let { runCatching { json.decodeFromJsonElement(Status.serializer(), it) }.getOrDefault(Status.Other) })
         "task" -> {
-            val callId = event["callId"]!!.jsonPrimitive.content
-            val progress = event["progress"]?.takeIf { it !is JsonNull }?.let { json.decodeFromJsonElement(TaskProgress.serializer(), it) }
+            val callId = event.string("callId") ?: return live
+            val progress = event["progress"]?.takeIf { it !is JsonNull }?.let { runCatching { json.decodeFromJsonElement(TaskProgress.serializer(), it) }.getOrDefault(TaskProgress()) }
             live.copy(tasks = if (progress == null) live.tasks - callId else live.tasks + (callId to progress))
         }
         else -> live

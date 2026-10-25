@@ -156,7 +156,7 @@ class RemoteBrowser {
                 viewport?.let { (width, height, scale) -> sendResize(width, height, scale) }
             }
             "state" -> {
-                val state = message["state"]!!.jsonObject
+                val state = message["state"] as? JsonObject ?: return
                 url = state["url"]?.jsonPrimitive?.content ?: ""
                 title = state["title"]?.jsonPrimitive?.content ?: ""
                 canBack = state["canBack"]?.jsonPrimitive?.content == "true"

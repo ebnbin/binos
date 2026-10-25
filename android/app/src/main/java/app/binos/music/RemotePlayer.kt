@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.double
@@ -68,7 +69,7 @@ object RemotePlayer {
                         busy = false
                         report(null)
                     }
-                    "command" -> launch { execute(message["command"]!!.jsonObject) }
+                    "command" -> (message["command"] as? JsonObject)?.let { command -> launch { execute(command) } }
                 }
             }
         }
@@ -117,7 +118,7 @@ object RemotePlayer {
 
     // 执行一条指令：先确认它还在等待执行，执行完报告结果。播放类的指令等到真的开始播放
     private suspend fun execute(command: JsonObject) {
-        val id = command["id"]!!.jsonPrimitive.content
+        val id = (command["id"] as? JsonPrimitive)?.content ?: return
         if (busy) {
             report(buildJsonObject {
                 put("id", id)

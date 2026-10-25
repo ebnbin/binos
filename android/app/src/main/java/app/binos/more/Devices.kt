@@ -55,6 +55,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.binos.app
 import app.binos.code.encode
+import app.binos.net.LossyList
+import app.binos.net.LossyMap
 import app.binos.shell.LocalNav
 import app.binos.shell.SessionRoute
 import app.binos.ui.formatClock
@@ -71,34 +73,34 @@ import kotlinx.serialization.json.add
 // 和 server/src/apps/devices/types.ts 对应
 
 @Serializable
-data class Device(val id: String, val platform: String, val name: String, val target: String = "", val system: String? = null, val status: String, val error: String? = null)
+data class Device(val id: String, val platform: String, val name: String = "", val target: String = "", val system: String? = null, val status: String = "", val error: String? = null)
 
 @Serializable
-data class Lease(val requestId: String, val claimed: Boolean = false, val id: String, val owner: String, val reason: String = "", val platforms: List<String> = emptyList(), val devices: List<String> = emptyList())
+data class Lease(val requestId: String, val claimed: Boolean = false, val id: String, val owner: String = "", val reason: String = "", val platforms: List<String> = emptyList(), val devices: List<String> = emptyList())
 
 @Serializable
-data class Waiting(val id: String, val owner: String, val reason: String = "", val platforms: List<String> = emptyList(), val phase: String, val error: String? = null)
+data class Waiting(val id: String, val owner: String = "", val reason: String = "", val platforms: List<String> = emptyList(), val phase: String = "", val error: String? = null)
 
 @Serializable
-data class DeviceEvent(val time: Long, val text: String, val device: String? = null, val owner: String? = null)
+data class DeviceEvent(val time: Long = 0, val text: String, val device: String? = null, val owner: String? = null)
 
 @Serializable
-data class Observed(val platform: String, val name: String, val target: String, val state: String)
+data class Observed(val platform: String, val name: String = "", val target: String = "", val state: String = "")
 
 @Serializable
-data class Owner(val session: Int, val title: String)
+data class Owner(val session: Int, val title: String = "")
 
 @Serializable
 data class DevicesSnapshot(
-    val devices: List<Device> = emptyList(),
-    val leases: List<Lease> = emptyList(),
-    val queue: List<Waiting> = emptyList(),
-    val events: List<DeviceEvent> = emptyList(),
+    @Serializable(LossyList::class) val devices: List<Device> = emptyList(),
+    @Serializable(LossyList::class) val leases: List<Lease> = emptyList(),
+    @Serializable(LossyList::class) val queue: List<Waiting> = emptyList(),
+    @Serializable(LossyList::class) val events: List<DeviceEvent> = emptyList(),
     val capacity: Int = 0,
     val mode: String = "real",
-    val observed: List<Observed> = emptyList(),
-    val discoveryErrors: List<String> = emptyList(),
-    val owners: Map<String, Owner> = emptyMap(),
+    @Serializable(LossyList::class) val observed: List<Observed> = emptyList(),
+    @Serializable(LossyList::class) val discoveryErrors: List<String> = emptyList(),
+    @Serializable(LossyMap::class) val owners: Map<String, Owner> = emptyMap(),
 )
 
 private const val base = "/api/apps/devices"

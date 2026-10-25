@@ -80,6 +80,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.binos.app
 import app.binos.code.encode
+import app.binos.net.LossyList
 import app.binos.net.octetType
 import app.binos.shell.FilePreviewRoute
 import app.binos.shell.FolderRoute
@@ -99,10 +100,10 @@ import okio.source
 // 和 server/src/apps/files/api.ts 对应：Mac 上的文件，路径都是绝对路径
 
 @Serializable
-data class FileEntry(val name: String, val path: String, val directory: Boolean, val symlink: Boolean = false, val size: Long = 0, val modified: Double = 0.0)
+data class FileEntry(val name: String, val path: String, val directory: Boolean = false, val symlink: Boolean = false, val size: Long = 0, val modified: Double = 0.0)
 
 @Serializable
-data class Listing(val path: String, val parent: String, val home: String, val entries: List<FileEntry>)
+data class Listing(val path: String, val parent: String, val home: String, @Serializable(LossyList::class) val entries: List<FileEntry> = emptyList())
 
 private const val base = "/api/apps/files"
 

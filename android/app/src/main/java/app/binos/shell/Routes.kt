@@ -31,7 +31,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object SystemRoute
 @Serializable data object AccountsRoute
 @Serializable data object CalendarRoute
-@Serializable data object BuildsRoute
+@Serializable data class BuildsRoute(val ref: String = "main")
 @Serializable data class BuildLogRoute(val id: String)
 @Serializable data object DevicesRoute
 @Serializable data class BrowserRoute(val url: String = "")
