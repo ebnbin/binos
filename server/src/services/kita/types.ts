@@ -223,6 +223,10 @@ export type MemoryKind = 'stated' | 'inferred'
 // 谁写的：用户在页面上，或者某个 app 的 session 里的 agent
 export type MemorySource = { type: 'user' } | { type: 'session'; owner: string; session: string }
 
+// 新记一条记忆、改一条记忆的请求体。session：agent 在哪个 session 里记的，页面上的用户不带；scope 只有用户能指定，默认是个人
+export type NewMemory = { session?: string; text: string; kind?: MemoryKind; scope?: string }
+export type MemoryChange = { session?: string; text?: string; kind?: MemoryKind }
+
 // 一条长期记忆；history 是改动前的各个版本，从旧到新，可以恢复
 export type Memory = {
   id: string

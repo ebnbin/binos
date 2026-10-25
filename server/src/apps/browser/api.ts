@@ -1,17 +1,17 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
+import { isCrossSite } from '../../websocket-origin.js'
 import { connectBrowser } from './session.js'
-import type { ClientMessage } from './protocol.js'
+import type { BrowserClientMessage, BrowserServerMessage } from './protocol.js'
 import { parseMessage } from './protocol.js'
 
 export const browserApi = new Hono()
   .get('/socket', async (c, next) => {
-    const origin = c.req.header('origin')
-    if (!origin || !/^https?:\/\//.test(origin) || new URL(origin).host !== c.req.header('host')) return c.text('Forbidden', 403)
+    if (isCrossSite(c)) return c.text('Forbidden', 403)
     return upgradeWebSocket(() => {
       let connection: Awaited<ReturnType<typeof connectBrowser>> | undefined
       let closed = false
-      const pending: ClientMessage[] = []
+      const pending: BrowserClientMessage[] = []
       return {
         async onOpen(_event, ws) {
           try {
@@ -20,7 +20,7 @@ export const browserApi = new Hono()
             else for (const message of pending.splice(0)) connection.receive(message)
           } catch (error) {
             if (!closed) {
-              ws.send(JSON.stringify({ type: 'error', message: error instanceof Error ? error.message : String(error) }))
+              ws.send(JSON.stringify({ type: 'error', message: error instanceof Error ? error.message : String(error) } satisfies BrowserServerMessage))
               ws.close(1011)
             }
           }

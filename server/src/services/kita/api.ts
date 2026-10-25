@@ -14,7 +14,7 @@ import { addMemory, addPhoto, listMemories, maxDescriptionLength, maxMemoryLengt
 import { metadata } from './store.js'
 import { clipEvent } from './journal.js'
 import { agentIds } from './types.js'
-import type { AgentStatus, IdentityScope, KitaSessionEvent, Memory, MemoryKind, MemorySource } from './types.js'
+import type { AgentStatus, IdentityScope, KitaSessionEvent, Memory, MemoryChange, MemoryKind, MemorySource, NewMemory } from './types.js'
 
 const threadParam = validator('param', (value: Record<string, string>, c) => {
   const id = value.id ?? ''
@@ -34,10 +34,9 @@ function memoryWriter(session: unknown): { source: MemorySource; scope?: Identit
 
 const memoryText = (value: unknown) => (typeof value === 'string' ? value.trim() : '')
 
-// 请求体的形状就是页面要传的；谁在写、写到哪个范围在路由里定。
-// session：agent 在哪个 session 里记的，页面上的用户不带；scope 只有用户能指定，默认是个人
+// 请求体的形状就是页面要传的；谁在写、写到哪个范围在路由里定
 const newMemoryBody = validator('json', (value, c) => {
-  const body = (value ?? {}) as { session?: unknown; text?: unknown; kind?: unknown; scope?: unknown }
+  const body = (value ?? {}) as { [K in keyof NewMemory]?: unknown }
   const text = memoryText(body.text)
   if (
     !text ||
@@ -48,7 +47,7 @@ const newMemoryBody = validator('json', (value, c) => {
   ) {
     return c.text('Bad Request', 400)
   }
-  const memory: { session?: string; text: string; kind?: MemoryKind; scope?: string } = {
+  const memory: NewMemory = {
     text,
     ...(typeof body.session === 'string' && { session: body.session }),
     ...(isKind(body.kind) && { kind: body.kind }),
@@ -58,12 +57,12 @@ const newMemoryBody = validator('json', (value, c) => {
 })
 
 const memoryChangeBody = validator('json', (value, c) => {
-  const body = (value ?? {}) as { session?: unknown; text?: unknown; kind?: unknown }
+  const body = (value ?? {}) as { [K in keyof MemoryChange]?: unknown }
   const text = body.text === undefined ? undefined : memoryText(body.text)
   if (text === '' || (text && text.length > maxMemoryLength) || (body.session !== undefined && typeof body.session !== 'string') || (body.kind !== undefined && !isKind(body.kind))) {
     return c.text('Bad Request', 400)
   }
-  const change: { session?: string; text?: string; kind?: MemoryKind } = {
+  const change: MemoryChange = {
     ...(typeof body.session === 'string' && { session: body.session }),
     ...(text && { text }),
     ...(isKind(body.kind) && { kind: body.kind }),

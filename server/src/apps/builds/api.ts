@@ -7,7 +7,7 @@ import { buildRequest } from './client.js'
 import { installableBuild, installationOrigin, installToken, ipaInfo } from './install.js'
 import { resultsDir } from './config.js'
 import { parseRequest } from './protocol.js'
-import type { Snapshot } from './types.js'
+import type { BuildsSnapshot, InstallLink } from './types.js'
 const idValid = (id: string) => /^[a-f0-9-]{36}$/.test(id)
 export const buildsApi = new Hono()
   .use('*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next() })
@@ -29,7 +29,7 @@ export const buildsApi = new Hono()
     const ready = probe?.ok && (probe.headers.get('Content-Type') ?? '').includes('application/xml')
     await probe?.body?.cancel()
     if (!ready) throw new Error('安装入口尚未就绪：请确认此版本已上线，并且 downloads.binos.app 已连接 Tunnel 并配置独立的 Cloudflare Access Bypass 策略')
-    return c.json({ url: `itms-services://?action=download-manifest&url=${encodeURIComponent(url)}`, expiresIn: 86400 })
+    return c.json({ url: `itms-services://?action=download-manifest&url=${encodeURIComponent(url)}`, expiresIn: 86400 } satisfies InstallLink)
   })
   .get('/:id/log', async (c) => {
     const id = c.req.param('id')
@@ -48,7 +48,7 @@ export const buildsApi = new Hono()
   .get('/:id/artifacts/:name', async (c) => {
     const id = c.req.param('id'); const name = c.req.param('name')
     if (!idValid(id) || name.startsWith('.') || /[/\\]/.test(name)) return c.notFound()
-    const snapshot = await buildRequest<Snapshot>({ action: 'status' })
+    const snapshot = await buildRequest<BuildsSnapshot>({ action: 'status' })
     const b = snapshot.builds.find((b) => b.id === id && b.status === 'success')
     if (!b?.artifacts.some((a) => a.kind === 'install' && a.name === name)) return c.notFound()
     const file = path.join(resultsDir, id, 'outputs', name)

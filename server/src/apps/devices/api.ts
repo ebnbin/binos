@@ -3,7 +3,7 @@ import { notifyChange } from '../../events.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
 import { parseRequest } from './protocol.js'
-import type { LeaseResult, Snapshot } from './types.js'
+import type { DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
 
 let last: string | undefined
 export type DevicesSnapshot = Snapshot & { owners: Record<string, { session: number; title: string }> }
@@ -52,5 +52,5 @@ export const devicesApi = new Hono()
     notifyChange({ type: 'devices' })
     return c.json({ ok: true })
   })
-  .get('/:id/screenshot', async (c) => c.json(await adminDeviceRequest<{ image: string; mime: string; at: number }>({ action: 'screenshot', device: c.req.param('id') })))
+  .get('/:id/screenshot', async (c) => c.json(await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id') })))
 export type DevicesApi = typeof devicesApi

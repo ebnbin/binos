@@ -8,6 +8,7 @@ import { requireOwner } from './access.js'
 import { isTestInstance, previewsDir } from './paths.js'
 import { previewName, previewInfoPath } from './preview-info.js'
 import type { PreviewInfo } from './preview-info.js'
+import { isCrossSite } from './websocket-origin.js'
 
 function previewPort(name: string): number | undefined {
   try {
@@ -25,8 +26,8 @@ const forward: MiddlewareHandler = async (c, next) => {
   }
   const { pathname, search } = new URL(c.req.url)
   if (c.req.header('upgrade')?.toLowerCase() === 'websocket') {
+    if (isCrossSite(c)) return c.text('Forbidden', 403)
     const origin = c.req.header('origin')
-    if (!origin || new URL(origin).host !== c.req.header('host')) return c.text('Forbidden', 403)
     return upgradeWebSocket(() => {
       let upstream: WebSocket | undefined
       const pending: string[] = []
@@ -34,7 +35,7 @@ const forward: MiddlewareHandler = async (c, next) => {
       return {
         onOpen(_event, downstream) {
           upstream = new WebSocket(`ws://127.0.0.1:${port}${pathname}${search}`, {
-            headers: { origin, host: c.req.header('host')! },
+            headers: { ...(origin && { origin }), host: c.req.header('host')! },
             maxPayload: 128 * 1024,
             handshakeTimeout: 5000,
           })

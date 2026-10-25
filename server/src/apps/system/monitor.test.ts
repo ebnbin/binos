@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
-import type { Snapshot } from './types.js'
+import type { SystemSnapshot } from './types.js'
 import { snapshot } from '../../../test-fixtures/system.js'
-const { collect } = vi.hoisted(() => ({ collect: vi.fn<() => Promise<Snapshot>>() }))
+const { collect } = vi.hoisted(() => ({ collect: vi.fn<() => Promise<SystemSnapshot>>() }))
 vi.mock('./collect.js', () => ({
   Collector: class {
     collect = collect

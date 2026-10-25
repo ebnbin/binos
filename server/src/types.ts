@@ -1,5 +1,8 @@
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 
+// version 是正在运行的提交，开发时是 dev；protocol 是协议标识（见 protocol-id.ts）
+export type Health = { version: string; protocol: string }
+
 // 外部 app：独立部署的 web app，在窗口里打开。icon 是页面图标库里的名字，页面不认识时用默认图标
 export type ExternalApp = { id: string; name: string; icon: string; url: string }
 

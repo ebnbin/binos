@@ -1,6 +1,6 @@
 import { targets } from './types.js'
-import type { Request, Target } from './types.js'
-export function parseRequest(value: unknown): Request {
+import type { BuildRequest, Target } from './types.js'
+export function parseRequest(value: unknown): BuildRequest {
   if (!value || typeof value !== 'object') throw new Error('请求无效')
   const b = value as Record<string, unknown>
   if (b.action === 'status' || b.action === 'poll' || b.action === 'stop' || b.action === 'handoff') return { action: b.action }

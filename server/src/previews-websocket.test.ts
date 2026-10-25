@@ -57,12 +57,25 @@ it('预览 WebSocket 经过身份校验并双向转发，保留公开域名和 O
   await once(ws, 'close')
 })
 
+it('不带 Origin 的原生客户端经过身份校验后转发，转发时也不带 Origin', async () => {
+  const ws = new WebSocket(`ws://127.0.0.1:${frontPort}/socket`, { headers: { host: 'pr-1.binos.app', 'x-test-owner': '1' } })
+  await once(ws, 'open')
+  const reply = once(ws, 'message')
+  ws.send('input')
+  const [data] = await reply
+  expect(data.toString()).toBe('undefined|pr-1.binos.app|input')
+  ws.close()
+  await once(ws, 'close')
+})
+
 it('在升级连接前拒绝未登录或跨站请求', async () => {
   for (const [owner, origin, status] of [
     ['0', 'https://pr-1.binos.app', 401],
+    ['0', undefined, 401],
     ['1', 'https://other.example', 403],
+    ['1', 'null', 403],
   ] as const) {
-    const ws = new WebSocket(`ws://127.0.0.1:${frontPort}/socket`, { headers: { host: 'pr-1.binos.app', origin, 'x-test-owner': owner } })
+    const ws = new WebSocket(`ws://127.0.0.1:${frontPort}/socket`, { headers: { host: 'pr-1.binos.app', ...(origin && { origin }), 'x-test-owner': owner } })
     const response = await new Promise<number>((resolve, reject) => {
       ws.on('unexpected-response', (_request, reply) => {
         reply.resume()

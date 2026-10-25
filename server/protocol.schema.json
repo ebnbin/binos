@@ -1,0 +1,7198 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/Protocol",
+  "definitions": {
+    "Protocol": {
+      "type": "object",
+      "properties": {
+        "http": {
+          "$ref": "#/definitions/Http"
+        },
+        "errors": {
+          "$ref": "#/definitions/Errors"
+        },
+        "sse": {
+          "$ref": "#/definitions/Sse"
+        },
+        "websocket": {
+          "$ref": "#/definitions/WebSockets"
+        }
+      },
+      "required": [
+        "http",
+        "errors",
+        "sse",
+        "websocket"
+      ],
+      "additionalProperties": false
+    },
+    "Http": {
+      "type": "object",
+      "properties": {
+        "GET /api/health": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/Health"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/AppRegistry"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "PUT /api/apps": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/AppRegistry"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/status": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/AgentStatus"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/accounts": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "accounts": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/AgentAccount"
+                  }
+                }
+              },
+              "required": [
+                "accounts"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/agents": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "agents": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/AgentCatalog"
+                  }
+                }
+              },
+              "required": [
+                "agents"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/sessions/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "metadata": {
+                  "$ref": "#/definitions/SessionMetadata"
+                },
+                "summary": {
+                  "$ref": "#/definitions/KitaSessionSummary"
+                },
+                "turns": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Turn"
+                  }
+                },
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Item"
+                  }
+                }
+              },
+              "required": [
+                "metadata",
+                "summary",
+                "turns",
+                "items"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/sessions/:id/events": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "events": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/PageEvent"
+                  }
+                }
+              },
+              "required": [
+                "events"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/sessions/:id/calls/:index": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/CallDetail"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/sessions/:id/files/:file": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/FileInfo"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/activity": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "activity": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Activity"
+                  }
+                }
+              },
+              "required": [
+                "activity"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/profile": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "profile": {
+                  "$ref": "#/definitions/Profile"
+                }
+              },
+              "required": [
+                "profile"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/profile/description": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "description"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/profile/photos": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "file": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "file"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/profile/photos/:file": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/FileInfo"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/profile/photos/:file/delete": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/profile/photos/:file/avatar": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/memories": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "memories": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Memory"
+                  }
+                }
+              },
+              "required": [
+                "memories"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/memories": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/NewMemory"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "memory": {
+                  "$ref": "#/definitions/Memory"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/memories/:id": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/MemoryChange"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "memory": {
+                  "$ref": "#/definitions/Memory"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/memories/:id/delete": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "session": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/memories/:id/revert": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "session": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "memory": {
+                  "$ref": "#/definitions/Memory"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/claude/login": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "$ref": "#/definitions/ClaudeLoginKind"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/ClaudeLoginStart"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/claude/login/:id": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/claude/login/:id/cancel": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/codex/login": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/CodexLoginStart"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/kita/codex/login/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/CodexLoginStatus"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/kita/codex/login/:id/cancel": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/builds": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/BuildsSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/builds": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "status",
+                        "poll"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "action"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "const": "enqueue"
+                    },
+                    "ref": {
+                      "type": "string"
+                    },
+                    "targets": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/Target"
+                      }
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "ref",
+                    "targets"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "cancel",
+                        "retry"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "id"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "const": "settings"
+                    },
+                    "automatic": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "action",
+                    "automatic"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/BuildsSnapshot"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/builds/:id/install": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/InstallLink"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/projects": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "projects": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Project"
+                  }
+                }
+              },
+              "required": [
+                "projects"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/projects": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/RepositoryBody"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "project": {
+                      "$ref": "#/definitions/Project"
+                    }
+                  },
+                  "required": [
+                    "project"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/projects/:project/repository": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/RepositoryBody"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "project": {
+                      "$ref": "#/definitions/Project"
+                    }
+                  },
+                  "required": [
+                    "project"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/search": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/SearchResults"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/sessions": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/SessionSummary"
+                  }
+                }
+              },
+              "required": [
+                "sessions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/usage": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "usage": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/CodeUsage"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "usage"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/uploads": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "file"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/MessageBody"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SessionRef"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/messages": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/MessageBody"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SessionRef"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/queue/:item/withdraw": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "gone"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/queue/:item/send": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SessionRef"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "answering"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/edit": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/SessionEdit"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/read": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/code/sessions/:id/stop": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/devices": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/DevicesSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/devices/discover": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/DevicesSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/devices/leases": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "reason": {
+                  "type": "string"
+                },
+                "platforms": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Platform"
+                  }
+                },
+                "requestId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "reason",
+                "platforms"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "$ref": "#/definitions/LeaseResult"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/devices/leases/:id/release": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/devices/queue/cancel": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "requestId"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/devices/:id/control": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "operation": {
+                  "type": "string",
+                  "const": "destroy"
+                }
+              },
+              "required": [
+                "operation"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/devices/:id/screenshot": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/DeviceScreenshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/files": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/Directory"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/files/download": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/FileInfo"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/operation": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/FileOperation"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/upload": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/kita/conversations": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "conversations": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Conversation"
+                  }
+                }
+              },
+              "required": [
+                "conversations"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/kita/conversations": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/ConversationMessage"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/kita/conversations/:id/messages": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "unavailable"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/kita/conversations/:id/stop": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/kita/conversations/:id/delete": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "const": "answering"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/players": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "players": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/PlayerSnapshot"
+                  }
+                }
+              },
+              "required": [
+                "players"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/players/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/PlayerSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/music/players/:id/report": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/PlayerReport"
+            },
+            "response": {
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                }
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/music/players/:id/commands": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/PlayerCommandRequest"
+            },
+            "response": {
+              "$ref": "#/definitions/CommandResult"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/commands/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/CommandResult"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/queue": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/QueueSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/music/queue": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/QueueMutation"
+            },
+            "response": {
+              "$ref": "#/definitions/QueueSnapshot"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/providers": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "providers": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/ProviderInfo"
+                  }
+                }
+              },
+              "required": [
+                "providers"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "PUT /api/apps/music/providers/:provider/settings": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "response": {
+              "$ref": "#/definitions/ProviderInfo"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/providers/:provider/:operation": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/CatalogPage"
+                },
+                {
+                  "$ref": "#/definitions/Lyrics"
+                },
+                {
+                  "$ref": "#/definitions/PlaybackSource"
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/system/status": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/MonitorStatus"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/system/refresh": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/MonitorStatus"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/terminal": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "object",
+              "properties": {
+                "available": {
+                  "type": "boolean"
+                },
+                "sessions": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/TerminalSession"
+                  }
+                }
+              },
+              "required": [
+                "available",
+                "sessions"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/terminal/sessions": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/TerminalSession"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "DELETE /api/apps/terminal/sessions/:id": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/terminal/connections/:token": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/TerminalClientMessage"
+            },
+            "response": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "GET /api/health",
+        "GET /api/apps",
+        "PUT /api/apps",
+        "GET /api/kita/status",
+        "GET /api/kita/accounts",
+        "GET /api/kita/agents",
+        "GET /api/kita/sessions/:id",
+        "GET /api/kita/sessions/:id/events",
+        "GET /api/kita/sessions/:id/calls/:index",
+        "GET /api/kita/sessions/:id/files/:file",
+        "GET /api/kita/activity",
+        "GET /api/kita/profile",
+        "POST /api/kita/profile/description",
+        "POST /api/kita/profile/photos",
+        "GET /api/kita/profile/photos/:file",
+        "POST /api/kita/profile/photos/:file/delete",
+        "POST /api/kita/profile/photos/:file/avatar",
+        "GET /api/kita/memories",
+        "POST /api/kita/memories",
+        "POST /api/kita/memories/:id",
+        "POST /api/kita/memories/:id/delete",
+        "POST /api/kita/memories/:id/revert",
+        "POST /api/kita/claude/login",
+        "POST /api/kita/claude/login/:id",
+        "POST /api/kita/claude/login/:id/cancel",
+        "POST /api/kita/codex/login",
+        "GET /api/kita/codex/login/:id",
+        "POST /api/kita/codex/login/:id/cancel",
+        "GET /api/apps/builds",
+        "POST /api/apps/builds",
+        "POST /api/apps/builds/:id/install",
+        "GET /api/apps/code/projects",
+        "POST /api/apps/code/projects",
+        "POST /api/apps/code/projects/:project/repository",
+        "GET /api/apps/code/search",
+        "GET /api/apps/code/sessions",
+        "GET /api/apps/code/usage",
+        "POST /api/apps/code/uploads",
+        "POST /api/apps/code/sessions",
+        "POST /api/apps/code/sessions/:id/messages",
+        "POST /api/apps/code/sessions/:id/queue/:item/withdraw",
+        "POST /api/apps/code/sessions/:id/queue/:item/send",
+        "POST /api/apps/code/sessions/:id/edit",
+        "POST /api/apps/code/sessions/:id/read",
+        "POST /api/apps/code/sessions/:id/stop",
+        "GET /api/apps/devices",
+        "POST /api/apps/devices/discover",
+        "POST /api/apps/devices/leases",
+        "POST /api/apps/devices/leases/:id/release",
+        "POST /api/apps/devices/queue/cancel",
+        "POST /api/apps/devices/:id/control",
+        "GET /api/apps/devices/:id/screenshot",
+        "GET /api/apps/files",
+        "GET /api/apps/files/download",
+        "POST /api/apps/files/operation",
+        "POST /api/apps/files/upload",
+        "GET /api/apps/kita/conversations",
+        "POST /api/apps/kita/conversations",
+        "POST /api/apps/kita/conversations/:id/messages",
+        "POST /api/apps/kita/conversations/:id/stop",
+        "POST /api/apps/kita/conversations/:id/delete",
+        "GET /api/apps/music",
+        "GET /api/apps/music/players",
+        "GET /api/apps/music/players/:id",
+        "POST /api/apps/music/players/:id/report",
+        "POST /api/apps/music/players/:id/commands",
+        "GET /api/apps/music/commands/:id",
+        "GET /api/apps/music/queue",
+        "POST /api/apps/music/queue",
+        "GET /api/apps/music/providers",
+        "PUT /api/apps/music/providers/:provider/settings",
+        "GET /api/apps/music/providers/:provider/:operation",
+        "GET /api/apps/system/status",
+        "POST /api/apps/system/refresh",
+        "GET /api/apps/terminal",
+        "POST /api/apps/terminal/sessions",
+        "DELETE /api/apps/terminal/sessions/:id",
+        "POST /api/apps/terminal/connections/:token"
+      ],
+      "additionalProperties": false
+    },
+    "Health": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "protocol"
+      ],
+      "additionalProperties": false
+    },
+    "AppRegistry": {
+      "type": "object",
+      "properties": {
+        "external": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExternalApp"
+          }
+        }
+      },
+      "required": [
+        "external"
+      ],
+      "additionalProperties": false
+    },
+    "ExternalApp": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "icon",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "AgentStatus": {
+      "type": "object",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "properties": {
+            "claude": {
+              "$ref": "#/definitions/Limits"
+            },
+            "codex": {
+              "$ref": "#/definitions/Limits"
+            }
+          },
+          "additionalProperties": false
+        },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "claude": {
+              "$ref": "#/definitions/ClaudeAuth"
+            },
+            "codex": {
+              "$ref": "#/definitions/CodexAuth"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "limits",
+        "auth"
+      ],
+      "additionalProperties": false
+    },
+    "Limits": {
+      "type": "object",
+      "properties": {
+        "limited": {
+          "type": "boolean"
+        },
+        "windows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/QuotaWindow"
+          }
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "limited",
+        "windows",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "QuotaWindow": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "minutes": {
+          "type": "number"
+        },
+        "label": {
+          "type": "string"
+        },
+        "utilization": {
+          "type": "number"
+        },
+        "resetsAt": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "minutes",
+        "utilization",
+        "resetsAt"
+      ],
+      "additionalProperties": false
+    },
+    "ClaudeAuth": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "login",
+            "token",
+            "none"
+          ]
+        },
+        "login": {
+          "type": "object",
+          "properties": {
+            "expiresAt": {
+              "type": "string"
+            },
+            "broken": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        "backup": {
+          "type": "object",
+          "properties": {
+            "expiresAt": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "CodexAuth": {
+      "type": "object",
+      "properties": {
+        "loggedIn": {
+          "type": "boolean"
+        },
+        "broken": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "loggedIn"
+      ],
+      "additionalProperties": false
+    },
+    "AgentAccount": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "version": {
+          "type": "string"
+        },
+        "loggedIn": {
+          "type": "boolean"
+        },
+        "email": {
+          "type": "string"
+        },
+        "plan": {
+          "type": "string"
+        },
+        "token": {
+          "type": "object",
+          "properties": {
+            "expiresAt": {
+              "type": "string"
+            },
+            "refreshedAt": {
+              "type": "string"
+            },
+            "refreshable": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "refreshable"
+          ],
+          "additionalProperties": false
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AccountDetail"
+          }
+        },
+        "configDir": {
+          "type": "string"
+        },
+        "running": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "agent",
+        "loggedIn",
+        "details",
+        "configDir",
+        "running"
+      ],
+      "additionalProperties": false
+    },
+    "AgentId": {
+      "type": "string",
+      "enum": [
+        "claude",
+        "codex"
+      ]
+    },
+    "AccountDetail": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "AgentCatalog": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AgentModel"
+          }
+        },
+        "efforts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "agent",
+        "available",
+        "models",
+        "efforts"
+      ],
+      "additionalProperties": false
+    },
+    "AgentModel": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "efforts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "isDefault": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "efforts"
+      ],
+      "additionalProperties": false
+    },
+    "SessionMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "type": "number",
+          "const": 1
+        },
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "const": "session"
+        },
+        "time": {
+          "type": "string"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "instructions": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "#/definitions/IdentityScope"
+        }
+      },
+      "required": [
+        "agent",
+        "cwd",
+        "format",
+        "id",
+        "owner",
+        "time",
+        "type"
+      ]
+    },
+    "IdentityScope": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "write": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "read",
+        "write"
+      ],
+      "additionalProperties": false
+    },
+    "KitaSessionSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/KitaSessionState"
+        },
+        "turns": {
+          "type": "number"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "error"
+          ]
+        },
+        "context": {
+          "$ref": "#/definitions/Context"
+        },
+        "repliedAt": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "effort": {
+          "type": "string"
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Tokens"
+          }
+        },
+        "costs": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "items": [
+              {
+                "type": "string",
+                "title": "time"
+              },
+              {
+                "type": "number",
+                "title": "cost"
+              }
+            ],
+            "maxItems": 2
+          }
+        }
+      },
+      "required": [
+        "id",
+        "agent",
+        "createdAt",
+        "updatedAt",
+        "state",
+        "turns",
+        "usage",
+        "costs"
+      ],
+      "additionalProperties": false
+    },
+    "KitaSessionState": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "running",
+        "waiting"
+      ]
+    },
+    "Context": {
+      "type": "object",
+      "properties": {
+        "tokens": {
+          "type": "number"
+        },
+        "window": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "tokens",
+        "window"
+      ],
+      "additionalProperties": false
+    },
+    "Tokens": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "number"
+        },
+        "output": {
+          "type": "number"
+        },
+        "cacheRead": {
+          "type": "number"
+        },
+        "cacheWrite": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "input",
+        "output",
+        "cacheRead",
+        "cacheWrite"
+      ],
+      "additionalProperties": false
+    },
+    "Turn": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "finishedAt": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "error"
+          ]
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "startedAt"
+      ],
+      "additionalProperties": false
+    },
+    "Item": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "turnId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "input",
+            "text",
+            "thinking",
+            "tool",
+            "compact"
+          ]
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Entry"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "turnId",
+        "kind",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "Entry": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "session"
+            },
+            "time": {
+              "type": "string"
+            },
+            "agent": {
+              "$ref": "#/definitions/AgentId"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "cwd": {
+              "type": "string"
+            },
+            "instructions": {
+              "type": "string"
+            },
+            "identity": {
+              "$ref": "#/definitions/IdentityScope"
+            }
+          },
+          "required": [
+            "type",
+            "time",
+            "agent",
+            "owner",
+            "cwd"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "input"
+            },
+            "time": {
+              "type": "string"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "start",
+                "steer",
+                "interrupt"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "attachments": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Attachment"
+              }
+            },
+            "model": {
+              "type": "string"
+            },
+            "effort": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "time",
+            "mode",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "agent_session"
+            },
+            "time": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "time",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "thinking"
+            },
+            "time": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "durationMs": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "text",
+            "time",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "time": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "text",
+            "time",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "clipped": {
+              "type": "boolean",
+              "const": true
+            },
+            "type": {
+              "type": "string",
+              "const": "tool_call"
+            },
+            "time": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "tool": {
+              "$ref": "#/definitions/ToolDetail"
+            },
+            "input": {},
+            "background": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "time",
+            "tool",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "clipped": {
+              "type": "boolean",
+              "const": true
+            },
+            "type": {
+              "type": "string",
+              "const": "tool_result"
+            },
+            "time": {
+              "type": "string"
+            },
+            "callId": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "done",
+                "error"
+              ]
+            },
+            "output": {
+              "type": "string"
+            },
+            "truncated": {
+              "type": "boolean",
+              "const": true
+            },
+            "images": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "callId",
+            "status",
+            "time",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": "number"
+            },
+            "parent": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string",
+              "const": "compact"
+            },
+            "time": {
+              "type": "string"
+            },
+            "trigger": {
+              "type": "string"
+            },
+            "preTokens": {
+              "type": "number"
+            },
+            "postTokens": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "time",
+            "trigger",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "turn_end"
+            },
+            "time": {
+              "type": "string"
+            },
+            "durationMs": {
+              "type": "number"
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "stopped",
+                "error"
+              ]
+            },
+            "error": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "outputTokens": {
+              "type": "number"
+            },
+            "context": {
+              "$ref": "#/definitions/Context"
+            },
+            "usage": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Tokens"
+              }
+            },
+            "offset": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "time",
+            "durationMs"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Attachment": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ToolDetail": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "command"
+            },
+            "command": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "command"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "read"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "edit"
+            },
+            "path": {
+              "type": "string"
+            },
+            "change": {
+              "$ref": "#/definitions/FileChange"
+            }
+          },
+          "required": [
+            "kind",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "search"
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "content",
+                "files"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "pattern",
+            "target"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "web_search"
+            },
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "query"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "web_fetch"
+            },
+            "url": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "image_view"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "path"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "browser"
+            },
+            "action": {
+              "type": "string"
+            },
+            "target": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "mcp"
+            },
+            "server": {
+              "type": "string"
+            },
+            "tool": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "server",
+            "tool"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "subagent"
+            },
+            "description": {
+              "type": "string"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "description"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "tool_search"
+            },
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "query"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "skill"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "todo"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "other"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "FileChange": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "write"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "content"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "replace"
+            },
+            "before": {
+              "type": "string"
+            },
+            "after": {
+              "type": "string"
+            },
+            "all": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "type",
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "diff"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "add",
+                "update",
+                "delete"
+              ]
+            },
+            "diff": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "op",
+            "diff"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PageEvent": {
+      "type": "object",
+      "properties": {
+        "seq": {
+          "type": "number"
+        },
+        "data": {
+          "$ref": "#/definitions/Entry"
+        }
+      },
+      "required": [
+        "seq",
+        "data"
+      ],
+      "additionalProperties": false
+    },
+    "CallDetail": {
+      "type": "object",
+      "properties": {
+        "call": {
+          "$ref": "#/definitions/Entry"
+        },
+        "result": {
+          "$ref": "#/definitions/Entry"
+        }
+      },
+      "required": [
+        "call"
+      ],
+      "additionalProperties": false
+    },
+    "FileInfo": {
+      "type": "object",
+      "properties": {
+        "size": {
+          "type": "number"
+        },
+        "modified": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "size",
+        "modified",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "Activity": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "running",
+            "waiting"
+          ]
+        },
+        "since": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "owner",
+        "state",
+        "since"
+      ],
+      "additionalProperties": false
+    },
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "photos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Photo"
+          }
+        },
+        "avatar": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "photos"
+      ],
+      "additionalProperties": false
+    },
+    "Photo": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "addedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "addedAt"
+      ],
+      "additionalProperties": false
+    },
+    "Memory": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/MemoryKind"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/definitions/MemorySource"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "kind": {
+                "$ref": "#/definitions/MemoryKind"
+              },
+              "time": {
+                "type": "string"
+              },
+              "source": {
+                "$ref": "#/definitions/MemorySource"
+              }
+            },
+            "required": [
+              "text",
+              "kind",
+              "time",
+              "source"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "kind",
+        "scope",
+        "source",
+        "createdAt",
+        "updatedAt",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "MemoryKind": {
+      "type": "string",
+      "enum": [
+        "stated",
+        "inferred"
+      ]
+    },
+    "MemorySource": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "user"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "session"
+            },
+            "owner": {
+              "type": "string"
+            },
+            "session": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "owner",
+            "session"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "NewMemory": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/MemoryKind"
+        },
+        "scope": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "MemoryChange": {
+      "type": "object",
+      "properties": {
+        "session": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/MemoryKind"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ClaudeLoginKind": {
+      "type": "string",
+      "enum": [
+        "login",
+        "token"
+      ]
+    },
+    "ClaudeLoginStart": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "url"
+      ],
+      "additionalProperties": false
+    },
+    "CodexLoginStart": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "CodexLoginStatus": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "waiting",
+                "done"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "const": "failed"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "status",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BuildsSnapshot": {
+      "type": "object",
+      "properties": {
+        "builds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Build"
+          }
+        },
+        "settings": {
+          "$ref": "#/definitions/Settings"
+        },
+        "pollError": {
+          "type": "string"
+        },
+        "checkedAt": {
+          "type": "string"
+        },
+        "prs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "number": {
+                "type": "number"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "number",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "real",
+            "mock"
+          ]
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "builds",
+        "settings",
+        "mode",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "Build": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "target": {
+          "$ref": "#/definitions/Target"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "main",
+            "pr",
+            "manual"
+          ]
+        },
+        "pr": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "queued",
+            "running",
+            "success",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string"
+        },
+        "endedAt": {
+          "type": "string"
+        },
+        "error": {
+          "type": "string"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Artifact"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "commit",
+        "target",
+        "trigger",
+        "status",
+        "createdAt",
+        "artifacts"
+      ],
+      "additionalProperties": false
+    },
+    "Target": {
+      "type": "string",
+      "enum": [
+        "web",
+        "android",
+        "ios"
+      ]
+    },
+    "Artifact": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "size": {
+              "type": "number"
+            },
+            "sha256": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "install"
+            },
+            "platform": {
+              "type": "string",
+              "enum": [
+                "android",
+                "ios"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "platform",
+            "sha256",
+            "size"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "url": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "const": "link"
+            },
+            "platform": {
+              "type": "string",
+              "const": "web"
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "platform",
+            "url"
+          ]
+        }
+      ]
+    },
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "automatic": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "automatic"
+      ],
+      "additionalProperties": false
+    },
+    "InstallLink": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "expiresIn": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "url",
+        "expiresIn"
+      ],
+      "additionalProperties": false
+    },
+    "Project": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "defaultBranch": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "RepositoryBody": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "repository": {
+          "type": "string"
+        },
+        "create": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "repository"
+      ],
+      "additionalProperties": false
+    },
+    "SearchResults": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SearchResult"
+          }
+        },
+        "total": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "results",
+        "total"
+      ],
+      "additionalProperties": false
+    },
+    "SearchResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "item": {
+          "type": "number"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "title",
+            "input",
+            "text"
+          ]
+        },
+        "before": {
+          "type": "string"
+        },
+        "match": {
+          "type": "string"
+        },
+        "after": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "archived",
+        "kind",
+        "before",
+        "match",
+        "after"
+      ],
+      "additionalProperties": false
+    },
+    "SessionSummary": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "id": {
+          "type": "number"
+        },
+        "kitaSession": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "running": {
+          "type": "boolean"
+        },
+        "waiting": {
+          "type": "boolean"
+        },
+        "unread": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "error"
+          ]
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "context": {
+          "$ref": "#/definitions/Context"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "model": {
+          "type": "string"
+        },
+        "effort": {
+          "type": "string"
+        },
+        "turns": {
+          "type": "number"
+        },
+        "tokens": {
+          "$ref": "#/definitions/Tokens"
+        },
+        "priced": {
+          "type": "boolean"
+        },
+        "quota": {
+          "type": "number"
+        },
+        "prs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PullRequest"
+          }
+        },
+        "queue": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/QueuedMessage"
+          }
+        }
+      },
+      "required": [
+        "project",
+        "id",
+        "kitaSession",
+        "title",
+        "updatedAt",
+        "running",
+        "waiting",
+        "unread",
+        "pinned",
+        "archived",
+        "agent",
+        "turns",
+        "priced",
+        "prs",
+        "queue"
+      ],
+      "additionalProperties": false
+    },
+    "PullRequest": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "number": {
+          "type": "number"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "open",
+            "merged",
+            "closed"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "preview": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "number"
+      ],
+      "additionalProperties": false
+    },
+    "QueuedMessage": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "time": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Upload"
+          }
+        },
+        "model": {
+          "type": "string"
+        },
+        "effort": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "time",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "Upload": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "CodeUsage": {
+      "type": "object",
+      "properties": {
+        "resetsAt": {
+          "type": "number"
+        },
+        "week": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "resetsAt"
+      ],
+      "additionalProperties": false
+    },
+    "MessageBody": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Upload"
+          }
+        },
+        "interrupt": {
+          "type": "boolean"
+        },
+        "queue": {
+          "type": "boolean"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "model": {
+          "type": "string"
+        },
+        "effort": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "SessionRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "number"
+        },
+        "kitaSession": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kitaSession"
+      ],
+      "additionalProperties": false
+    },
+    "SessionEdit": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "pinned": {
+          "type": "boolean"
+        },
+        "archived": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DevicesSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owners": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "session": {
+                "type": "number"
+              },
+              "title": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "session",
+              "title"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "capacity": {
+          "type": "number"
+        },
+        "build": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "mock",
+            "real"
+          ]
+        },
+        "pid": {
+          "type": "number"
+        },
+        "startedAt": {
+          "type": "number"
+        },
+        "observed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ObservedDevice"
+          }
+        },
+        "discoveryErrors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "type": "number",
+          "const": 2
+        },
+        "bootTime": {
+          "type": "number"
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Device"
+          }
+        },
+        "leases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Lease"
+          }
+        },
+        "queue": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Waiting"
+          }
+        },
+        "ended": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "owner": {
+                "type": "string"
+              },
+              "at": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "owner",
+              "at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DeviceEvent"
+          }
+        }
+      },
+      "required": [
+        "build",
+        "capacity",
+        "devices",
+        "discoveryErrors",
+        "ended",
+        "events",
+        "leases",
+        "mode",
+        "observed",
+        "owners",
+        "pid",
+        "queue",
+        "startedAt",
+        "version"
+      ]
+    },
+    "ObservedDevice": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "$ref": "#/definitions/Platform"
+        },
+        "name": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "platform",
+        "name",
+        "target",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "Platform": {
+      "type": "string",
+      "enum": [
+        "android",
+        "ios"
+      ]
+    },
+    "Device": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "platform": {
+          "$ref": "#/definitions/Platform"
+        },
+        "name": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "system": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/DeviceStatus"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "idleSince": {
+          "type": "number"
+        },
+        "error": {
+          "type": "string"
+        },
+        "checkedAt": {
+          "type": "number"
+        },
+        "attempts": {
+          "type": "number"
+        },
+        "retryAt": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "platform",
+        "name",
+        "target",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceStatus": {
+      "type": "string",
+      "enum": [
+        "creating",
+        "checking",
+        "free",
+        "reserved",
+        "leased",
+        "cleaning",
+        "destroying",
+        "broken"
+      ]
+    },
+    "Lease": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "claimed": {
+          "type": "boolean",
+          "const": true
+        },
+        "id": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Platform"
+          }
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "lastSeen": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "requestId",
+        "id",
+        "owner",
+        "reason",
+        "platforms",
+        "devices",
+        "createdAt",
+        "lastSeen"
+      ],
+      "additionalProperties": false
+    },
+    "Waiting": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Platform"
+          }
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "waiting",
+            "preparing",
+            "failed"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "lastSeen": {
+          "type": "number"
+        },
+        "preparingAt": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "owner",
+        "reason",
+        "platforms",
+        "devices",
+        "phase",
+        "createdAt",
+        "lastSeen"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceEvent": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number"
+        },
+        "text": {
+          "type": "string"
+        },
+        "device": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "time",
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "LeaseResult": {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "lease": {
+          "$ref": "#/definitions/Lease"
+        },
+        "position": {
+          "type": "number"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "waiting",
+            "preparing",
+            "failed"
+          ]
+        },
+        "error": {
+          "type": "string"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceScreenshot": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "mime": {
+          "type": "string"
+        },
+        "at": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "image",
+        "mime",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "Directory": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "parent": {
+          "type": "string"
+        },
+        "home": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileEntry"
+          }
+        }
+      },
+      "required": [
+        "path",
+        "parent",
+        "home",
+        "entries"
+      ],
+      "additionalProperties": false
+    },
+    "FileEntry": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "directory": {
+          "type": "boolean"
+        },
+        "symlink": {
+          "type": "boolean"
+        },
+        "size": {
+          "type": "number"
+        },
+        "modified": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "directory",
+        "symlink",
+        "size",
+        "modified"
+      ],
+      "additionalProperties": false
+    },
+    "FileOperation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "mkdir",
+                "rename"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "path",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "copy",
+                "move"
+              ]
+            },
+            "path": {
+              "type": "string"
+            },
+            "destination": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "path",
+            "destination"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "const": "trash"
+            },
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "path"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Conversation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "temporary": {
+          "type": "boolean"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        },
+        "state": {
+          "$ref": "#/definitions/KitaSessionState"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "stopped",
+            "error"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "temporary",
+        "agent",
+        "state",
+        "createdAt",
+        "updatedAt"
+      ],
+      "additionalProperties": false
+    },
+    "ConversationMessage": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "temporary": {
+          "type": "boolean"
+        },
+        "agent": {
+          "$ref": "#/definitions/AgentId"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerSnapshot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "number"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PlayerState"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "updatedAt",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerState": {
+      "type": "object",
+      "properties": {
+        "track": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TrackRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/PlaybackStatus"
+        },
+        "positionMs": {
+          "type": "number"
+        },
+        "durationMs": {
+          "type": "number"
+        },
+        "volume": {
+          "type": "number"
+        },
+        "repeat": {
+          "type": "string",
+          "enum": [
+            "off",
+            "all",
+            "one"
+          ]
+        },
+        "controls": {
+          "type": "object",
+          "properties": {
+            "seek": {
+              "type": "boolean"
+            },
+            "volume": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "seek",
+            "volume"
+          ],
+          "additionalProperties": false
+        },
+        "error": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "track",
+        "status",
+        "positionMs",
+        "durationMs",
+        "volume",
+        "repeat",
+        "controls"
+      ],
+      "additionalProperties": false
+    },
+    "TrackRef": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "id"
+      ],
+      "additionalProperties": false
+    },
+    "PlaybackStatus": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "loading",
+        "playing",
+        "paused",
+        "ended",
+        "error"
+      ]
+    },
+    "PlayerReport": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "$ref": "#/definitions/PlayerState"
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerCommandRequest": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "command": {
+          "$ref": "#/definitions/PlayerCommand"
+        }
+      },
+      "required": [
+        "id",
+        "command"
+      ],
+      "additionalProperties": false
+    },
+    "PlayerCommand": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "play"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "pause"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "stop"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "next"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "previous"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ref": {
+              "$ref": "#/definitions/TrackRef"
+            },
+            "type": {
+              "type": "string",
+              "const": "select"
+            }
+          },
+          "required": [
+            "ref",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "positionMs": {
+              "type": "number"
+            },
+            "type": {
+              "type": "string",
+              "const": "seek"
+            }
+          },
+          "required": [
+            "positionMs",
+            "type"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "volume": {
+              "type": "number"
+            },
+            "type": {
+              "type": "string",
+              "const": "volume"
+            }
+          },
+          "required": [
+            "type",
+            "volume"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "repeat": {
+              "type": "string",
+              "enum": [
+                "off",
+                "all",
+                "one"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "repeat"
+            }
+          },
+          "required": [
+            "repeat",
+            "type"
+          ]
+        }
+      ]
+    },
+    "CommandResult": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "playerId": {
+          "type": "string"
+        },
+        "command": {
+          "$ref": "#/definitions/PlayerCommand"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "expiresAt": {
+          "type": "number"
+        },
+        "state": {
+          "$ref": "#/definitions/PlayerState"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "disconnected",
+                "timeout",
+                "execution"
+              ]
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "playerId",
+        "command",
+        "status",
+        "createdAt",
+        "expiresAt"
+      ],
+      "additionalProperties": false
+    },
+    "QueueSnapshot": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "number"
+        },
+        "tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Track"
+          }
+        }
+      },
+      "required": [
+        "revision",
+        "tracks"
+      ],
+      "additionalProperties": false
+    },
+    "Track": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "$ref": "#/definitions/TrackRef"
+        },
+        "title": {
+          "type": "string"
+        },
+        "artists": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "album": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false
+        },
+        "artworkUrl": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "number"
+        },
+        "externalUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "title",
+        "artists",
+        "externalUrl"
+      ],
+      "additionalProperties": false
+    },
+    "QueueMutation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "operation": {
+          "$ref": "#/definitions/QueueOperation"
+        }
+      },
+      "required": [
+        "id",
+        "operation"
+      ],
+      "additionalProperties": false
+    },
+    "QueueOperation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "add",
+                "initialize"
+              ]
+            },
+            "tracks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Track"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "tracks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "remove"
+            },
+            "ref": {
+              "$ref": "#/definitions/TrackRef"
+            }
+          },
+          "required": [
+            "type",
+            "ref"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "clear"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ProviderInfo": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "input": {
+          "type": "object",
+          "properties": {
+            "references": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "pattern": {
+                    "type": "string"
+                  },
+                  "capability": {
+                    "type": "string",
+                    "enum": [
+                      "resolve",
+                      "playlist"
+                    ]
+                  }
+                },
+                "required": [
+                  "pattern",
+                  "capability"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "references"
+          ],
+          "additionalProperties": false
+        },
+        "capabilities": {
+          "$ref": "#/definitions/ProviderCapabilities"
+        },
+        "configuration": {
+          "type": "object",
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "secret": {
+                    "type": "boolean"
+                  },
+                  "configured": {
+                    "type": "boolean"
+                  },
+                  "links": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string"
+                        },
+                        "url": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "label",
+                        "url"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "label",
+                  "description",
+                  "secret",
+                  "configured"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "fields"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "input",
+        "capabilities",
+        "configuration"
+      ],
+      "additionalProperties": false
+    },
+    "ProviderCapabilities": {
+      "type": "object",
+      "properties": {
+        "search": {
+          "$ref": "#/definitions/Capability"
+        },
+        "resolve": {
+          "$ref": "#/definitions/Capability"
+        },
+        "playlist": {
+          "$ref": "#/definitions/Capability"
+        },
+        "recommendations": {
+          "$ref": "#/definitions/Capability"
+        },
+        "lyrics": {
+          "$ref": "#/definitions/Capability"
+        },
+        "playback": {
+          "$ref": "#/definitions/Capability"
+        }
+      },
+      "required": [
+        "search",
+        "resolve",
+        "playlist",
+        "recommendations",
+        "lyrics",
+        "playback"
+      ],
+      "additionalProperties": false
+    },
+    "Capability": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "available"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "unsupported"
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "state": {
+              "type": "string",
+              "const": "configuration-required"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "state",
+            "reason"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "CatalogPage": {
+      "type": "object",
+      "properties": {
+        "tracks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Track"
+          }
+        },
+        "nextPage": {
+          "type": "string"
+        },
+        "warning": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tracks"
+      ],
+      "additionalProperties": false
+    },
+    "Lyrics": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "attribution": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "PlaybackSource": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "audio"
+            },
+            "url": {
+              "type": "string"
+            },
+            "expiresAt": {
+              "type": "number"
+            },
+            "controls": {
+              "type": "object",
+              "properties": {
+                "seek": {
+                  "type": "boolean"
+                },
+                "volume": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "seek",
+                "volume"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "url",
+            "controls"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "embed"
+            },
+            "engine": {
+              "type": "string"
+            },
+            "id": {
+              "type": "string"
+            },
+            "controls": {
+              "type": "object",
+              "properties": {
+                "seek": {
+                  "type": "boolean"
+                },
+                "volume": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "seek",
+                "volume"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "engine",
+            "id",
+            "controls"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "MonitorStatus": {
+      "type": "object",
+      "properties": {
+        "snapshot": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/SystemSnapshot"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "collecting": {
+          "type": "boolean"
+        },
+        "collectionError": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "snapshot",
+        "collecting"
+      ],
+      "additionalProperties": false
+    },
+    "SystemSnapshot": {
+      "type": "object",
+      "properties": {
+        "at": {
+          "type": "number"
+        },
+        "host": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "model": {
+              "type": "string"
+            },
+            "chip": {
+              "type": "string"
+            },
+            "os": {
+              "type": "string"
+            },
+            "uptime": {
+              "type": "number"
+            },
+            "cores": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "name",
+            "model",
+            "chip",
+            "os",
+            "uptime",
+            "cores"
+          ],
+          "additionalProperties": false
+        },
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "percent": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "percent"
+          ],
+          "additionalProperties": false
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "free": {
+              "type": "number"
+            },
+            "cached": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "pressure": {
+              "type": "string",
+              "enum": [
+                "normal",
+                "warning",
+                "critical",
+                "unknown"
+              ]
+            }
+          },
+          "required": [
+            "total",
+            "free",
+            "cached",
+            "pressure"
+          ],
+          "additionalProperties": false
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Volume"
+          }
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "receiveRate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "sendRate": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "receiveRate",
+            "sendRate"
+          ],
+          "additionalProperties": false
+        },
+        "power": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "battery": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "battery"
+          ],
+          "additionalProperties": false
+        },
+        "runtime": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string"
+            },
+            "uptime": {
+              "type": "number"
+            },
+            "memory": {
+              "type": "number"
+            },
+            "test": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "version",
+            "uptime",
+            "memory",
+            "test"
+          ],
+          "additionalProperties": false
+        },
+        "unavailable": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "at",
+        "host",
+        "cpu",
+        "memory",
+        "volumes",
+        "network",
+        "power",
+        "runtime",
+        "unavailable"
+      ],
+      "additionalProperties": false
+    },
+    "Volume": {
+      "type": "object",
+      "properties": {
+        "filesystem": {
+          "type": "string"
+        },
+        "mount": {
+          "type": "string"
+        },
+        "total": {
+          "type": "number"
+        },
+        "available": {
+          "type": "number"
+        },
+        "used": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "filesystem",
+        "mount",
+        "total",
+        "available",
+        "used"
+      ],
+      "additionalProperties": false
+    },
+    "TerminalSession": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "created": {
+          "type": "number"
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "created",
+        "cwd",
+        "command"
+      ],
+      "additionalProperties": false
+    },
+    "TerminalClientMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "input"
+            },
+            "data": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "resize"
+            },
+            "cols": {
+              "type": "number"
+            },
+            "rows": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "cols",
+            "rows"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ack"
+            },
+            "size": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "size"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ping"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Errors": {
+      "type": "object",
+      "properties": {
+        "/api/apps/builds": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "/api/apps/devices": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "/api/apps/files": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        },
+        "/api/apps/music": {
+          "$ref": "#/definitions/MusicApiError"
+        },
+        "/api/apps/terminal": {
+          "type": "object",
+          "properties": {
+            "error": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "/api/apps/builds",
+        "/api/apps/devices",
+        "/api/apps/files",
+        "/api/apps/music",
+        "/api/apps/terminal"
+      ],
+      "additionalProperties": false
+    },
+    "MusicApiError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MusicErrorCode"
+            },
+            {
+              "$ref": "#/definitions/PlayerErrorCode"
+            }
+          ]
+        }
+      },
+      "required": [
+        "error",
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "MusicErrorCode": {
+      "type": "string",
+      "enum": [
+        "configuration",
+        "invalid-input",
+        "unavailable",
+        "quota",
+        "network",
+        "unsupported"
+      ]
+    },
+    "PlayerErrorCode": {
+      "type": "string",
+      "enum": [
+        "invalid-input",
+        "not-found",
+        "busy",
+        "conflict",
+        "capacity"
+      ]
+    },
+    "Sse": {
+      "type": "object",
+      "properties": {
+        "GET /api/events": {
+          "$ref": "#/definitions/ChangeEvent"
+        },
+        "GET /api/kita/sessions/:id/stream": {
+          "$ref": "#/definitions/KitaSessionEvent"
+        },
+        "GET /api/apps/music/players/connect": {
+          "$ref": "#/definitions/PlayerMessage"
+        },
+        "GET /api/apps/terminal/sessions/:id/stream": {
+          "$ref": "#/definitions/TerminalStreamMessage"
+        }
+      },
+      "required": [
+        "GET /api/events",
+        "GET /api/kita/sessions/:id/stream",
+        "GET /api/apps/music/players/connect",
+        "GET /api/apps/terminal/sessions/:id/stream"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeEvent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "session"
+            },
+            "id": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "project"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "apps"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "agent"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "music"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "devices"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "builds"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "kita"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "KitaSessionEvent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "event"
+            },
+            "event": {
+              "$ref": "#/definitions/PageEvent"
+            }
+          },
+          "required": [
+            "type",
+            "event"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "events"
+            },
+            "events": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/PageEvent"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "events"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "live"
+            },
+            "live": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Live"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "live"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "window"
+            },
+            "from": {
+              "type": "number"
+            },
+            "session": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "session"
+                },
+                "time": {
+                  "type": "string"
+                },
+                "agent": {
+                  "$ref": "#/definitions/AgentId"
+                },
+                "owner": {
+                  "type": "string"
+                },
+                "cwd": {
+                  "type": "string"
+                },
+                "instructions": {
+                  "type": "string"
+                },
+                "identity": {
+                  "$ref": "#/definitions/IdentityScope"
+                }
+              },
+              "required": [
+                "type",
+                "time",
+                "agent",
+                "owner",
+                "cwd"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type",
+            "from",
+            "session"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/LiveEvent"
+        }
+      ]
+    },
+    "Live": {
+      "type": "object",
+      "properties": {
+        "thinking": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Status"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tasks": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/TaskProgress"
+          }
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "thinking",
+        "text",
+        "status",
+        "tasks",
+        "files"
+      ],
+      "additionalProperties": false
+    },
+    "Status": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "requesting"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "thinking"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "tool"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "compacting"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "retrying"
+            },
+            "attempt": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "attempt"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "waiting"
+            },
+            "tasks": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "tasks"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TaskProgress": {
+      "type": "object",
+      "properties": {
+        "activity": {
+          "type": "string"
+        },
+        "toolUses": {
+          "type": "number"
+        },
+        "tokens": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "LiveEvent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "thinking"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "status"
+            },
+            "status": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Status"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "task"
+            },
+            "callId": {
+              "type": "string"
+            },
+            "progress": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/TaskProgress"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "callId",
+            "progress"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "file"
+            },
+            "path": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "path",
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PlayerMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "connected"
+            },
+            "playerId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "playerId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "command"
+            },
+            "command": {
+              "$ref": "#/definitions/CommandResult"
+            }
+          },
+          "required": [
+            "type",
+            "command"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TerminalStreamMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "connection"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "$ref": "#/definitions/TerminalServerMessage"
+        }
+      ]
+    },
+    "TerminalServerMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "output"
+            },
+            "data": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "data"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ready",
+                "ping",
+                "exit"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "error"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "WebSockets": {
+      "type": "object",
+      "properties": {
+        "GET /api/apps/terminal/sessions/:id/socket": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "$ref": "#/definitions/TerminalClientMessage"
+            },
+            "server": {
+              "$ref": "#/definitions/TerminalServerMessage"
+            }
+          },
+          "required": [
+            "client",
+            "server"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/browser/socket": {
+          "type": "object",
+          "properties": {
+            "client": {
+              "$ref": "#/definitions/BrowserClientMessage"
+            },
+            "server": {
+              "$ref": "#/definitions/BrowserServerMessage"
+            }
+          },
+          "required": [
+            "client",
+            "server"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "GET /api/apps/terminal/sessions/:id/socket",
+        "GET /api/apps/browser/socket"
+      ],
+      "additionalProperties": false
+    },
+    "BrowserClientMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "navigate"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "resize"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "scale": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "width",
+            "height",
+            "scale"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "pointer"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "move",
+                "down",
+                "up"
+              ]
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "button": {
+              "type": "string",
+              "enum": [
+                "left",
+                "right",
+                "middle"
+              ]
+            },
+            "buttons": {
+              "type": "number"
+            },
+            "clickCount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "x",
+            "y",
+            "button",
+            "buttons",
+            "clickCount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "wheel"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "deltaX": {
+              "type": "number"
+            },
+            "deltaY": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "x",
+            "y",
+            "deltaX",
+            "deltaY"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "key"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "down",
+                "up"
+              ]
+            },
+            "key": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            },
+            "modifiers": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "key",
+            "code",
+            "modifiers"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "text"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ack"
+            },
+            "frame": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "frame"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "back",
+                "forward",
+                "reload",
+                "ping",
+                "close"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BrowserServerMessage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "ready"
+            },
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "state"
+            },
+            "state": {
+              "$ref": "#/definitions/BrowserState"
+            }
+          },
+          "required": [
+            "type",
+            "state"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "frame"
+            },
+            "frame": {
+              "type": "number"
+            },
+            "data": {
+              "type": "string"
+            },
+            "more": {
+              "type": "boolean"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "frame",
+            "data",
+            "more",
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "error"
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "message"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "ping",
+                "replaced",
+                "closed"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BrowserState": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "canBack": {
+          "type": "boolean"
+        },
+        "canForward": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "url",
+        "title",
+        "canBack",
+        "canForward"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

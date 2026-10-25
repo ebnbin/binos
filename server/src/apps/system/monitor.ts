@@ -1,9 +1,9 @@
 import { Collector } from './collect.js'
-import type { MonitorStatus, Snapshot } from './types.js'
+import type { MonitorStatus, SystemSnapshot } from './types.js'
 
 export class Monitor {
   private collector = new Collector()
-  private snapshot: Snapshot | null = null
+  private snapshot: SystemSnapshot | null = null
   private collecting: Promise<void> | undefined
   private timer: ReturnType<typeof setTimeout> | undefined
   private collectionError: string | undefined
