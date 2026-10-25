@@ -24,9 +24,12 @@ it('独立服务在重启后接续构建，保存产物，支持重试和取消�
   process.kill(lock.pid, 'SIGKILL')
   await until(async () => (await cli('status')).builds.every((b) => b.status === 'success'))
   const done = await cli('status')
-  expect(done.builds.every((b) => b.artifacts[0].sha256.length === 64)).toBe(true)
-  expect(readFileSync(path.join(root, 'Library/Apps/builds/results', done.builds[0].id, 'outputs/preview.txt'), 'utf8')).toContain('预览构建')
-  const retry = await cli('retry', done.builds[0].id)
+  const android = done.builds.find((b) => b.target === 'android')!
+  expect(android.artifacts).toMatchObject([{ name: 'binos-android-debug.apk', kind: 'install', platform: 'android' }])
+  expect(android.artifacts[0].sha256).toHaveLength(64)
+  expect(done.builds.find((b) => b.target === 'ios-simulator')!.artifacts).toEqual([])
+  expect(readFileSync(path.join(root, 'Library/Apps/builds/results', android.id, 'outputs/binos-android-debug.apk'), 'utf8')).toContain('预览构建')
+  const retry = await cli('retry', android.id)
   expect(retry.builds).toHaveLength(3)
   await cli('enqueue', 'a'.repeat(40), 'android,ios-simulator')
   const queued = (await cli('status')).builds.find((b) => b.status === 'queued')!

@@ -16,7 +16,6 @@ case "$platform" in
     ;;
   ios-simulator)
     xcodebuild -project ios/binOS.xcodeproj -scheme binOS -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath .mobile-build/simulator CURRENT_PROJECT_VERSION="$number" CODE_SIGNING_ALLOWED=NO build
-    ditto -c -k --sequesterRsrc --keepParent .mobile-build/simulator/Build/Products/Debug-iphonesimulator/binOS.app "$output/binos-ios-simulator.app.zip"
     ;;
   ios-adhoc)
     if ! security find-identity -v -p codesigning | grep -Eq '[1-9][0-9]* valid identities found'; then

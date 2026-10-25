@@ -7,13 +7,17 @@ import { promisify } from 'node:util'
 import { isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { automatic, mock, repository, resultsDir, statePath, version, workDir } from './config.js'
-import type { Build, Request, Settings, Snapshot, Target } from './types.js'
+import { targetArtifacts } from './types.js'
+import type { Artifact, Build, Request, Settings, Snapshot, Target } from './types.js'
 const exec = promisify(execFile)
 const now = () => new Date().toISOString()
 const git = async (...args: string[]) => (await exec('git', args, { cwd: repository, timeout: 120_000, maxBuffer: 4 << 20 })).stdout.trim()
 const read = <T>(file: string): T | undefined => { try { return JSON.parse(readFileSync(file, 'utf8')) as T } catch { return undefined } }
 type State = { mode: string; builds: Build[]; settings: Settings; sequence: number }
 const day = 86_400_000
+// 只保留目标声明的产物并补上类型；旧版本 runner 写的结果没有类型，也可能带着已不算产物的文件
+const declared = (target: Target, artifacts: Pick<Artifact, 'name' | 'size' | 'sha256'>[]): Artifact[] =>
+  artifacts.flatMap((a) => { const spec = targetArtifacts[target].find((s) => s.name === a.name); return spec ? [{ ...a, ...spec }] : [] })
 // 构建删了只能重编，老提交重编的结果未必相同，所以只删用不上的：main 最近 5 个提交、开着的 PR 最新提交的构建一直保留，
 // 其余结束满 3 天才删。openPrs 未知时所有 PR 都当作开着。
 export function expired(builds: Build[], openPrs: { has(pr: number): boolean } | undefined, at: number) {
@@ -41,6 +45,7 @@ export class Manager {
     if (existsSync(statePath) && !stored) throw new Error('构建登记簿损坏，已停止以保留原数据')
     if (stored && stored.mode !== (mock ? 'mock' : 'real')) throw new Error('构建数据目录不能混用真实和模拟模式')
     this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic, adhoc: automatic }, sequence: 0 }
+    for (const b of this.state.builds) b.artifacts = declared(b.target, b.artifacts)
     this.active = this.state.builds.find((b) => b.status === 'running')?.id
     this.save()
   }
@@ -135,7 +140,7 @@ export class Manager {
         const b = this.find(this.active)
         const result = read<Pick<Build, 'status' | 'endedAt' | 'error' | 'artifacts'>>(path.join(resultsDir, b.id, 'result.json'))
         const identity = read<ProcessIdentity>(path.join(resultsDir, b.id, 'runner.json'))
-        if (result) { Object.assign(b, result); this.save() }
+        if (result) { Object.assign(b, result, { artifacts: declared(b.target, result.artifacts) }); this.save() }
         else if (identity && isRunning(identity)) return
         else if (Date.now() - Date.parse(b.startedAt!) < 10_000) return
         else {

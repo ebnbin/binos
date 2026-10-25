@@ -25,7 +25,7 @@ it('HTTP 页面可触发构建和下载产物，拒绝停止服务、无效目�
   let snapshot: Snapshot | undefined
   for (let i = 0; i < 100; i++) { snapshot = await buildRequest<Snapshot>({ action: 'status' }); if (snapshot.builds[0].status === 'success') break; await new Promise((r) => setTimeout(r, 100)) }
   expect(snapshot!.builds[0].status).toBe('success')
-  const artifact = await api.request(`${base}/${id}/artifacts/preview.txt`)
+  const artifact = await api.request(`${base}/${id}/artifacts/binos-android-debug.apk`)
   expect(artifact.status).toBe(200); expect(artifact.headers.get('Content-Disposition')).toContain('attachment'); expect(await artifact.text()).toContain('预览构建')
   expect((await api.request(`${base}/${id}/artifacts/state.json`)).status).toBe(404)
   expect((await api.request(`${base}/${id}/artifacts/%2e%2e%2fstate.json`)).status).toBe(404)

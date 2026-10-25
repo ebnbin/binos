@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createReadStream, closeSync, openSync, writeFileSync } from 'node:fs'
-import { lstat, readdir, writeFile } from 'node:fs/promises'
+import { lstat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { currentProcess, processStartTime } from '../../process.js'
+import { targetArtifacts } from './types.js'
 import type { Artifact, Target } from './types.js'
 
 // 独立进程负责超时与进程组回收；构建服务更新不改变正在运行的脚本。
@@ -19,7 +20,7 @@ let error: string | undefined
 try {
   if (mode === 'mock') {
     await new Promise((resolve) => setTimeout(resolve, 1200))
-    if (!cancelled) await writeFile(path.join(output, 'preview.txt'), `预览构建：${target}\n`)
+    if (!cancelled) for (const spec of targetArtifacts[target as Target]) await writeFile(path.join(output, spec.name), `预览构建：${target}\n`)
   } else {
     const log = openSync(path.join(path.dirname(result), 'build.log'), 'a', 0o600)
     try {
@@ -39,18 +40,14 @@ clearTimeout(timer)
 if (cancelled) error = '已取消'
 if (timedOut) error = '构建超过 60 分钟'
 const artifacts: Artifact[] = []
-if (!error) {
-  for (const name of await readdir(output)) {
-    const file = path.join(output, name)
-    const info = await lstat(file)
-    if (!info.isFile() || name.startsWith('.')) continue
-    const hasher = createHash('sha256')
-    for await (const chunk of createReadStream(file)) hasher.update(chunk)
-    const hash = hasher.digest('hex')
-    artifacts.push({ name, size: info.size, sha256: hash })
-  }
-  const expected: Record<Target, string> = { android: 'binos-android-debug.apk', 'ios-simulator': 'binos-ios-simulator.app.zip', 'ios-adhoc': 'binos-ios-adhoc.ipa' }
-  if (!artifacts.some((a) => a.name === (mode === 'mock' ? 'preview.txt' : expected[target as Target]))) error = '构建没有生成预期产物'
+// 只收目标声明的产物，脚本留在产物目录里的其他文件不算
+if (!error) for (const spec of targetArtifacts[target as Target]) {
+  const file = path.join(output, spec.name)
+  const info = await lstat(file).catch(() => undefined)
+  if (!info?.isFile()) { error = `构建没有生成 ${spec.name}`; break }
+  const hasher = createHash('sha256')
+  for await (const chunk of createReadStream(file)) hasher.update(chunk)
+  artifacts.push({ ...spec, size: info.size, sha256: hasher.digest('hex') })
 }
 await writeFile(result + '.tmp', JSON.stringify({ status: cancelled ? 'cancelled' : error ? 'failed' : 'success', error, artifacts: error ? [] : artifacts, endedAt: new Date().toISOString() }))
 const { rename } = await import('node:fs/promises')

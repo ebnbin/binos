@@ -31,9 +31,10 @@ export function installationOrigin(requestUrl: string) {
 export async function installableBuild(id: string): Promise<{ build: Build; file: string } | undefined> {
   if (!idValid(id)) return
   const { builds, mode } = await buildRequest({ action: 'status' })
-  const build = builds.find((b) => b.id === id && b.target === 'ios-adhoc' && b.status === 'success')
-  if (mode !== 'real' || !build?.artifacts.some((a) => a.name === 'binos-ios-adhoc.ipa')) return
-  const file = path.join(resultsDir, id, 'outputs/binos-ios-adhoc.ipa')
+  const build = builds.find((b) => b.id === id && b.status === 'success')
+  const ipa = build?.artifacts.find((a) => a.kind === 'install' && a.platform === 'ios')
+  if (mode !== 'real' || !build || !ipa) return
+  const file = path.join(resultsDir, id, 'outputs', ipa.name)
   if (!(await lstat(file).catch(() => undefined))?.isFile()) return
   return { build, file }
 }
