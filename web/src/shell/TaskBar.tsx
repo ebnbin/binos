@@ -120,7 +120,7 @@ export function TaskBar({
             capsule.onExpand()
           }}
         >
-          {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={20} inverted />}
+          {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={18} inverted />}
           {capsuleApp && <span className={styles.capsuleTitle}>{capsuleName}</span>}
         </button>
       )}
