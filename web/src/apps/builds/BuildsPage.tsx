@@ -4,7 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
 import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
-const targetLabels: Record<Target, string> = { android: 'Android', 'ios-simulator': 'iOS 编译检查', 'ios-adhoc': 'iOS Ad Hoc' }
+const targetLabels: Record<Target, string> = { android: 'Android', ios: 'iOS' }
 const statusLabels = { queued: '排队中', running: '构建中', success: '成功', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
 type Group = { key: string; kind: 'main' | 'pr' | 'manual'; pr?: number; commits: Build[][] }
 // 按来源分组：main、每个 PR（包括手动指定 pr/编号 的）、其余手动构建；组内按提交分，最新的在前
@@ -74,13 +74,12 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
     {error && <p role="alert" className={styles.alert}>{error}</p>}
     {data?.pollError && <p role="alert" className={styles.alert}>检查仓库失败：{data.pollError}</p>}
     {data && <div className={styles.block}><div className={styles.group}>
-      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act({ action: 'settings', ...data.settings, automatic: e.target.checked })} /></label>
-      <label className={styles.row}>自动构建 Ad Hoc（需要签名证书及已注册设备）<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.adhoc} disabled={busy} onChange={(e) => void act({ action: 'settings', ...data.settings, adhoc: e.target.checked })} /></label>
+      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act({ action: 'settings', automatic: e.target.checked })} /></label>
     </div>{data.checkedAt && <small className={styles.footer}>上次检查：{new Date(data.checkedAt).toLocaleString()}</small>}</div>}
-    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act({ action: 'enqueue', ref: ref.trim(), targets: target === 'both' ? ['android', 'ios-simulator'] : [target] }) }}>
+    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act({ action: 'enqueue', ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
       <div className={styles.group}>
         <label className={styles.row}>构建来源<input className={styles.field} aria-label="构建来源" required value={ref} onChange={(e) => setRef(e.target.value)} placeholder="main、pr/编号、完整提交号" /></label>
-        <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={setTarget} options={[{ value: 'both', label: 'Android + iOS 编译检查' }, ...Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))]} /></div>
+        <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={setTarget} options={[{ value: 'both', label: 'Android + iOS' }, ...Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))]} /></div>
         <div className={styles.submitRow}><button className={styles.prominent} disabled={busy || !data} type="submit">开始构建</button></div>
       </div>
     </form>

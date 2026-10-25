@@ -40,7 +40,7 @@ it('系统安装器无需浏览器凭据即可获取签名清单和 IPA，其他
   const ipa = path.join(dir, 'binos-ios-adhoc.ipa')
   execFileSync('ditto', ['-c', '-k', '--keepParent', path.join(root, 'pack/Payload'), ipa])
   expect(await ipaInfo(ipa)).toEqual({ bundleId: 'app.binos', version: '3', name: 'binOS' })
-  fixture.builds = [{ id, commit: 'a'.repeat(40), target: 'ios-adhoc', status: 'success', artifacts: [{ name: 'binos-ios-adhoc.ipa', kind: 'install', platform: 'ios' }] }]
+  fixture.builds = [{ id, commit: 'a'.repeat(40), target: 'ios', status: 'success', artifacts: [{ name: 'binos-ios-adhoc.ipa', kind: 'install', platform: 'ios' }] }]
   const token = installToken(id)
   const prefix = `/install/${id}/${token}`
   const response = await app.request(`https://downloads.binos.app${prefix}/manifest.plist`)

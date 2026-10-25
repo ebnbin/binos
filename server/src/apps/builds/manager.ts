@@ -1,13 +1,13 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { automatic, mock, repository, resultsDir, statePath, version, workDir } from './config.js'
-import { targetArtifacts } from './types.js'
+import { targetArtifacts, targets } from './types.js'
 import type { Artifact, Build, Request, Settings, Snapshot, Target } from './types.js'
 const exec = promisify(execFile)
 const now = () => new Date().toISOString()
@@ -44,8 +44,13 @@ export class Manager {
     const stored = read<State>(statePath)
     if (existsSync(statePath) && !stored) throw new Error('构建登记簿损坏，已停止以保留原数据')
     if (stored && stored.mode !== (mock ? 'mock' : 'real')) throw new Error('构建数据目录不能混用真实和模拟模式')
-    this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic, adhoc: automatic }, sequence: 0 }
-    for (const b of this.state.builds) b.artifacts = declared(b.target, b.artifacts)
+    this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic }, sequence: 0 }
+    // iOS 原先分成模拟器编译和 Ad Hoc 两个目标：Ad Hoc 的记录归入 ios，没有产物的模拟器编译记录删除
+    const legacy = (b: Build) => (b.target as string) === 'ios-simulator' && b.status !== 'running'
+    for (const b of this.state.builds.filter(legacy)) rmSync(path.join(resultsDir, b.id), { recursive: true, force: true, maxRetries: 3 })
+    this.state.builds = this.state.builds.filter((b) => !legacy(b))
+    for (const b of this.state.builds) { if (!targets.includes(b.target)) b.target = 'ios'; b.artifacts = declared(b.target, b.artifacts) }
+    this.state.settings = { automatic: this.state.settings.automatic }
     this.active = this.state.builds.find((b) => b.status === 'running')?.id
     this.save()
   }
@@ -68,7 +73,7 @@ export class Manager {
       case 'status': return this.snapshot()
       case 'handoff': if (this.ticking || this.polling) throw new Error('构建服务正在处理请求，请稍后更新'); return { ok: true }
       case 'stop': if (this.busy()) throw new Error('构建服务正忙，请等待或取消构建'); return { ok: true }
-      case 'settings': this.state.settings = { automatic: request.automatic, adhoc: request.adhoc }; this.save(); return this.snapshot()
+      case 'settings': this.state.settings = { automatic: request.automatic }; this.save(); return this.snapshot()
       case 'poll': await this.poll(); return this.snapshot()
       case 'enqueue': {
         let commit: string
@@ -112,10 +117,9 @@ export class Manager {
       if (mock) { this.checkedAt = now(); return }
       await git('fetch', '--prune', 'origin')
       const commit = await git('rev-parse', 'origin/main')
-      const selected: Target[] = ['android', 'ios-simulator', ...(this.state.settings.adhoc ? ['ios-adhoc' as const] : [])]
       // 只编含移动端脚本的提交，避免旧分支持续产生无意义的失败。
       const supported = async (sha: string) => git('cat-file', '-e', `${sha}:scripts/mobile-build.sh`).then(() => true, () => false)
-      if (await supported(commit)) this.enqueue(commit, selected, 'main')
+      if (await supported(commit)) this.enqueue(commit, [...targets], 'main')
       const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
       const prs = JSON.parse(stdout) as { number: number; title: string; headRefOid: string; isCrossRepository: boolean }[]
       // 已关闭或合并的 PR 不再构建尚未开始的任务。
@@ -125,7 +129,7 @@ export class Manager {
       for (const pr of prs) {
         if (pr.isCrossRepository) continue
         await git('fetch', 'origin', `refs/pull/${pr.number}/head`)
-        if (await supported(pr.headRefOid)) this.enqueue(pr.headRefOid, selected, 'pr', pr.number)
+        if (await supported(pr.headRefOid)) this.enqueue(pr.headRefOid, [...targets], 'pr', pr.number)
       }
       this.pollError = undefined; this.checkedAt = now()
     } catch (e) { this.pollError = e instanceof Error ? e.message : String(e) }

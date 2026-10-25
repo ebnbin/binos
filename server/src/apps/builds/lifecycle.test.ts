@@ -16,7 +16,7 @@ afterAll(async () => {
   await new Promise((r) => setTimeout(r, 200)); rmSync(root, { recursive: true, force: true })
 })
 it('独立服务在重启后接续构建，保存产物，支持重试和取消排队', async () => {
-  const first = await cli('enqueue', 'main', 'android,ios-simulator')
+  const first = await cli('enqueue', 'main', 'android,ios')
   expect(first.mode).toBe('mock'); expect(first.builds).toHaveLength(2)
   expect(first.settings.automatic).toBe(false)
   await until(async () => (await cli('status')).builds.some((b) => b.status === 'running'))
@@ -27,11 +27,11 @@ it('独立服务在重启后接续构建，保存产物，支持重试和取消�
   const android = done.builds.find((b) => b.target === 'android')!
   expect(android.artifacts).toMatchObject([{ name: 'binos-android-debug.apk', kind: 'install', platform: 'android' }])
   expect(android.artifacts[0].sha256).toHaveLength(64)
-  expect(done.builds.find((b) => b.target === 'ios-simulator')!.artifacts).toEqual([])
+  expect(done.builds.find((b) => b.target === 'ios')!.artifacts).toMatchObject([{ name: 'binos-ios-adhoc.ipa', kind: 'install', platform: 'ios' }])
   expect(readFileSync(path.join(root, 'Library/Apps/builds/results', android.id, 'outputs/binos-android-debug.apk'), 'utf8')).toContain('预览构建')
   const retry = await cli('retry', android.id)
   expect(retry.builds).toHaveLength(3)
-  await cli('enqueue', 'a'.repeat(40), 'android,ios-simulator')
+  await cli('enqueue', 'a'.repeat(40), 'android,ios')
   const queued = (await cli('status')).builds.find((b) => b.status === 'queued')!
   await cli('cancel', queued.id)
   expect((await cli('status')).builds.find((b) => b.id === queued.id)?.status).toBe('cancelled')
