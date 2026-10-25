@@ -15,7 +15,7 @@ writeFileSync(path.join(fixture.repo, 'scripts/mobile-build.sh'), '#!/bin/bash\n
 git('add', '.'); git('commit', '-m', 'initial'); git('remote', 'add', 'origin', fixture.repo)
 const { Manager } = await import('./manager.js')
 afterAll(() => rmSync(root, { recursive: true, force: true }))
-it('自动检查按提交和目标去重，新 main 替换未开始的旧任务，失败可显式重试', async () => {
+it('自动检查按提交和目标去重，新 main 替换未开始的旧任务，取消后不再自动排上', async () => {
   const manager = new Manager()
   // 本地源没有 GitHub PR；main 的自动构建仍应入队，并报告 PR 查询错误。
   await manager.poll(); await manager.poll()
@@ -26,7 +26,10 @@ it('自动检查按提交和目标去重，新 main 替换未开始的旧任务�
   git('add', '.'); git('commit', '-m', 'update')
   await manager.poll()
   builds = manager.snapshot().builds
-  expect(builds.filter((b) => b.status === 'queued')).toHaveLength(2)
-  expect(builds.filter((b) => b.status === 'cancelled')).toHaveLength(2)
+  expect(builds).toHaveLength(2)
+  expect(builds.every((b) => b.status === 'queued' && b.commit === git('rev-parse', 'HEAD'))).toBe(true)
   expect(manager.snapshot().pollError).toBeTruthy()
+  await manager.request({ action: 'cancel', id: builds[0].id })
+  await manager.poll()
+  expect(manager.snapshot().builds.map((b) => b.status).sort()).toEqual(['cancelled', 'queued'])
 })
