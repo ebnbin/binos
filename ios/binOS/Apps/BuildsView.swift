@@ -83,7 +83,7 @@ struct BuildsView: View {
             } footer: {
                 if let current = snapshot {
                     VStack(alignment: .leading) {
-                        if current.mode == "mock" { Text("模拟模式") }
+                        if current.mode == "mock" { Text("预览模式：模拟构建，与正式构建及签名隔离。") }
                         if let checked = current.checkedAt.flatMap(Date.init(iso:)) { Text("上次检查 \(checked.formatted(.relative(presentation: .named)))") }
                         if let pollError = current.pollError { Text(pollError).foregroundStyle(.red) }
                     }
@@ -103,7 +103,7 @@ struct BuildsView: View {
                     }
                     .pickerStyle(.segmented)
                     ForEach(current.builds.filter { filter == "all" || $0.trigger == filter }) { build in
-                        NavigationLink { BuildDetail(build: build, onChange: { snapshot = $0 }) } label: { BuildRow(build: build) }
+                        NavigationLink { BuildDetail(build: build, mode: current.mode, onChange: { snapshot = $0 }) } label: { BuildRow(build: build) }
                     }
                 }
             }
@@ -181,6 +181,7 @@ private struct StatusIcon: View {
 
 private struct BuildDetail: View {
     let build: BuildsSnapshot.Build
+    let mode: String
     let onChange: (BuildsSnapshot) -> Void
     @State private var log = ""
     @State private var error: String?
@@ -200,8 +201,12 @@ private struct BuildDetail: View {
                 } else {
                     Button("重新构建") { run(.init(action: "retry", id: build.id)) }
                 }
-                if build.status == "success", build.target == "ios-adhoc" {
+                if mode == "real", build.status == "success", build.target == "ios-adhoc" {
                     Button("安装到这台设备", systemImage: "arrow.down.app") { Task { await install() } }
+                }
+            } footer: {
+                if mode == "real", build.status == "success", build.target == "ios-adhoc" {
+                    Text("仅限描述文件内已注册的设备，安装链接有效期 24 小时")
                 }
             }
             if !build.artifacts.isEmpty {
@@ -216,10 +221,19 @@ private struct BuildDetail: View {
                 }
             }
             if let error { Text(error).foregroundStyle(.red) }
-            Section("日志") {
+            Section {
                 Text(log.isEmpty ? "等待构建日志…" : log)
                     .font(.system(.caption2, design: .monospaced))
                     .textSelection(.enabled)
+            } header: {
+                HStack {
+                    Text("日志")
+                    Spacer()
+                    Button("下载完整日志") {
+                        FilePresenter.shared.present(url: API.shared.url("\(BuildsAPI.base)/\(build.id)/log", query: ["download": "1"]), name: "build.log")
+                    }
+                    .font(.footnote)
+                }
             }
         }
         .navigationTitle(BuildsAPI.targetNames[build.target] ?? build.target)
