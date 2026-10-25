@@ -7,5 +7,6 @@ export type Build = {
   createdAt: string; startedAt?: string; endedAt?: string; error?: string; artifacts: Artifact[]
 }
 export type Settings = { automatic: boolean; adhoc: boolean }
-export type Snapshot = { builds: Build[]; settings: Settings; pollError?: string; checkedAt?: string; mode: 'real' | 'mock'; version: string }
+// prs 是上次检查时开着的 PR，还没检查过时没有
+export type Snapshot = { builds: Build[]; settings: Settings; pollError?: string; checkedAt?: string; prs?: { number: number; title: string }[]; mode: 'real' | 'mock'; version: string }
 export type Request = { action: 'status' | 'poll' | 'stop' | 'handoff' } | { action: 'enqueue'; ref: string; targets: Target[] } | { action: 'cancel' | 'retry'; id: string } | { action: 'settings'; automatic: boolean; adhoc: boolean }
