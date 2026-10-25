@@ -72,8 +72,9 @@ export function useShellController(size: Size | null) {
     if (id) focus(id, 0)
   }
 
-  const close = () => {
-    if (draft || !focused) return
+  const close = (id: string) => {
+    if (draft) return
+    if (id !== focused) { closeWindow(id); return }
     const next = group ? group.slots.find((id) => id !== focused) ?? null : recent.find((id) => id !== focused) ?? null
     closeWindow(focused)
     setView((prev) => ({ ...prev, home: !next, focused: next, slot: 0 }))
@@ -114,13 +115,14 @@ export function useShellController(size: Size | null) {
   }
 
   const toggleHome = () => { if (!draft) setView((prev) => ({ ...prev, home: !home })) }
-  const split = () => {
-    if (draft || !focused || group) return
-    setDraft({ layout: fitLayout('1:1', allowed), slots: [focused, null] })
+  const split = (id: string) => {
+    if (draft || stored.groups.some((item) => item.slots.includes(id))) return
+    focus(id, 0)
+    setDraft({ layout: fitLayout('1:1', allowed), slots: [id, null] })
   }
 
   return {
-    windows, groups: stored.groups, panes, layout, home, portrait, focused, slot, allowed,
+    windows, groups: stored.groups, panes, layout, home, portrait, focused, allowed,
     picking: draft !== null,
     unavailableApps: windows.filter((item) => stored.groups.some((group) => group.slots.includes(item.id))).map((item) => item.window.applicationId),
     focus, chooseLayout, exitSplit, pick, swap, cancel: () => exitSplit(slot), onTitle,

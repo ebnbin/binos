@@ -63,9 +63,7 @@ export function Shell() {
           locked={controller.picking}
           panes={controller.panes}
           focused={controller.focused}
-          focusedSlot={controller.slot}
           home={controller.home}
-          layout={controller.layout}
           allowed={controller.allowed}
           portrait={controller.portrait}
           onHome={controller.toggleHome}

@@ -32,9 +32,13 @@
   border-radius: calc(var(--radius-lg) + var(--space-0-5));
   background: var(--material-dock);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
+  /* 从 Dock 开始的滑动由 dock-gesture.ts 处理，长按也不出系统的菜单和选中 */
+  touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
-/* 最宽和屏幕一样：开着的 app 多了，只在这一段里滚动，桌面、分屏和关闭按钮不动 */
+/* 最宽和屏幕一样：开着的 app 多了，只在这一段里滚动，桌面按钮不动 */
 .apps {
   display: flex;
   gap: var(--space-0-5);
@@ -43,6 +47,18 @@
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+  /* 它自己是滚动容器，触摸行为不受 .dock 的影响，要单独写 */
+  touch-action: none;
+}
+
+/* 放不下时沿 Dock 滑动是滚动 */
+.dock[data-scrolls='true'] .apps {
+  touch-action: pan-x;
+}
+
+.bar[data-placement='left'] .dock[data-scrolls='true'] .apps,
+.bar[data-placement='right'] .dock[data-scrolls='true'] .apps {
+  touch-action: pan-y;
 }
 
 .bar[data-placement='left'] .apps,
@@ -107,7 +123,7 @@
   left: 0;
 }
 
-/* 和 macOS 的 Dock 一样，用一条细竖线把桌面、app 和窗口操作分开 */
+/* 和 macOS 的 Dock 一样，用一条细竖线把桌面和 app 分开 */
 .separator {
   flex: none;
   width: 1px;
@@ -140,15 +156,6 @@
   border-radius: calc(var(--radius-xs) / 2);
   background: currentColor;
   opacity: 0.85;
-}
-
-.glyph i[data-active='false'] {
-  opacity: 0.3;
-}
-
-.glyph i[data-active='true'] {
-  opacity: 1;
-  background: var(--color-on-chrome);
 }
 
 .member {
@@ -191,4 +198,43 @@
   height: 4px;
   border-radius: var(--radius-full);
   background: var(--color-on-chrome);
+}
+
+/* 窗口菜单：从 Dock 上弹出 */
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: var(--space-1-5);
+  border-radius: var(--radius-menu);
+}
+
+.menuLabel {
+  composes: menuLabel from '../ui/controls.module.css';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItem {
+  composes: menuItem from '../ui/controls.module.css';
+  cursor: default;
+}
+
+.menuIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  color: var(--color-label-secondary);
+}
+
+@media (hover: hover) {
+  .menuItem:hover .menuIcon {
+    color: inherit;
+  }
+}
+
+.menuItem:focus-visible .menuIcon {
+  color: inherit;
 }
