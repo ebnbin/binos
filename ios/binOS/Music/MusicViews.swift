@@ -4,7 +4,9 @@ import SwiftUI
 struct MusicRootView: View {
     private let player = MusicPlayer.shared
     @State private var providers: [ProviderInfo] = []
+    @State private var providersError: String?
     @State private var provider = "youtube-music"
+    @State private var showingSettings = false
     @State private var query = ""
     @State private var results: CatalogPage?
     @State private var searching = false
@@ -18,12 +20,18 @@ struct MusicRootView: View {
                 if !query.trimmingCharacters(in: .whitespaces).isEmpty {
                     searchResults
                 } else {
+                    if let providersError {
+                        Text(providersError).font(.footnote).foregroundStyle(.red)
+                    }
                     if let track = player.current {
                         Section {
                             Button { router.nowPlaying = true } label: {
                                 NowPlayingSummary(track: track)
                             }
                             .buttonStyle(.plain)
+                            if providers.first(where: { $0.id == track.ref.provider })?.available("recommendations") == true {
+                                NavigationLink("发现相似歌曲") { RecommendationsView(track: track) }
+                            }
                         }
                     }
                     queueSection
@@ -44,6 +52,9 @@ struct MusicRootView: View {
                         Picker("来源", selection: $provider) {
                             ForEach(providers) { Text($0.name).tag($0.id) }
                         }
+                        if selected?.configuration.fields.isEmpty == false {
+                            Button("音乐设置", systemImage: "gearshape") { showingSettings = true }
+                        }
                         if !player.queue.isEmpty {
                             Button("清空队列", systemImage: "trash", role: .destructive) {
                                 Task { try? await player.clear() }
@@ -59,13 +70,45 @@ struct MusicRootView: View {
                 await loadOthers()
             }
             .sheet(isPresented: $router.nowPlaying) { NowPlayingView() }
-            .task { providers = (try? await MusicAPI.providers()) ?? [] }
+            .sheet(isPresented: $showingSettings) {
+                if let selected {
+                    ProviderSettingsView(provider: selected) { updated in
+                        if let index = providers.firstIndex(where: { $0.id == updated.id }) { providers[index] = updated }
+                    }
+                }
+            }
+            .task(id: EventHub.shared.music) {
+                do {
+                    providers = try await MusicAPI.providers()
+                    providersError = nil
+                } catch is CancellationError {
+                } catch {
+                    providersError = error.localizedDescription
+                }
+            }
             .task {
                 while !Task.isCancelled {
                     await loadOthers()
                     try? await Task.sleep(for: .seconds(5))
                 }
             }
+        }
+    }
+
+    // 记住的来源不在了就用第一个
+    private var selected: ProviderInfo? { providers.first { $0.id == provider } ?? providers.first }
+
+    private var queryText: String { query.trimmingCharacters(in: .whitespaces) }
+
+    // 当前输入对应的能力不可用时的说明
+    private var capabilityNotice: String? {
+        guard let selected else { return nil }
+        let operation = selected.operation(for: queryText)
+        let capability = selected.capabilities[operation]
+        switch capability?.state {
+        case "configuration-required": return capability?.reason
+        case "unsupported": return "此来源不支持\(operation == "search" ? "搜索" : "链接导入")。"
+        default: return nil
         }
     }
 
@@ -108,7 +151,12 @@ struct MusicRootView: View {
 
     @ViewBuilder
     private var searchResults: some View {
-        if searching {
+        if let selected {
+            Text(selected.description).font(.footnote).foregroundStyle(.secondary)
+        }
+        if let capabilityNotice {
+            Text(capabilityNotice).font(.footnote).foregroundStyle(.secondary)
+        } else if searching {
             HStack { Spacer(); ProgressView(); Spacer() }
         } else if let error {
             Text(error).foregroundStyle(.red)
@@ -122,18 +170,7 @@ struct MusicRootView: View {
                         Task { try? await player.add(results.tracks) }
                     }
                 }
-                ForEach(results.tracks) { track in
-                    HStack {
-                        TrackRow(track: track, playing: false)
-                        Menu {
-                            Button("播放", systemImage: "play.fill") { Task { try? await player.playNow(track) } }
-                            Button("加入队列", systemImage: "text.badge.plus") { Task { try? await player.add([track]) } }
-                        } label: {
-                            Image(systemName: player.queue.contains { $0.ref == track.ref } ? "checkmark.circle.fill" : "plus.circle")
-                                .font(.title3)
-                        }
-                    }
-                }
+                ForEach(results.tracks) { CatalogTrackRow(track: $0) }
                 if let next = results.nextPage {
                     Button("更多结果") { Task { await search(page: next) } }
                 }
@@ -144,21 +181,88 @@ struct MusicRootView: View {
     }
 
     private func search(page: String? = nil) async {
-        let text = query.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return }
-        let info = providers.first { $0.id == provider }
-        let operation = info?.operation(for: text) ?? "search"
+        let text = queryText
+        guard !text.isEmpty, let selected, capabilityNotice == nil else { return }
+        let operation = selected.operation(for: text)
         if page == nil { searching = true }
         error = nil
         defer { searching = false }
         do {
-            let loaded = try await MusicAPI.catalog(provider: provider, operation: operation, query: text, page: page)
+            let loaded = try await MusicAPI.catalog(provider: selected.id, operation: operation, query: text, page: page)
             // 翻页时接在已有的结果后面
             if page != nil, let previous = results {
                 results = CatalogPage(tracks: previous.tracks + loaded.tracks, nextPage: loaded.nextPage, warning: loaded.warning)
             } else {
                 results = loaded
             }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+}
+
+// 查找结果里的一首：可以直接播放或加入队列
+private struct CatalogTrackRow: View {
+    let track: Track
+    private let player = MusicPlayer.shared
+
+    var body: some View {
+        HStack {
+            TrackRow(track: track, playing: false)
+            Menu {
+                Button("播放", systemImage: "play.fill") { Task { try? await player.playNow(track) } }
+                Button("加入队列", systemImage: "text.badge.plus") { Task { try? await player.add([track]) } }
+            } label: {
+                Image(systemName: player.queue.contains { $0.ref == track.ref } ? "checkmark.circle.fill" : "plus.circle")
+                    .font(.title3)
+            }
+        }
+    }
+}
+
+// 和某首歌相似的歌曲，由这首歌的来源推荐
+private struct RecommendationsView: View {
+    let track: Track
+    @State private var results: CatalogPage?
+    @State private var loading = false
+    @State private var error: String?
+    private let player = MusicPlayer.shared
+
+    var body: some View {
+        List {
+            if let error { Text(error).foregroundStyle(.red) }
+            if let results {
+                if let warning = results.warning {
+                    Text(warning).font(.footnote).foregroundStyle(.orange)
+                }
+                if results.tracks.isEmpty {
+                    Text("没有找到内容").foregroundStyle(.secondary)
+                } else {
+                    Button("全部加入队列", systemImage: "text.badge.plus") {
+                        Task { try? await player.add(results.tracks) }
+                    }
+                }
+                ForEach(results.tracks) { CatalogTrackRow(track: $0) }
+                if let next = results.nextPage {
+                    Button(loading ? "加载中…" : "加载更多") { Task { await load(page: next) } }
+                        .disabled(loading)
+                }
+            }
+        }
+        .overlay { if results == nil && error == nil { ProgressView() } }
+        .navigationTitle("相似歌曲")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await load(page: nil) }
+    }
+
+    private func load(page: String?) async {
+        loading = true
+        defer { loading = false }
+        do {
+            let loaded = try await MusicAPI.catalog(provider: track.ref.provider, operation: "recommendations", query: track.ref.id, page: page)
+            results = page == nil ? loaded : CatalogPage(tracks: (results?.tracks ?? []) + loaded.tracks, nextPage: loaded.nextPage, warning: loaded.warning)
+            error = nil
+        } catch is CancellationError {
         } catch {
             self.error = error.localizedDescription
         }

@@ -81,9 +81,11 @@ final class MusicPlayer {
 
     // MARK: 队列
 
-    func refreshQueue() async {
-        guard let snapshot = try? await MusicAPI.queue() else { return }
+    @discardableResult
+    func refreshQueue() async -> Bool {
+        guard let snapshot = try? await MusicAPI.queue() else { return false }
         apply(snapshot)
+        return true
     }
 
     // 当前的歌还在队列里就接着放，不在了就停下
@@ -406,7 +408,19 @@ final class MusicPlayer {
         }
         executing = true
         defer { executing = false }
-        await refreshQueue()
+        guard await refreshQueue() else {
+            await report(result: .init(id: command.id, error: "共享队列尚未同步，请重试。"))
+            return
+        }
+        // 以服务端的状态为准：已经过期或被取消的命令不再执行，也不回报
+        do {
+            guard try await MusicAPI.commandStatus(command.id) == "pending" else { return }
+        } catch APIError.http {
+            return
+        } catch {
+            await report(result: .init(id: command.id, error: String(error.localizedDescription.prefix(2000))))
+            return
+        }
         var failure: String?
         switch command.command {
         case .play, .next, .previous, .select:

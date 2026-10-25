@@ -51,11 +51,30 @@ struct ProviderInfo: Decodable, Hashable, Identifiable {
         let references: [Reference]
     }
 
+    struct Field: Decodable, Hashable, Identifiable {
+        struct Link: Decodable, Hashable {
+            let label: String
+            let url: String
+        }
+
+        let id: String
+        let label: String
+        let description: String
+        let secret: Bool
+        let configured: Bool
+        let links: [Link]?
+    }
+
+    struct Configuration: Decodable, Hashable {
+        let fields: [Field]
+    }
+
     let id: String
     let name: String
     let description: String
     let input: Input
     let capabilities: [String: Capability]
+    let configuration: Configuration
 
     func available(_ capability: String) -> Bool { capabilities[capability]?.state == "available" }
 
@@ -200,6 +219,11 @@ enum MusicAPI {
         return try await api.get("\(base)/providers/\(provider)/\(operation)", query: params)
     }
 
+    // 值为空字符串表示移除这一项
+    static func configure(provider: String, values: [String: String]) async throws -> ProviderInfo {
+        try await api.send("PUT", "\(base)/providers/\(provider)/settings", body: values)
+    }
+
     static func lyrics(_ ref: TrackRef) async throws -> Lyrics {
         try await api.get("\(base)/providers/\(ref.provider)/lyrics", query: ["q": ref.id])
     }
@@ -236,5 +260,13 @@ enum MusicAPI {
 
     static func command(player: String, _ command: PlayerCommand) async throws {
         let _: Ignored = try await api.send("POST", "\(base)/players/\(player)/commands", body: CommandBody(command: command))
+    }
+
+    // 只等 3 秒：网络缓冲太久的命令宁可报错也不执行
+    static func commandStatus(_ id: String) async throws -> String {
+        struct Response: Decodable { let status: String }
+        var request = api.request(api.url("\(base)/commands/\(id)"))
+        request.timeoutInterval = 3
+        return try JSONDecoder.api.decode(Response.self, from: try await api.data(request)).status
     }
 }
