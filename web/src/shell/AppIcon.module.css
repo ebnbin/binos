@@ -1,0 +1,47 @@
+/* 图标的颜色按 app 的语义取系统色，底是同一种颜色从亮到暗的渐变，上面一层高光 */
+.icon {
+  --tint: var(--color-gray);
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  border-radius: var(--radius-app-icon);
+  background:
+    var(--app-icon-highlight),
+    linear-gradient(180deg, color-mix(in srgb, var(--tint) 72%, var(--color-on-accent)), var(--tint));
+  box-shadow: inset 0 0 0 0.5px color-mix(in srgb, var(--color-on-accent) 18%, transparent), 0 1px 2px color-mix(in srgb, var(--color-chrome) 18%, transparent);
+  color: var(--color-on-accent);
+}
+
+.icon svg {
+  width: 56%;
+  height: 56%;
+}
+
+.icon[data-tint='0'] { --tint: var(--color-orange); }
+.icon[data-tint='1'] { --tint: var(--color-green); }
+.icon[data-tint='2'] { --tint: var(--color-teal); }
+.icon[data-tint='3'] { --tint: var(--color-purple); }
+.icon[data-tint='4'] { --tint: var(--color-pink); }
+.icon[data-tint='5'] { --tint: var(--color-mint); }
+
+.icon[data-app='code'] { --tint: var(--color-indigo); }
+.icon[data-app='browser'] { --tint: var(--color-blue); }
+.icon[data-app='files'] { --tint: var(--color-cyan); }
+.icon[data-app='music'] { --tint: var(--color-red); }
+
+/* 终端和系统设置是石墨色 */
+.icon[data-app='terminal'],
+.icon[data-app='system'] {
+  background: var(--app-icon-highlight), var(--app-icon-graphite);
+}
+
+/* 日历是白底红字 */
+.icon[data-app='calendar'] {
+  background: var(--app-icon-light);
+  color: var(--color-red);
+}
+
+/* 喜多是暖色的粉 */
+.icon[data-app='kita'] { --tint: var(--color-pink); }

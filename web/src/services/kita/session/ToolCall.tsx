@@ -29,12 +29,13 @@ function preview({ call, result }: CallState): string | undefined {
 }
 
 export function ToolCall({ thread, state, now }: { thread: string; state: CallState; now: number }) {
-  const { call, result } = state
+  const { call, index, result } = state
   const duration = callDuration(state, now)
   const changes = lineChanges(call)
   const label = toolLabel(call)
   return (
     <Activity
+      icon={label.icon}
       label={label.verb}
       detail={label.detail ? shorten(label.detail) : ''}
       meta={
@@ -47,7 +48,7 @@ export function ToolCall({ thread, state, now }: { thread: string; state: CallSt
       }
       preview={preview(state)}
       status={callStatus(state)}
-      body={() => <ToolBody thread={thread} call={call} result={result} />}
+      body={() => <ToolBody thread={thread} index={index} call={call} result={result} />}
     />
   )
 }

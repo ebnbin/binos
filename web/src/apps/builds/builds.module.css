@@ -1,0 +1,358 @@
+/* 构建：分组背景上居中的一栏，设置和表单是分组列表，构建记录是带状态标签的行 */
+.page {
+  --switch-width: 32px;
+  --switch-height: 18px;
+
+  height: 100%;
+  overflow: auto;
+  background: var(--color-background-grouped);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+@media (pointer: coarse) {
+  .page {
+    --switch-width: 51px;
+    --switch-height: 31px;
+  }
+}
+
+.content {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-margin) var(--space-8);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
+}
+
+.header p {
+  margin: var(--space-0-5) 0 0;
+  color: var(--color-label-secondary);
+}
+
+.glassButton {
+  composes: glassButton from '../../ui/controls.module.css';
+}
+
+.button {
+  composes: button from '../../ui/controls.module.css';
+}
+
+.prominent {
+  composes: prominent from '../../ui/controls.module.css';
+}
+
+.destructive {
+  composes: destructive from '../../ui/controls.module.css';
+}
+
+.tinted {
+  composes: tinted from '../../ui/controls.module.css';
+}
+
+.link {
+  composes: link from '../../ui/controls.module.css';
+}
+
+.field {
+  composes: field from '../../ui/controls.module.css';
+  flex: 1;
+  max-width: 320px;
+  margin-left: auto;
+}
+
+.notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  font-size: var(--font-size-callout);
+}
+
+.alert {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive-text);
+  font-size: var(--font-size-callout);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-destructive-text);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* 设置和表单 */
+.block {
+  margin: 0 0 var(--space-6);
+}
+
+.group {
+  composes: group from '../../ui/controls.module.css';
+}
+
+.row {
+  composes: row from '../../ui/controls.module.css';
+}
+
+.group .row {
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.row > :last-child {
+  flex-shrink: 0;
+}
+
+.submitRow {
+  composes: row from '../../ui/controls.module.css';
+  justify-content: flex-end;
+}
+
+.footer {
+  composes: groupFooter from '../../ui/controls.module.css';
+  display: block;
+}
+
+/* 开关：绿色的胶囊，白色的圆钮 */
+.switch {
+  position: relative;
+  flex: none;
+  width: var(--switch-width);
+  height: var(--switch-height);
+  margin: 0;
+  border-radius: var(--radius-full);
+  appearance: none;
+  background: var(--color-fill);
+  cursor: pointer;
+  transition: background-color var(--duration-normal) var(--ease-standard);
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--switch-height) - 4px);
+  height: calc(var(--switch-height) - 4px);
+  border-radius: var(--radius-full);
+  background: var(--color-on-accent);
+  box-shadow: var(--shadow-control);
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.switch:checked {
+  background: var(--color-success);
+}
+
+.switch:checked::before {
+  transform: translateX(calc(var(--switch-width) - var(--switch-height)));
+}
+
+.switch:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+/* 筛选：分段控件 */
+.filters {
+  composes: segmented from '../../ui/controls.module.css';
+}
+
+.content .filters {
+  display: flex;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto var(--space-4);
+}
+
+.segment {
+  composes: segment from '../../ui/controls.module.css';
+}
+
+/* 构建记录 */
+.list {
+  composes: group from '../../ui/controls.module.css';
+}
+
+.build {
+  composes: row from '../../ui/controls.module.css';
+}
+
+.list .build {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1-5);
+  padding-block: var(--space-3);
+}
+
+.buildTitle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.buildTitle strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.buildTitle code {
+  color: var(--color-label-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-footnote);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.trigger {
+  composes: badge from '../../ui/controls.module.css';
+}
+
+.badge {
+  composes: badge from '../../ui/controls.module.css';
+}
+
+.buildTitle .badge {
+  --tone: var(--color-gray);
+  --tone-text: var(--color-label-secondary);
+  background: color-mix(in srgb, var(--tone) 15%, transparent);
+  color: var(--tone-text);
+}
+
+.badge[data-status='success'] {
+  --tone: var(--color-success);
+  --tone-text: var(--color-success-text);
+}
+
+.badge[data-status='running'] {
+  --tone: var(--color-blue);
+  --tone-text: var(--color-link);
+}
+
+.badge[data-status='queued'],
+.badge[data-status='interrupted'] {
+  --tone: var(--color-warning);
+  --tone-text: var(--color-warning-text);
+}
+
+.badge[data-status='failed'] {
+  --tone: var(--color-destructive);
+  --tone-text: var(--color-destructive-text);
+}
+
+.meta {
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.artifact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+  .artifact:hover {
+    text-decoration: underline;
+  }
+}
+
+.empty {
+  composes: empty from '../../ui/controls.module.css';
+}
+
+/* 日志：盖住整页的不透明面板 */
+.log {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+}
+
+.log header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-toolbar);
+  padding: 0 var(--space-margin);
+  border-bottom: 0.5px solid var(--color-separator);
+}
+
+.log header strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--font-weight-headline);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.log pre {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-3) var(--space-margin);
+  overflow: auto;
+  background: var(--color-background-secondary);
+  color: var(--color-label);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .row {
+    flex-wrap: wrap;
+  }
+
+  .field {
+    max-width: none;
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch::before {
+    transition: none;
+  }
+}

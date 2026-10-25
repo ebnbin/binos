@@ -1,27 +1,31 @@
-/* 一轮：用户的话和这一轮的回答。轮与轮之间间距大，轮里面紧凑 */
+/* 一轮：用户的话和这一轮的回答。回答是不加底的正文，用阅读字号；轮里面紧凑，轮与轮之间由外层拉开 */
 .turn {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  color: var(--color-label);
+  font-size: var(--font-size-content);
+  line-height: var(--line-height-content);
 }
 
+/* 用户的话：靠右的灰色气泡（Xcode 和 Apple 智能的对话里自己的话是灰色气泡；蓝底白字放长段的指令和代码太重） */
 .user {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   align-self: flex-end;
-  max-width: 100%;
+  gap: var(--space-0-5);
+  max-width: min(80%, 600px);
   min-width: 0;
-  gap: var(--space-1);
 }
 
 .userText {
   max-width: 100%;
   min-width: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-separator);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-xl);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -30,17 +34,19 @@
   margin-top: var(--space-1);
 }
 
+/* 时间和复制按钮：悬停时才出现，触屏上一直显示 */
 .userMeta {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: var(--size-control-xs);
-  font-size: var(--font-size-2xs);
-  color: var(--color-text-tertiary);
+  min-height: var(--size-control-md);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
   font-variant-numeric: tabular-nums;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--duration-fast);
+  transition: opacity var(--duration-fast) var(--ease-standard);
 }
 
 .user:hover .userMeta,
@@ -56,7 +62,7 @@
   }
 }
 
-/* 收起的几步：一行「已工作 …」，后面一条细线，像一节的标题 */
+/* 收起的几步：一行「已工作 …」，像展开行，箭头跟在文字后面 */
 .worked {
   display: flex;
   flex-direction: column;
@@ -65,25 +71,24 @@
 .workedRow {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
-  width: 100%;
-  min-height: var(--size-control-sm);
-  padding: 0;
+  gap: var(--space-1);
+  width: fit-content;
+  max-width: calc(100% + 2 * var(--space-1-5));
+  min-height: var(--size-control-md);
+  margin: 0 calc(-1 * var(--space-1-5));
+  padding: var(--space-0-5) var(--space-1-5);
   border: 0;
+  border-radius: var(--radius-item);
   background: none;
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
   text-align: left;
   cursor: pointer;
-}
-
-.workedRow::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  margin-left: var(--space-1-5);
-  background: var(--color-separator);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .workedRow > span {
@@ -95,70 +100,105 @@
 
 @media (hover: hover) {
   .workedRow:hover {
-    color: var(--color-text-secondary);
+    background: var(--color-hover);
+    color: var(--color-label);
   }
+}
+
+.workedRow:active {
+  background: var(--color-pressed);
 }
 
 .workedChevron {
   flex: none;
+  width: 11px;
+  height: 11px;
+  color: var(--color-label-tertiary);
   transition: transform var(--duration-normal) var(--ease-standard);
+}
+
+@media (pointer: coarse) {
+  .workedChevron {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .worked[data-open] .workedChevron {
   transform: rotate(90deg);
 }
 
-.errors {
-  color: var(--color-danger);
+@media (prefers-reduced-motion: reduce) {
+  .workedChevron {
+    transition: none;
+  }
 }
 
+.errors {
+  color: var(--color-destructive-text);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-0-5);
+}
+
+/* 居中的说明（已打断、压缩了上下文），两边是细分隔线 */
 .divider {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .divider::before,
 .divider::after {
   content: '';
   flex: 1;
-  height: 1px;
-  background: var(--color-separator);
+  border-top: 0.5px solid var(--color-separator);
 }
 
-.steps {
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--space-1);
-}
-
+/* 像「信息」里的时间：居中的小字，日期加粗 */
 .time {
   align-self: center;
   margin-top: var(--space-2);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
   font-variant-numeric: tabular-nums;
+}
+
+.older {
+  align-self: center;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .stats {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  margin-top: var(--space-0-5);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  min-height: var(--size-control-md);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  line-height: var(--line-height-caption);
   font-variant-numeric: tabular-nums;
 }
 
+/* 回答进行中的状态：文字上有一道光扫过 */
 .status {
   width: fit-content;
-  font-size: var(--font-size-md);
-  font-variant-numeric: tabular-nums;
-  background: linear-gradient(90deg, var(--color-text-tertiary) 35%, var(--color-text) 50%, var(--color-text-tertiary) 65%) 0 0 / 300% 100%;
+  background: linear-gradient(90deg, var(--color-label-tertiary) 35%, var(--color-label) 50%, var(--color-label-tertiary) 65%) 0 0 / 300% 100%;
   background-clip: text;
   color: transparent;
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
+  font-variant-numeric: tabular-nums;
   animation: shimmer 2.2s linear infinite;
 }
 
@@ -166,6 +206,7 @@
   from {
     background-position: 100% 0;
   }
+
   to {
     background-position: 0 0;
   }
@@ -173,6 +214,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .status {
+    background: none;
+    color: var(--color-label-secondary);
     animation: none;
   }
 }

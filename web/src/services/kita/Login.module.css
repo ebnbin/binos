@@ -1,17 +1,23 @@
+/* 网页上的登录流程：像系统的登录面板，一块卡片，标题、编号的步骤、文本框，底下是胶囊形的按钮 */
 .flow {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
+  gap: var(--space-3);
+  padding: var(--space-4);
   border-radius: var(--radius-card);
-  background: var(--color-surface);
-  font-size: var(--font-size-sm);
+  background: var(--color-background-grouped-secondary);
+  box-shadow: var(--shadow-card);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   text-align: left;
 }
 
 .title {
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-label);
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-3);
 }
 
 .waiting {
@@ -19,102 +25,95 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0;
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
 }
 
 .steps {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .link {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1-5);
-  color: var(--color-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  gap: var(--space-1);
+  width: fit-content;
+  color: var(--color-link);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+.link > svg {
+  flex: none;
 }
 
 .codeLabel {
   display: flex;
   flex-direction: column;
   gap: var(--space-1-5);
-  color: var(--color-text-secondary);
+  color: var(--color-label-secondary);
 }
 
-.codeLabel input {
-  height: var(--size-control-md);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  outline: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+.field {
+  composes: field from '../../ui/controls.module.css';
+  height: var(--size-control-lg);
+  padding: 0 var(--space-2-5);
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-}
-
-.codeLabel input:focus {
-  border-color: var(--color-text-secondary);
 }
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--space-2);
-}
-
-.primary,
-.secondary {
-  display: grid;
-  place-items: center;
-  min-width: 64px;
-  height: var(--size-control-md);
-  padding: 0 var(--space-4);
-  border-radius: var(--radius-full);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
+  margin-top: var(--space-1);
 }
 
 .primary {
-  border: 0;
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  composes: prominent large from '../../ui/controls.module.css';
+  min-width: 80px;
 }
 
-.primary:disabled {
-  opacity: var(--opacity-disabled);
-  cursor: default;
+/* 按钮里的活动指示器跟随按钮文字的颜色 */
+.primary [role='status'] {
+  color: inherit;
 }
 
 .secondary {
-  border: 1px solid var(--color-border);
-  background: none;
-  color: var(--color-text-secondary);
+  composes: button large from '../../ui/controls.module.css';
+  min-width: 80px;
 }
 
 .done {
   margin: 0;
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .error {
   margin: 0;
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
   overflow-wrap: anywhere;
 }
 
+/* 一次性的码：大号等宽字，方便对着输入 */
 .deviceCode {
   align-self: flex-start;
   padding: var(--space-1-5) var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--color-bg);
-  color: var(--color-text);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xl);
-  letter-spacing: var(--letter-spacing-wide);
+  font-size: var(--font-size-title-1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-title-1);
+  letter-spacing: 0.08em;
   user-select: all;
 }

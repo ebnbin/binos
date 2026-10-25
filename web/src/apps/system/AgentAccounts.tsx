@@ -63,7 +63,7 @@ function Account({ account, loadedAt }: { account: AgentAccount; loadedAt: numbe
     <section className={styles.section}>
       <header className={styles.header}>
         <h2>{agents[account.agent].name}</h2>
-        <span className={styles.status} data-ok={account.loggedIn}>
+        <span className={styles.status} data-ok={account.loggedIn} data-missing={account.version === undefined}>
           {account.version === undefined ? '没有安装' : account.loggedIn ? '已登录' : '没有登录'}
         </span>
         {account.version && <span className={styles.version}>{account.version}</span>}
@@ -119,7 +119,7 @@ function AuthRows({ account, loadedAt }: { account: AgentAccount; loadedAt: numb
         actions.length > 0 && (
           <div className={styles.loginActions}>
             {actions.map((action) => (
-              <button key={action.fix} type="button" onClick={() => setFix(action.fix)}>
+              <button key={action.fix} type="button" className={styles.loginButton} onClick={() => setFix(action.fix)}>
                 {action.label}
               </button>
             ))}

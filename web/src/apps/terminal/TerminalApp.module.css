@@ -1,226 +1,360 @@
+/* macOS 终端：整个窗口始终是深色，标签栏和按钮用终端文字色调出的半透明填充 */
 .app {
-  height: 100%;
-  min-height: 0;
+  --term-label: var(--color-terminal-text);
+  --term-secondary: color-mix(in srgb, var(--color-terminal-text) 60%, transparent);
+  --term-fill: color-mix(in srgb, var(--color-terminal-text) 10%, transparent);
+  --term-fill-strong: color-mix(in srgb, var(--color-terminal-text) 18%, transparent);
+  --term-separator: color-mix(in srgb, var(--color-terminal-text) 14%, transparent);
+  --term-bar: color-mix(in srgb, var(--color-terminal-text) 6%, var(--color-terminal-bg));
+  --term-elevated: color-mix(in srgb, var(--color-terminal-text) 12%, var(--color-terminal-bg));
+
+  position: relative;
   display: flex;
   flex-direction: column;
-  position: relative;
-  background: var(--color-surface);
+  height: 100%;
+  min-height: 0;
+  background: var(--color-terminal-bg);
+  color: var(--term-label);
+  color-scheme: dark;
 }
+
+/* 工具栏和标签栏共用一块稍亮的标题栏底色 */
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  flex: none;
+  min-height: var(--size-toolbar);
+  padding: 0 var(--space-3) 0 var(--space-margin);
+  background: var(--term-bar);
 }
-.toolbar strong,
-.actions,
-.app button {
+
+.toolbar strong {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-headline);
+  line-height: var(--line-height-headline);
+  white-space: nowrap;
+}
+
+.toolbar strong svg {
+  flex: none;
+  color: var(--term-secondary);
+}
+
+.actions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.toolbar strong {
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-}
-.actions {
-  gap: var(--space-2);
-}
+
+/* 按钮：深色上的胶囊，按下变亮 */
 .app button {
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  border-radius: var(--radius-control);
-  padding: var(--space-1-5) var(--space-3);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  flex: none;
+  height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--term-fill);
+  color: var(--term-label);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
-.app button:hover {
-  background: var(--color-hover);
+
+.app button:active:not(:disabled) {
+  background: var(--term-fill-strong);
 }
+
 .app button:disabled {
   opacity: var(--opacity-disabled);
-  cursor: default;
 }
-.app button:focus-visible {
-  outline: 2px solid var(--color-text-secondary);
-  outline-offset: 2px;
+
+@media (hover: hover) {
+  .app button:hover:not(:disabled) {
+    background: var(--term-fill-strong);
+  }
 }
+
+.actions button {
+  height: var(--size-toolbar-item);
+}
+
+/* 标签栏：等宽的标签铺满一行，选中的一个浮起 */
 .tabs {
   display: flex;
-  gap: var(--space-1-5);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-0-5);
+  flex: none;
   overflow-x: auto;
-  flex-shrink: 0;
-  background: var(--color-bg-subtle);
+  padding: 0 var(--space-2) var(--space-2);
+  background: var(--term-bar);
+  border-bottom: 0.5px solid var(--term-separator);
+  scrollbar-width: none;
 }
+
 .tabs button {
-  white-space: nowrap;
-  color: var(--color-text-secondary);
+  flex: 1 1 0;
+  min-width: 96px;
+  height: var(--size-control-md);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--term-secondary);
 }
+
 .tabs button[aria-current] {
-  color: var(--color-text);
-  border-color: var(--color-text-secondary);
-  background: var(--color-surface);
+  background: var(--term-fill-strong);
+  color: var(--term-label);
+  font-weight: var(--font-weight-medium);
 }
+
 .pane {
-  flex: 1;
-  min-height: 100px;
   display: flex;
+  flex: 1;
   flex-direction: column;
+  min-height: 100px;
+  overflow: hidden;
   background: var(--color-terminal-bg);
   color: var(--color-terminal-text);
-  overflow: hidden;
 }
+
 .status {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-2xs);
-  color: color-mix(in srgb, var(--color-terminal-text) 65%, var(--color-terminal-bg));
-  padding: var(--space-2) var(--space-4);
-  flex-shrink: 0;
+  flex: none;
+  min-height: var(--size-control-md);
+  padding: var(--space-1) var(--space-margin);
+  color: var(--term-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
+
 .status > span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-warning);
 }
+
 .status > span[data-connected='true'] {
-  background: color-mix(in srgb, var(--color-success) 60%, var(--color-terminal-text));
+  background: var(--color-success);
 }
+
 .status button {
+  height: var(--size-control-sm);
   margin-left: auto;
-  color: var(--color-terminal-text);
-  background: color-mix(in srgb, var(--color-terminal-text) 6%, var(--color-terminal-bg));
-  border-color: var(--color-terminal-selection);
+  padding: 0 var(--space-2-5);
+  font-size: var(--font-size-callout);
 }
+
 .terminal {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: var(--space-1) var(--space-3) var(--space-2) var(--space-4);
+  padding: var(--space-1) var(--space-3) var(--space-2) var(--space-margin);
 }
+
 .terminal :global(.xterm) {
   height: 100%;
 }
+
 .terminal :global(.xterm-screen) {
   user-select: none;
 }
+
 .footer {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   justify-content: space-between;
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-2xs);
-  border-top: 1px solid var(--color-border);
+  gap: var(--space-3);
+  flex: none;
+  min-height: var(--size-toolbar-item);
+  padding: var(--space-1-5) var(--space-3) var(--space-1-5) var(--space-margin);
+  border-top: 0.5px solid var(--term-separator);
+  background: var(--term-bar);
+  font-size: var(--font-size-footnote);
 }
+
 .footer > span {
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--term-secondary);
   font-family: var(--font-mono);
-  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
+
 .footer button {
-  flex-shrink: 0;
+  color: var(--color-red);
 }
+
 .connection {
-  padding: var(--space-1-5) var(--space-3);
-  font-size: var(--font-size-2xs);
-  color: var(--color-text-secondary);
+  flex: none;
   max-height: 140px;
   overflow: auto;
+  padding: var(--space-1-5) var(--space-margin);
+  background: var(--term-bar);
+  color: var(--term-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
+
 .connection summary {
-  cursor: pointer;
+  cursor: default;
 }
+
 .connection code {
   display: block;
-  user-select: text;
+  margin: var(--space-2) 0;
+  padding: var(--space-2) var(--space-2-5);
+  border-radius: var(--radius-md);
+  background: var(--term-fill);
+  color: var(--term-label);
+  font-family: var(--font-mono);
   overflow-wrap: anywhere;
-  padding: var(--space-2) 0;
+  user-select: text;
 }
+
 .connection p {
   margin: 0 0 var(--space-1-5);
 }
+
 .empty {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--space-8);
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-margin);
+  color: var(--term-secondary);
   text-align: center;
-  color: var(--color-text-secondary);
 }
+
+.empty > svg {
+  box-sizing: content-box;
+  padding: var(--space-3);
+  border-radius: var(--radius-app-icon);
+  background: var(--term-fill);
+  color: var(--term-label);
+}
+
 .empty h2 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text);
+  margin: var(--space-2) 0 0;
+  color: var(--term-label);
+  font-size: var(--font-size-title-2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-2);
 }
+
 .empty p {
-  font-size: var(--font-size-sm);
-  max-width: 360px;
+  max-width: 380px;
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
+
+.empty code {
+  font-family: var(--font-mono);
+  color: var(--term-label);
+}
+
 .empty button {
-  margin-top: var(--space-4);
+  height: var(--size-control-lg);
+  margin-top: var(--space-3);
+  padding: 0 var(--space-5);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-medium);
 }
+
+@media (hover: hover) {
+  .empty button:hover:not(:disabled) {
+    background: var(--color-accent);
+    background-image: linear-gradient(var(--term-fill), var(--term-fill));
+  }
+}
+
 .error {
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
-  font-size: var(--font-size-xs);
+  flex: none;
+  padding: var(--space-2) var(--space-margin);
+  background: color-mix(in srgb, var(--color-destructive) 22%, var(--color-terminal-bg));
+  color: var(--term-label);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
+  overflow-wrap: anywhere;
 }
+
+/* 结束会话的确认：浮在终端底部的深色弹层 */
 .confirm {
   position: absolute;
-  bottom: 50px;
-  left: var(--space-3);
   right: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface);
-  padding: var(--space-4);
-  box-shadow: var(--shadow-md);
+  bottom: calc(var(--size-toolbar-item) * 2 + var(--space-6));
+  left: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-xs);
+  max-width: 520px;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border-radius: var(--radius-overlay);
+  background: var(--term-elevated);
+  box-shadow: inset 0 0 0 0.5px var(--term-separator), var(--shadow-overlay);
+  font-size: var(--font-size-body);
 }
+
 .confirm span {
   flex: 1;
 }
+
 .confirm button:last-child {
-  color: var(--color-danger);
+  background: var(--color-destructive);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-medium);
 }
+
+/* 触屏上终端下面一排常用按键，像 iOS 键盘上方的快捷栏 */
 .keys {
   display: none;
   gap: var(--space-1-5);
-  padding: var(--space-2);
+  flex: none;
   overflow-x: auto;
-  flex-shrink: 0;
+  padding: var(--space-2) var(--space-margin);
+  background: var(--term-bar);
+  border-top: 0.5px solid var(--term-separator);
+  scrollbar-width: none;
 }
+
 .keys button {
-  background: color-mix(in srgb, var(--color-terminal-text) 6%, var(--color-terminal-bg));
-  border-color: var(--color-terminal-selection);
-  color: var(--color-terminal-text);
-  white-space: nowrap;
+  min-width: var(--size-touch-target);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-callout);
 }
+
 @media (pointer: coarse) {
   .keys {
     display: flex;
   }
 }
+
 @media (max-width: 480px) {
   .toolbar {
-    padding: var(--space-3);
+    padding: 0 var(--space-2) 0 var(--space-margin);
   }
+
   .actions button span {
     display: none;
   }
+
   .confirm {
     flex-wrap: wrap;
   }

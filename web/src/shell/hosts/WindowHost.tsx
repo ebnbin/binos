@@ -21,7 +21,7 @@ export function WindowHost({ window: win, onTitle, onOpen }: { window: WindowIns
       fallback={(retry) => (
         <div className={styles.message}>
           <p>这个 app 出错了</p>
-          <button type="button" onClick={retry}>
+          <button type="button" className={styles.retry} onClick={retry}>
             重新打开
           </button>
         </div>

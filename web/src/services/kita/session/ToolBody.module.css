@@ -1,45 +1,55 @@
+/* 展开的工具调用：输出、终端和 diff 都是和代码块一样的圆角块 */
 .output,
 .terminal,
 .diffLines {
+  --code-font-size: var(--font-size-callout);
+
   max-height: 480px;
   margin: 0;
-  padding: var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   overflow: auto;
-  border: 1px solid var(--color-separator);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-secondary);
+  box-shadow: inset 0 0 0 0.5px var(--color-border);
+  color: var(--color-label);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  font-size: var(--code-font-size);
+  line-height: 1.55;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+@media (pointer: coarse) {
+  .output,
+  .terminal,
+  .diffLines {
+    --code-font-size: var(--font-size-footnote);
+  }
+}
+
 .output[data-error='true'] {
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-destructive) 8%, var(--color-background-secondary));
+  color: var(--color-destructive-text);
 }
 
 .prompt {
-  color: var(--color-text-tertiary);
+  color: var(--color-label-tertiary);
   user-select: none;
 }
 
-.terminal {
-  color: var(--color-text);
-}
-
 .terminalOutput {
-  color: var(--color-text-secondary);
+  color: var(--color-label-secondary);
 }
 
 .terminalOutput[data-error='true'] {
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
 }
 
 .note {
   margin: 0;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .diff {
@@ -48,8 +58,9 @@
   gap: var(--space-1-5);
 }
 
+/* diff：加的行绿底、删的行红底，左边一栏是 +/- */
 .diffLines {
-  padding: var(--space-3) 0;
+  padding: var(--space-2) 0;
   white-space: pre;
 }
 
@@ -59,43 +70,68 @@
 }
 
 .diffLine[data-change='added'] {
-  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+  background: color-mix(in srgb, var(--color-green) 16%, transparent);
 }
 
 .diffLine[data-change='removed'] {
-  background: color-mix(in srgb, var(--color-danger) 13%, transparent);
+  background: color-mix(in srgb, var(--color-red) 14%, transparent);
 }
 
 .diffLine[data-hunk] {
-  color: var(--color-text-tertiary);
+  margin: var(--space-1) 0;
+  background: color-mix(in srgb, var(--color-blue) 8%, transparent);
+  color: var(--color-label-secondary);
 }
 
 .diffSign {
   display: inline-block;
-  width: 26px;
+  width: 2em;
+  color: var(--color-label-tertiary);
   text-align: center;
-  color: var(--color-text-tertiary);
   user-select: none;
 }
 
+[data-change='added'] > .diffSign {
+  color: var(--color-success-text);
+}
+
+[data-change='removed'] > .diffSign {
+  color: var(--color-destructive-text);
+}
+
+/* 搜到的网页：分组列表，一行一个，行之间是缩进的细分隔线 */
 .links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
+  composes: group from '../../../ui/controls.module.css';
   margin: 0;
   padding: 0;
   list-style: none;
+  box-shadow: inset 0 0 0 0.5px var(--color-border);
+  background: var(--color-background-secondary);
+}
+
+.links li {
+  position: relative;
+}
+
+.links li + li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-3);
+  border-top: 0.5px solid var(--color-separator);
 }
 
 .links a {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-1-5) var(--space-2);
-  border-radius: var(--radius-item);
-  color: inherit;
+  min-height: var(--size-row);
+  padding: var(--space-1-5) var(--space-3);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   text-decoration: none;
-  font-size: var(--font-size-sm);
 }
 
 @media (hover: hover) {
@@ -104,17 +140,23 @@
   }
 }
 
+.links a:active {
+  background: var(--color-pressed);
+}
+
 .linkTitle {
   min-width: 0;
   overflow: hidden;
+  color: var(--color-link);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .linkHost {
   flex: none;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  margin-left: auto;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
 }
 
 .image {
@@ -126,6 +168,6 @@
   display: block;
   max-width: 100%;
   max-height: 280px;
-  border: 1px solid var(--color-separator);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 0.5px var(--color-border);
 }

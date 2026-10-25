@@ -11,31 +11,20 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* 往前补读更早的轮时由 Transcript 自己保持滚动位置，浏览器的滚动锚定会重复调整 */
+  overflow-anchor: none;
 }
 
+/* 回到底部：浮在内容上的圆形玻璃按钮 */
 .toBottom {
+  composes: glassIcon from '../../../ui/controls.module.css';
   position: absolute;
   bottom: var(--space-3);
   left: 50%;
-  display: grid;
-  place-items: center;
-  width: var(--size-control-md);
-  height: var(--size-control-md);
-  padding: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  box-shadow: var(--shadow-md);
+  color: var(--color-label);
   cursor: pointer;
   transform: translateX(-50%);
-  animation: appear var(--duration-normal) var(--ease-standard) both;
-}
-
-@media (hover: hover) {
-  .toBottom:hover {
-    color: var(--color-text);
-  }
+  animation: appear var(--duration-normal) var(--ease-spring) both;
 }
 
 .column {
@@ -43,34 +32,51 @@
   flex-direction: column;
   gap: var(--space-8);
   min-height: 100%;
-  max-width: 780px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: var(--space-3) var(--space-8) var(--space-10);
+  padding: var(--space-4) var(--space-8) var(--space-10);
 }
 
+/* 新对话的空白页：图标、大标题，下面是选项目的弹出按钮 */
 .empty {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   flex: 1;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding-bottom: var(--space-16);
   text-align: center;
-  animation: rise 0.5s var(--ease-standard) both;
+  animation: rise var(--duration-slow) var(--ease-standard) both;
 }
 
 .empty h1 {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-tight);
+  margin: var(--space-1) 0 0;
+  color: var(--color-label);
+  font-size: var(--font-size-title-1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-1);
 }
 
 .empty p {
-  margin: calc(-1 * var(--space-2)) 0 0;
-  font-size: var(--font-size-md);
-  color: var(--color-text-tertiary);
+  margin: 0;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.projectChoice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
+}
+
+.projectChoice button {
+  max-width: 240px;
 }
 
 @keyframes rise {
@@ -83,14 +89,14 @@
 @keyframes appear {
   from {
     opacity: 0;
-    transform: translate(-50%, 6px);
+    transform: translate(-50%, 6px) scale(0.9);
   }
 }
 
 @container agent (width < 600px) {
   .column {
     gap: var(--space-6);
-    padding: var(--space-5) var(--space-5) var(--space-8);
+    padding: var(--space-4) var(--space-margin) var(--space-8);
   }
 }
 
@@ -99,23 +105,4 @@
   .toBottom {
     animation: none;
   }
-}
-
-.projectChoice {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-md);
-}
-
-.projectChoice button {
-  max-width: 240px;
-  padding: var(--space-2) var(--space-3);
-  border: 0;
-  border-radius: var(--radius-control);
-  background: none;
-  color: var(--color-text);
-  font: inherit;
 }

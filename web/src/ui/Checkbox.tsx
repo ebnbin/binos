@@ -6,7 +6,7 @@ export function Checkbox({ checked, onCheckedChange, label }: { checked: boolean
   return (
     <label className={styles.label}>
       <Primitive.Root className={styles.control} checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)}>
-        <Primitive.Indicator className={styles.indicator}><Check size={12} strokeWidth={3} /></Primitive.Indicator>
+        <Primitive.Indicator className={styles.indicator}><Check strokeWidth={3.5} /></Primitive.Indicator>
       </Primitive.Root>
       {label}
     </label>

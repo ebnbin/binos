@@ -1,11 +1,22 @@
 .content {
-  z-index: var(--z-overlay);
+  composes: popover from './controls.module.css';
   max-width: var(--radix-popover-content-available-width);
   max-height: var(--radix-popover-content-available-height);
   overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-overlay);
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-md);
+  transform-origin: var(--radix-popover-content-transform-origin);
+  animation: appear var(--duration-normal) var(--ease-spring);
+}
+
+/* 弹层从触发它的按钮里长出来 */
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content {
+    animation: none;
+  }
 }

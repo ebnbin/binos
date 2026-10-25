@@ -1,20 +1,40 @@
+/* 代码块：内容层里的圆角块，次级背景加一圈细描边（放在卡片里也分得清），等宽字比正文小一号 */
 .block {
+  --code-font-size: var(--font-size-callout);
+
   overflow: hidden;
-  border: 1px solid var(--color-separator);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-secondary);
+  box-shadow: inset 0 0 0 0.5px var(--color-border);
 }
 
+/* 触屏上 callout 是 16px，代码用 footnote */
+@media (pointer: coarse) {
+  .block {
+    --code-font-size: var(--font-size-footnote);
+  }
+}
+
+/* 顶上一栏：语言和复制按钮 */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: var(--size-control-md);
-  padding: 0 var(--space-1-5) 0 var(--space-3);
-  border-bottom: 1px solid var(--color-separator);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  color: var(--color-text-tertiary);
+  gap: var(--space-2);
+  min-height: var(--size-control-lg);
+  padding: var(--space-1) var(--space-1-5) 0 var(--space-3);
+  color: var(--color-label-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
+}
+
+.header > span {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .pre {
@@ -22,10 +42,15 @@
   margin: 0;
   padding: var(--space-3) 0;
   overflow: auto;
+  color: var(--color-label);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
-  color: var(--color-text);
+  font-size: var(--code-font-size);
+  line-height: 1.55;
+  tab-size: 4;
+}
+
+.header + .pre {
+  padding-top: var(--space-1);
 }
 
 .line {
@@ -34,21 +59,27 @@
   white-space: pre;
 }
 
+/* 行号：像 Xcode 的行号栏，淡色、右对齐 */
 .gutter {
   display: inline-block;
   min-width: 2.5em;
   margin-right: var(--space-4);
+  color: var(--color-label-tertiary);
+  font-variant-numeric: tabular-nums;
   text-align: right;
-  color: var(--color-text-tertiary);
   user-select: none;
 }
 
 .token {
   color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style, inherit);
+  font-weight: var(--shiki-light-font-weight, inherit);
 }
 
 @media (prefers-color-scheme: dark) {
   .token {
     color: var(--shiki-dark);
+    font-style: var(--shiki-dark-font-style, inherit);
+    font-weight: var(--shiki-dark-font-weight, inherit);
   }
 }

@@ -1,0 +1,171 @@
+.chat {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 往前补读更早的轮时由 Transcript 自己保持滚动位置，浏览器的滚动锚定会重复调整 */
+  overflow-anchor: none;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-margin) var(--space-8);
+}
+
+/* 新对话：喜多的头像和名字在中间 */
+.empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-12);
+  text-align: center;
+}
+
+.empty h1 {
+  margin: 0;
+  font-size: var(--font-size-title-1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-1);
+}
+
+.temporaryMark {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-full);
+  background: var(--color-fill-quaternary);
+  box-shadow: inset 0 0 0 1px var(--color-separator);
+  color: var(--color-label-secondary);
+}
+
+/* 输入框：和 Code 一样浮在底部的一块玻璃，发送是强调色的圆形按钮，外框圆角和按钮同心 */
+.dock {
+  --send-size: var(--size-control-lg);
+  --card-padding: var(--space-2);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: calc(100% - 2 * var(--space-margin));
+  max-width: 728px;
+  margin: 0 auto var(--space-3);
+}
+
+@media (pointer: coarse) {
+  .dock {
+    --send-size: var(--size-control-md);
+  }
+}
+
+.composer {
+  composes: glass from '../../ui/controls.module.css';
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--card-padding) var(--card-padding) var(--card-padding) var(--space-4);
+  border-radius: calc(var(--send-size) / 2 + var(--card-padding));
+}
+
+.input {
+  flex: 1;
+  min-height: var(--send-size);
+  max-height: 40vh;
+  padding: calc((var(--send-size) - var(--line-height-body)) / 2) 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--color-label);
+  font-size: var(--font-size-input);
+  line-height: var(--line-height-body);
+  resize: none;
+  field-sizing: content;
+}
+
+.action {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--send-size);
+  height: var(--send-size);
+  padding: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+/* 触屏上按钮看着小，点按区域仍然够 44 */
+.action::after {
+  content: '';
+  position: absolute;
+  inset: calc((var(--size-touch-target) - var(--send-size)) / -2);
+}
+
+.action:active:not(:disabled) {
+  background-image: linear-gradient(var(--color-pressed), var(--color-pressed));
+  transform: scale(0.94);
+}
+
+.action:disabled {
+  background: var(--color-fill);
+  color: var(--color-label-tertiary);
+}
+
+span.action {
+  background: none;
+  color: var(--color-label-secondary);
+}
+
+.stopIcon {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: currentColor;
+}
+
+/* 输入框下面一行：用哪个 agent、带几条记忆 */
+.context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-control-md);
+  padding: 0 var(--space-3);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+}
+
+.context .agent {
+  height: var(--size-control-sm);
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0 var(--space-1) 0 var(--space-2);
+  background: none;
+  box-shadow: none;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+}
+
+@media (hover: hover) {
+  .context .agent:hover {
+    background: var(--color-hover);
+  }
+}

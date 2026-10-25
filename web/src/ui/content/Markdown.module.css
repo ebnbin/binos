@@ -1,5 +1,5 @@
+/* 渲染出来的 Markdown：字号和行高跟随所在的位置（对话里是 content），标题取系统的 title 样式 */
 .markdown {
-  line-height: var(--line-height-relaxed);
   overflow-wrap: anywhere;
 }
 
@@ -12,30 +12,41 @@
 }
 
 .markdown :where(p, ul, ol, blockquote, .codeBlock, .tableWrap, hr) {
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-3);
 }
 
 .markdown :is(h1, h2, h3, h4, h5, h6) {
-  margin: var(--space-6) 0 var(--space-3);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-snug);
-  letter-spacing: var(--letter-spacing-tight);
+  margin: var(--space-6) 0 var(--space-2);
+  color: var(--color-label);
+  font-weight: var(--font-weight-bold);
 }
 
 .markdown h1 {
-  font-size: 1.4em;
+  font-size: var(--font-size-title-1);
+  line-height: var(--line-height-title-1);
 }
 
 .markdown h2 {
-  font-size: 1.22em;
+  font-size: var(--font-size-title-2);
+  line-height: var(--line-height-title-2);
 }
 
 .markdown h3 {
-  font-size: 1.08em;
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-title-3);
 }
 
+/* h4 以下和正文一样大，只靠字重区分 */
 .markdown :is(h4, h5, h6) {
+  margin-top: var(--space-4);
   font-size: 1em;
+  font-weight: var(--font-weight-semibold);
+  line-height: inherit;
+}
+
+.markdown :is(h5, h6) {
+  color: var(--color-label-secondary);
 }
 
 .markdown strong {
@@ -43,16 +54,14 @@
 }
 
 .markdown a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--color-text) 30%, transparent);
-  text-underline-offset: 3px;
-  transition: text-decoration-color var(--duration-fast);
+  color: var(--color-link);
+  text-decoration: none;
 }
 
 @media (hover: hover) {
   .markdown a:hover {
-    text-decoration-color: currentColor;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
   }
 }
 
@@ -70,7 +79,11 @@
 }
 
 .markdown li::marker {
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+}
+
+.markdown ol > li::marker {
+  font-variant-numeric: tabular-nums;
 }
 
 .markdown li > p {
@@ -79,8 +92,8 @@
 
 .markdown input[type='checkbox'] {
   margin: 0 var(--space-1-5) 0 0;
-  vertical-align: -1px;
-  accent-color: var(--color-primary);
+  vertical-align: -0.1em;
+  accent-color: var(--color-accent);
 }
 
 .markdown :global(.contains-task-list) {
@@ -88,24 +101,38 @@
   list-style: none;
 }
 
+/* 引用：左边一条圆头的灰色竖条，文字次级颜色 */
 .markdown blockquote {
+  position: relative;
   padding-left: var(--space-4);
-  border-left: 3px solid var(--color-border);
-  color: var(--color-text-secondary);
+  color: var(--color-label-secondary);
+}
+
+.markdown blockquote::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-fill);
 }
 
 .markdown hr {
-  height: 1px;
+  height: 0;
+  margin-block: var(--space-5);
   border: 0;
-  background: var(--color-separator);
+  border-top: 0.5px solid var(--color-separator);
 }
 
+/* 行内代码：浅灰的小圆角底 */
 .markdown code {
-  padding: 1px var(--space-1-5);
+  padding: 0.1em 0.35em;
   border-radius: var(--radius-xs);
-  background: var(--color-fill);
+  background: var(--color-fill-tertiary);
   font-family: var(--font-mono);
-  font-size: 0.86em;
+  font-size: 0.88em;
 }
 
 .markdown .codeBlock code {
@@ -116,39 +143,55 @@
 }
 
 .markdown :global(.katex-display) {
-  margin: 0 0 var(--space-4);
+  margin: 0 0 var(--space-3);
   overflow-x: auto;
   overflow-y: hidden;
 }
 
+/* 表格：没有外框，行之间是细分隔线，表头加粗、下面一条实一些的线 */
 .tableWrap {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
 }
 
 .markdown table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.93em;
-  line-height: var(--line-height-normal);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
 }
 
 .markdown :is(th, td) {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1-5) var(--space-3);
   text-align: left;
   vertical-align: top;
 }
 
+.markdown :is(th, td):first-child {
+  padding-left: 0;
+}
+
+.markdown :is(th, td):last-child {
+  padding-right: 0;
+}
+
 .markdown th {
-  background: var(--color-surface-sunken);
+  border-bottom: 0.5px solid var(--color-separator);
+  color: var(--color-label);
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
 }
 
-.markdown tr + tr td,
-.markdown thead + tbody td {
-  border-top: 1px solid var(--color-separator);
+.markdown tbody tr + tr td {
+  border-top: 0.5px solid var(--color-border);
+}
+
+.markdown :is(th, td)[align='center'] {
+  text-align: center;
+}
+
+.markdown :is(th, td)[align='right'] {
+  text-align: right;
 }
 
 .image {
@@ -161,18 +204,19 @@
   display: block;
   max-width: 100%;
   max-height: 480px;
-  border: 1px solid var(--color-separator);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-secondary);
+  box-shadow: 0 0 0 0.5px var(--color-border);
 }
 
+/* 引用了但找不到的图片：一个灰色的小胶囊 */
 .missingImage {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
-  padding: var(--space-0-5) var(--space-3);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-control);
-  color: var(--color-text-tertiary);
+  padding: var(--space-0-5) var(--space-2-5);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-quaternary);
+  color: var(--color-label-secondary);
   font-size: 0.9em;
 }

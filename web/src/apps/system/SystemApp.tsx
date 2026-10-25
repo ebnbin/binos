@@ -37,34 +37,38 @@ export function SystemApp({ ctx }: { ctx: WindowContext }) {
   return (
     <div className={styles.app}>
       <header className={styles.top}>
-        <div>
+        <div className={styles.heading}>
           <strong>系统</strong>
           <span className={styles.freshness} data-stale={!!error || stale || !!status?.collectionError}>
             {error ? '监控连接异常' : stale ? '数据已过期' : status?.collectionError ? '采集异常' : snapshot ? '正在监控' : '首次采集中'}
             <small>{snapshot ? `采样 ${new Date(snapshot.at).toLocaleTimeString('zh-CN')}` : ''}</small>
           </span>
         </div>
+        <nav className={styles.sections} aria-label="系统分区">
+          {[
+            { id: 'host', name: '宿主 Mac', hint: '硬件与 macOS', icon: Monitor, route: '/' },
+            { id: 'agent', name: 'Agent', hint: '账号与额度', icon: Bot, route: '/agent' },
+            { id: 'binos', name: 'binOS', hint: '运行与维护', icon: Activity, route: '/binos' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              className={styles.segment}
+              title={item.hint}
+              aria-current={section === item.id ? 'page' : undefined}
+              data-selected={section === item.id}
+              onClick={() => ctx.navigate(item.route)}
+            >
+              <item.icon size={14} strokeWidth={2} aria-hidden />
+              {item.name}
+            </button>
+          ))}
+        </nav>
         <div className={styles.actions}>
-          <button title="立即采集" aria-label="立即采集" disabled={refreshing} onClick={() => void refresh()}>
-            <RefreshCw size={16} className={refreshing ? styles.spin : ''} />
+          <button className={styles.refresh} title="立即采集" aria-label="立即采集" disabled={refreshing} onClick={() => void refresh()}>
+            <RefreshCw size={16} strokeWidth={1.75} className={refreshing ? styles.spin : ''} />
           </button>
         </div>
       </header>
-      <nav className={styles.sections} aria-label="系统分区">
-        {[
-          { id: 'host', name: '宿主 Mac', hint: '硬件与 macOS', icon: Monitor, route: '/' },
-          { id: 'agent', name: 'Agent', hint: '账号与额度', icon: Bot, route: '/agent' },
-          { id: 'binos', name: 'binOS', hint: '运行与维护', icon: Activity, route: '/binos' },
-        ].map((item) => (
-          <button key={item.id} aria-current={section === item.id ? 'page' : undefined} onClick={() => ctx.navigate(item.route)}>
-            <item.icon size={20} />
-            <span>
-              {item.name}
-              <small>{item.hint}</small>
-            </span>
-          </button>
-        ))}
-      </nav>
       {(error || stale || actionError) && (
         <div className={styles.warning} role="alert">
           {actionError || error || '监控采样超过 30 秒未更新'}。

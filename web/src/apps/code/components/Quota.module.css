@@ -2,18 +2,32 @@
   margin-left: auto;
 }
 
+/* 额度摘要：工具栏右边一个填充的胶囊，数字是等宽的 */
 .summary {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1-5);
+  height: var(--size-control-md);
+  padding: 0 var(--space-2-5) 0 var(--space-1-5);
   border: 0;
   border-radius: var(--radius-full);
-  background: var(--color-hover);
-  color: var(--color-text-tertiary);
-  font: inherit;
-  font-size: var(--font-size-2xs);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-callout);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .summary:hover {
+    background: var(--color-fill-secondary);
+  }
+}
+
+.summary[data-state='open'] {
+  background: var(--color-fill);
+  color: var(--color-label);
 }
 
 .agent {
@@ -24,26 +38,27 @@
 }
 
 .agent[data-alert] {
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
 }
 
+/* 详情：每个 agent 一节，节标题是小号的次要文字 */
 .details {
-  width: 340px;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  width: 340px;
   padding: var(--space-3) var(--space-4) var(--space-4);
-  box-shadow: var(--shadow-md);
 }
 
 .details h3 {
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-tertiary);
+  margin: 0 0 var(--space-2);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-subheadline);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-subheadline);
 }
 
 .details section + section {
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-separator);
+  border-top: 0.5px solid var(--color-separator);
 }

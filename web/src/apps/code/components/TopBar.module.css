@@ -1,15 +1,29 @@
+/* 统一的工具栏：标题和编号在左，PR 是右边一组玻璃按钮。下面不画分隔线，内容往上滚时边缘渐隐 */
 .bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   flex: none;
-  height: 56px;
-  padding: 0 var(--space-5);
+  min-height: var(--size-toolbar);
+  z-index: 1;
+  padding: 0 var(--space-margin);
+}
+
+.bar::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: var(--space-4);
+  background: linear-gradient(var(--color-background), transparent);
+  pointer-events: none;
 }
 
 .heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   flex: 1;
   min-width: 0;
@@ -17,10 +31,12 @@
 
 .title {
   overflow: hidden;
+  color: var(--color-label);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-headline);
+  line-height: var(--line-height-headline);
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
 }
 
 .titleWrap {
@@ -29,20 +45,21 @@
   min-width: 0;
 }
 
+/* 标题本身是一个无边框的弹出按钮，点开是这个对话的操作 */
 .titleButton {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   min-width: 0;
+  height: var(--size-control-md);
   margin: 0 calc(-1 * var(--space-2));
-  padding: var(--space-1-5) var(--space-2);
+  padding: 0 var(--space-2);
   border: 0;
   border-radius: var(--radius-control);
   background: none;
-  color: var(--color-text);
-  font: inherit;
+  color: var(--color-label);
   cursor: pointer;
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 @media (hover: hover) {
@@ -52,80 +69,128 @@
 }
 
 .titleButton[aria-expanded='true'] {
-  background: var(--color-hover);
+  background: var(--color-pressed);
 }
 
 .titleChevron {
   flex: none;
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
 }
 
 .rename {
   align-self: center;
   max-width: 420px;
-  min-height: var(--size-control-md);
 }
 
 .id {
   flex: none;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
   font-variant-numeric: tabular-nums;
 }
 
 .prs {
+  composes: glassGroup from '../../../ui/controls.module.css';
   position: relative;
-  display: flex;
-  flex: none;
-  gap: var(--space-1-5);
+  gap: var(--space-0-5);
   margin-left: auto;
 }
 
+.pr {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.pr a,
 .finished {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-0-5) var(--space-2);
+  height: 100%;
+  padding: 0 var(--space-2-5);
   border: 0;
   border-radius: var(--radius-full);
-  background: var(--color-hover);
-  color: var(--color-text-tertiary);
-  font: inherit;
-  font-size: var(--font-size-2xs);
-  font-variant-numeric: tabular-nums;
+  background: none;
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  text-decoration: none;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
+@media (hover: hover) {
+  .pr a:hover,
+  .finished:hover {
+    background: var(--color-hover);
+  }
+}
+
+.pr[data-state='open'] a:first-child svg,
+.pr:not([data-state]) a:first-child svg {
+  color: var(--color-success);
+}
+
+.pr[data-state='merged'] a:first-child svg {
+  color: var(--color-done);
+}
+
+.pr[data-state='closed'] a:first-child svg {
+  color: var(--color-destructive);
+}
+
+.pr .preview {
+  color: var(--color-link);
+}
+
+.finished {
+  color: var(--color-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.finished[data-state='open'] {
+  background: var(--color-pressed);
+}
+
+/* 结束了的 PR：弹层里的一列，行之间有缩进的分隔线 */
 .prMenu {
   display: flex;
   flex-direction: column;
   width: 360px;
   max-height: min(320px, var(--radix-popover-content-available-height));
   overflow-y: auto;
-  padding: var(--space-1);
-  box-shadow: var(--shadow-md);
+  padding: var(--space-1-5);
 }
 
 .prMenu a {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--size-row);
+  padding: var(--space-1-5) var(--space-2-5);
   border-radius: var(--radius-item);
-  color: var(--color-text);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
   text-decoration: none;
-  font-size: var(--font-size-sm);
 }
 
 @media (hover: hover) {
   .prMenu a:hover {
-    background: var(--color-hover);
+    background: var(--color-selection);
+    color: var(--color-on-selection);
+  }
+
+  .prMenu a:hover .prNumber,
+  .prMenu a:hover .prState {
+    color: inherit;
   }
 }
 
 .prNumber {
   flex: none;
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -139,47 +204,16 @@
 
 .prState {
   flex: none;
-  font-size: var(--font-size-xs);
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
 }
 
 .prMenu a[data-state='open'] .prState {
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .prMenu a[data-state='merged'] .prState {
   color: var(--color-done);
-}
-
-.pr {
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  border-radius: var(--radius-full);
-  background: var(--color-hover);
-  font-size: var(--font-size-2xs);
-  font-variant-numeric: tabular-nums;
-}
-
-.pr a {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-0-5) var(--space-2);
-  color: var(--color-text-secondary);
-  text-decoration: none;
-}
-
-.pr[data-state='open'] a:first-child {
-  color: var(--color-success);
-}
-
-.pr[data-state='merged'] a:first-child {
-  color: var(--color-done);
-}
-
-.pr .preview {
-  border-left: 1px solid var(--color-separator);
 }
 
 /* 提高优先级，盖过 IconButton 自身的 display */
@@ -187,28 +221,80 @@
   display: none;
 }
 
+/* 一列时是 iOS 的导航栏：两边是玻璃的圆形按钮，标题居中 */
 @container agent (width < 960px) {
   .bar {
-    height: 52px;
-    padding: 0 var(--space-2);
-    border-bottom: 1px solid var(--color-separator);
+    padding: 0 var(--space-margin);
   }
 
   .bar:has(.heading:last-child)::after {
     content: '';
-    width: var(--size-control-lg);
+    width: var(--size-toolbar-item);
     flex: none;
   }
 
+  /* 标题下面一行小字的副标题：编号和 PR */
   .heading {
+    flex-wrap: wrap;
     justify-content: center;
+    gap: 0 var(--space-2);
+  }
+
+  .titleWrap {
+    flex: 1 0 100%;
+    justify-content: center;
+  }
+
+  .titleButton {
+    height: auto;
+    margin: 0;
+    padding: 0 var(--space-1);
+  }
+
+  .id {
+    font-size: var(--font-size-footnote);
+    line-height: var(--line-height-footnote);
+  }
+
+  .heading .prs {
+    height: auto;
+    margin: 0;
+    padding: 0;
+    background: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .heading .prs > * {
+    height: auto;
+  }
+
+  .pr a,
+  .finished {
+    padding: 0;
+    font-size: var(--font-size-footnote);
+    line-height: var(--line-height-footnote);
+  }
+
+  .pr a + a {
+    margin-left: var(--space-2);
   }
 
   .bar .singleColumnOnly {
     display: grid;
+    background: var(--material-glass);
+    box-shadow: var(--shadow-glass);
+    color: var(--color-label);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
   }
 
   .bar span.singleColumnOnly {
     display: inline;
+    background: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }

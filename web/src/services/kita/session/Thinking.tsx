@@ -1,3 +1,4 @@
+import { Brain } from 'lucide-react'
 import { formatDuration } from '../../../ui/format.ts'
 import { Activity } from './Activity.tsx'
 import styles from './Thinking.module.css'
@@ -7,6 +8,8 @@ import { Markdown } from './Markdown.tsx'
 export function Thinking({ thread, text, durationMs, live }: { thread: string; text: string; durationMs?: number; live?: boolean }) {
   return (
     <Activity
+      icon={Brain}
+      status={live ? 'running' : 'done'}
       label={live ? '正在思考' : durationMs !== undefined ? `思考了 ${formatDuration(durationMs)}` : '思考'}
       quiet
       defaultOpen={live}

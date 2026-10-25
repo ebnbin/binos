@@ -1,9 +1,10 @@
+/* 像 Apple 日历的月历小组件：月份是红色，星期是次要的小字，今天是红色实心圆 */
 .calendar {
   display: flex;
   flex-direction: column;
+  gap: var(--space-2);
   height: 100%;
-  gap: var(--space-3);
-  color: var(--color-text);
+  color: var(--color-label);
 }
 
 .header {
@@ -15,8 +16,10 @@
 
 .header h2 {
   margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
+  color: var(--color-red);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-headline);
   white-space: nowrap;
 }
 
@@ -29,63 +32,68 @@
 .actions button {
   display: grid;
   place-items: center;
-  min-width: var(--size-control-sm);
+  min-width: var(--size-control-md);
   height: var(--size-control-md);
-  border-radius: var(--radius-control);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  cursor: pointer;
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-full);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  font-weight: var(--font-weight-medium);
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-.actions button:hover {
-  background: var(--color-bg-subtle);
+@media (hover: hover) {
+  .actions button:hover {
+    background: var(--color-hover);
+    color: var(--color-label);
+  }
 }
 
-.actions button:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
+.actions button:active {
+  background: var(--color-pressed);
 }
 
 .month {
-  width: 100%;
   flex: 1;
-  table-layout: fixed;
+  width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
 .month th {
-  height: 28px;
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-tertiary);
+  height: var(--line-height-caption);
+  padding-bottom: var(--space-1);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
 }
 
 .month td {
   padding: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-callout);
+  font-weight: var(--font-weight-medium);
 }
 
 .month td:nth-child(n + 6) {
-  color: var(--color-text-secondary);
+  color: var(--color-label-secondary);
 }
 
 .month td[data-outside='true'] {
-  color: var(--color-text-tertiary);
-  opacity: var(--opacity-disabled);
+  color: var(--color-label-tertiary);
 }
 
 .month td span {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 2em;
+  height: 2em;
+  border-radius: var(--radius-full);
 }
 
 .month td span[aria-current='date'] {
-  background: var(--color-accent);
-  color: var(--color-surface);
-  font-weight: var(--font-weight-semibold);
+  background: var(--color-red);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-bold);
 }

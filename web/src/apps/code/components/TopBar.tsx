@@ -77,7 +77,7 @@ function PrList({ prs }: { prs: PullRequest[] }) {
           className={styles.prMenu}
           trigger={
             <button type="button" className={styles.finished} aria-label="查看对话的 PR">
-              <GitMerge size={13} strokeWidth={2} />
+              <GitMerge size={14} strokeWidth={2} />
               {finished.length}
             </button>
           }
@@ -104,7 +104,7 @@ function PrLink({ pr }: { pr: PullRequest }) {
   return (
     <span className={styles.pr} data-state={pr.state}>
       <a href={pr.url} target="_blank" rel="noreferrer" title={[pr.title, pr.state && prStates[pr.state]].filter(Boolean).join(' · ')}>
-        <Icon size={13} strokeWidth={2} />#{pr.number}
+        <Icon size={14} strokeWidth={2} />#{pr.number}
       </a>
       {pr.preview && (
         <a href={pr.preview} target="_blank" rel="noreferrer" className={styles.preview}>

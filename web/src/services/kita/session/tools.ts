@@ -5,8 +5,8 @@ import type { LucideIcon } from 'lucide-react'
 
 export type ToolCall = Extract<Entry, { type: 'tool_call' }>
 export type ToolResult = Extract<Entry, { type: 'tool_result' }>
-// live：这一轮还在回答，没有结果的调用还在运行
-export type CallState = { call: ToolCall; result: ToolResult | undefined; live: boolean }
+// index：调用在整个 thread 里的位置；live：这一轮还在回答，没有结果的调用还在运行
+export type CallState = { call: ToolCall; index: number; result: ToolResult | undefined; live: boolean }
 
 export type CallStatus = 'running' | 'done' | 'error' | 'stopped'
 
@@ -83,8 +83,20 @@ export function toolLabel({ name, tool, input }: ToolCall): ToolLabel {
   }
 }
 
+type LineChanges = { added: number; removed: number }
+
+// 条目不会变，算过的记下来：每次渲染都对整段内容做 diff 太慢
+const lineChangesCache = new WeakMap<ToolCall, LineChanges | undefined>()
+
 // 改文件增删了多少行
-export function lineChanges({ tool }: ToolCall): { added: number; removed: number } | undefined {
+export function lineChanges(call: ToolCall): LineChanges | undefined {
+  if (!lineChangesCache.has(call)) {
+    lineChangesCache.set(call, countLines(call))
+  }
+  return lineChangesCache.get(call)
+}
+
+function countLines({ tool }: ToolCall): LineChanges | undefined {
   if (tool.kind !== 'edit' || !tool.change) {
     return undefined
   }

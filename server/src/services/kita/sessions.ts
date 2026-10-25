@@ -10,8 +10,9 @@ import { copyAttachments, promptWithAttachments, snapshotFiles } from './files.j
 import { attachHost, startHost } from './host/client.js'
 import type { Host } from './host/client.js'
 import { saveLimits } from './limits.js'
-import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readEvents, workerDir, unbindWorker } from './store.js'
-import type { AgentId, Entry, Live, KitaSessionEvent, KitaSessionState, KitaSessionSummary } from './types.js'
+import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readCall, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
+import type { Activity, AgentId, Entry, IdentityScope, Live, KitaSessionEvent, KitaSessionState, KitaSessionSummary } from './types.js'
+import { identityPrompt } from './identity.js'
 import { projectItems, projectTurns } from './journal.js'
 
 // session：和 agent 的一段对话，由 Kita 保存，任何 app 都能建。app 只管说话、停下、看内容，
@@ -26,8 +27,8 @@ const idleTimeout = 10 * 60_000
 // 让 agent 进程退出后等这么久，还没退出就结束它
 const closeWait = 10_000
 
-// owner：属于哪个 app；instructions：追加的系统提示
-export type KitaSessionOptions = { agent: AgentId; owner: string; cwd: string; instructions?: string }
+// owner：属于哪个 app；instructions：追加的系统提示；identity：以喜多的身份对话
+export type KitaSessionOptions = { agent: AgentId; owner: string; cwd: string; instructions?: string; identity?: IdentityScope }
 // attachments：本机的文件，会移进 session 的 files/
 export type KitaSessionInput = { text: string; attachments?: { path: string; name: string }[] }
 // interrupt：回答中途先打断正在做的事；model、effort：开始新的一轮时用，回答中途沿用这一轮的
@@ -67,7 +68,9 @@ export class KitaSession {
   }
 
   metadata() { return metadata(this.id) }
-  events(from = 0) { return readEvents(this.id, from) }
+  events(from = 0, to?: number) { return readEvents(this.id, from, to) }
+  windowStart(size: number, before?: number) { return windowStart(this.id, size, before) }
+  call(index: number) { return readCall(this.id, index) }
   items() { return projectItems(this.events()) }
   turns() { return projectTurns(this.events()) }
 
@@ -201,9 +204,11 @@ export class KitaSession {
   private async ensureHost(model: string | undefined, effort: string | undefined): Promise<boolean> {
     const info = sessionInfo(this.id)
     const driver = drivers[info.agent]
+    const { identity } = metadata(this.id)
     const instructions = [
       '本机 binOS API 通过 Unix socket 调用，路径在环境变量 BINOS_API_SOCKET 中。例如 curl --unix-socket "$BINOS_API_SOCKET" http://localhost/api/apps/music 可读取音乐接口说明。写操作使用 Content-Type: application/json。此入口不需要 Cloudflare 登录凭证，连接的是当前 session 所属实例。',
       info.instructions,
+      identity && identityPrompt(identity),
     ].filter(Boolean).join('\n\n')
     const env: NodeJS.ProcessEnv = { ...agentEnv(info.agent), ...driver.authEnv?.(), BINOS_THREAD_ID: this.id, BINOS_DEVICES_CLI: path.join(codeDir, 'bin/binos') }
     const stamp = launchStamp([model, effort, instructions, driver.authEnv?.(), env.BINOS_API_SOCKET], [info.cwd, driver.configDir], driver.command)
@@ -257,6 +262,14 @@ export class KitaSession {
     }
     this.readNew()
     this.release()
+  }
+
+  // 删掉 session 之前让 agent 进程退出
+  close(): Promise<void> {
+    return this.exclusive(async () => {
+      if (this.host) await this.retire()
+      active.delete(this)
+    })
   }
 
   private release() {
@@ -449,6 +462,7 @@ export function createKitaSession(options: KitaSessionOptions): KitaSession {
     owner: options.owner,
     cwd: options.cwd,
     ...(options.instructions && { instructions: options.instructions }),
+    ...(options.identity && { identity: options.identity }),
   })
   return getKitaSession(id)!
 }
@@ -472,6 +486,31 @@ export function onKitaSessionEvent(owner: string, listener: (sessionId: string, 
   }
   set.add(listener)
   return () => set.delete(listener)
+}
+
+export function ownedSessions(owner: string): KitaSession[] {
+  return listKitaSessions().flatMap((id) => getKitaSession(id, owner) ?? [])
+}
+
+// 只能删没在回答的。删掉的是 Kita 的记录，agent 自己那边的会话记录还在它的配置目录里
+export async function deleteKitaSession(id: string, owner: string): Promise<boolean> {
+  const session = getKitaSession(id, owner)
+  if (!session || session.state() !== 'idle') return false
+  await session.close()
+  if (session.state() !== 'idle') return false
+  sessions.delete(id)
+  removeKitaSession(id)
+  return true
+}
+
+// 各个 app 正在回答的 session
+export function activity(): Activity[] {
+  return [...sessions.values()].flatMap((session) => {
+    const state = session.state()
+    if (state === 'idle') return []
+    const info = sessionInfo(session.id)
+    return [{ session: session.id, owner: info.owner, state, since: info.turnStartedAt ?? info.updatedAt }]
+  })
 }
 
 export function runningCount(agent: AgentId): number {

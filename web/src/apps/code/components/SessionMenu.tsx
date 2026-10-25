@@ -63,7 +63,7 @@ export function SessionActions({
               onRename()
             }}
           >
-            <Pencil size={14} strokeWidth={1.75} />
+            <Pencil size={16} strokeWidth={1.75} />
             重命名
           </Dropdown.Item>
           <Dropdown.Item
@@ -74,7 +74,7 @@ export function SessionActions({
               void edit({ pinned: !session.pinned })
             }}
           >
-            {session.pinned ? <PinOff size={14} strokeWidth={1.75} /> : <Pin size={14} strokeWidth={1.75} />}
+            {session.pinned ? <PinOff size={16} strokeWidth={1.75} /> : <Pin size={16} strokeWidth={1.75} />}
             {session.pinned ? '取消置顶' : '置顶'}
           </Dropdown.Item>
           <Dropdown.Item
@@ -85,7 +85,7 @@ export function SessionActions({
               void edit({ archived: !session.archived })
             }}
           >
-            {session.archived ? <ArchiveRestore size={14} strokeWidth={1.75} /> : <Archive size={14} strokeWidth={1.75} />}
+            {session.archived ? <ArchiveRestore size={16} strokeWidth={1.75} /> : <Archive size={16} strokeWidth={1.75} />}
             {session.archived ? '取消归档' : '归档'}
           </Dropdown.Item>
           {error && (

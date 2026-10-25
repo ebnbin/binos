@@ -1,0 +1,261 @@
+/* 宽度不小于 760 时列表和内容并排，否则一次只显示一页。
+   侧栏和 Code 一样，是浮在窗口里的一块玻璃，圆角和窗口同心 */
+.app {
+  container: kita / inline-size;
+  height: 100%;
+  background: var(--color-background);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  height: 100%;
+}
+
+.sidebar {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: var(--space-2) 0 var(--space-2) var(--space-2);
+  overflow: hidden;
+  border-radius: calc(var(--radius-window) - var(--space-2));
+  background: var(--material-sidebar);
+  box-shadow: var(--shadow-glass);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+}
+
+/* 侧栏顶部是喜多自己：头像、名字和正在做的事，点开是资料页 */
+.identity {
+  composes: item from '../../ui/controls.module.css';
+  gap: var(--space-2-5);
+  margin: var(--space-2) var(--space-2) var(--space-1);
+  padding: var(--space-2);
+}
+
+.identity > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.identity > span:last-child strong {
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-3);
+}
+
+.identity > span:last-child small {
+  overflow: hidden;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--space-2);
+}
+
+/* 新对话、临时对话、记忆：侧栏行，图标用强调色 */
+.action {
+  composes: item from '../../ui/controls.module.css';
+  width: 100%;
+}
+
+.action svg {
+  flex: none;
+  color: var(--color-accent);
+}
+
+.actions small {
+  margin-left: auto;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  font-variant-numeric: tabular-nums;
+}
+
+.label {
+  padding: var(--space-4) var(--space-4) var(--space-1);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-subheadline);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-subheadline);
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-3);
+  overflow-y: auto;
+  list-style: none;
+}
+
+.list li {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.conversation {
+  composes: item from '../../ui/controls.module.css';
+  width: 100%;
+}
+
+.placeholder {
+  padding: var(--space-2) var(--space-2);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation time {
+  flex: none;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge,
+.running {
+  flex: none;
+  color: var(--color-label-secondary);
+}
+
+.running {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 删除按钮盖在时间上，悬停时才出现 */
+.list .delete {
+  position: absolute;
+  right: var(--space-0-5);
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+  visibility: hidden;
+  color: var(--color-label-secondary);
+}
+
+@media (hover: hover) {
+  .list li:hover .delete {
+    visibility: visible;
+  }
+
+  .list li:hover time {
+    visibility: hidden;
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.bar {
+  display: none;
+}
+
+.missing {
+  composes: empty from '../../ui/controls.module.css';
+  flex: 1;
+}
+
+.missing p {
+  margin: 0;
+}
+
+.restart {
+  composes: button from '../../ui/controls.module.css';
+}
+
+@container kita (width < 760px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar,
+  .main {
+    grid-area: 1 / 1;
+  }
+
+  /* 一列时侧栏变成占满整页的列表 */
+  .sidebar {
+    margin: 0;
+    border-radius: 0;
+    background: var(--color-background);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .layout[data-view='list'] .main,
+  .layout[data-view='page'] .sidebar {
+    visibility: hidden;
+  }
+
+  /* 导航栏：左边玻璃的返回按钮，标题居中 */
+  .bar {
+    display: grid;
+    grid-template-columns: var(--size-toolbar-item) minmax(0, 1fr) var(--size-toolbar-item);
+    align-items: center;
+    gap: var(--space-2);
+    flex: none;
+    min-height: var(--size-toolbar);
+    padding: 0 var(--space-margin);
+  }
+
+  .bar > button {
+    background: var(--material-glass);
+    box-shadow: var(--shadow-glass);
+    color: var(--color-label);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+  }
+
+  .bar span {
+    overflow: hidden;
+    color: var(--color-label);
+    font-size: var(--font-size-headline);
+    font-weight: var(--font-weight-headline);
+    line-height: var(--line-height-headline);
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 触屏上没有悬停，列表上的删除按钮一直在，占掉时间的位置 */
+  .layout[data-view='list'] .delete {
+    visibility: visible;
+  }
+
+  .conversation time {
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .running {
+    animation: none;
+  }
+}

@@ -1,66 +1,75 @@
-:root {
-  font-family: var(--font-sans);
-  font-size: var(--font-size-body);
-  line-height: var(--line-height-normal);
-  -webkit-font-smoothing: antialiased;
-  -webkit-text-size-adjust: 100%;
-}
+/* 层叠顺序：基础样式最低，其上是 ui/controls.module.css 的系统控件，各模块自己的样式不分层、总是最高 */
+@layer reset, controls;
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+@layer reset {
+  :root {
+    font-family: var(--font-sans);
+    font-size: var(--font-size-body);
+    line-height: var(--line-height-body);
+    -webkit-font-smoothing: antialiased;
+    font-synthesis-weight: none;
+    -webkit-text-size-adjust: 100%;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
 
-/* 滚动都发生在各自的区域里，整个页面不跟着回弹；只能滑动，不能双击或双指缩放 */
-html {
-  background: var(--color-chrome);
-  overscroll-behavior: none;
-  touch-action: pan-x pan-y;
-  -webkit-tap-highlight-color: transparent;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
 
-body {
-  background: var(--color-chrome);
-  color: var(--color-text);
-}
+  /* 滚动都发生在各自的区域里，整个页面不跟着回弹；只能滑动，不能双击或双指缩放 */
+  html {
+    background: var(--color-chrome);
+    overscroll-behavior: none;
+    touch-action: pan-x pan-y;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-button,
-input,
-textarea {
-  font: inherit;
-  color: inherit;
-}
+  body {
+    background: var(--color-chrome);
+    color: var(--color-label);
+  }
 
-input,
-textarea {
-  appearance: none;
-}
+  button,
+  input,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
 
-button {
-  appearance: none;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
+  input,
+  textarea {
+    appearance: none;
+  }
 
-button:disabled {
-  cursor: default;
-}
+  button {
+    appearance: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    /* Apple 的控件用箭头指针，只有链接是手形 */
+    cursor: default;
+  }
 
-:focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
-}
+  /* 键盘焦点：沿控件形状外扩的半透明强调色光环 */
+  :focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 1px;
+  }
 
-::selection {
-  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  ::selection {
+    background: var(--color-text-selection);
+  }
+
+  ::placeholder {
+    color: var(--color-placeholder);
+    opacity: 1;
+  }
 }

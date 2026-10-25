@@ -52,6 +52,8 @@ function IframeBrowser({ ctx }: { ctx: WindowContext }) {
         <div className={styles.navigation}>
           <IconButton icon={ArrowLeft} label="上一个输入的网址" disabled={history.index === 0} onClick={() => move(-1)} />
           <IconButton icon={ArrowRight} label="下一个输入的网址" disabled={history.index === history.entries.length - 1} onClick={() => move(1)} />
+        </div>
+        <div className={styles.navigation}>
           <IconButton icon={RotateCw} label="重新打开输入的网址" disabled={!url} onClick={() => setRevision((value) => value + 1)} />
           <IconButton icon={House} label="浏览器首页" onClick={() => visit('')} />
         </div>
@@ -77,14 +79,14 @@ function IframeBrowser({ ctx }: { ctx: WindowContext }) {
             autoCorrect="off"
             spellCheck={false}
           />
-          <button type="submit">前往</button>
+          <button type="submit" className={styles.go}>前往</button>
         </form>
-        {url && <a className={styles.external} href={url} target="_blank" rel="noopener noreferrer" aria-label="在新标签页打开输入的网址" title="在新标签页打开输入的网址"><ArrowUpRight size={19} /></a>}
+        {url && <a className={styles.external} href={url} target="_blank" rel="noopener noreferrer" aria-label="在新标签页打开输入的网址" title="在新标签页打开输入的网址"><ArrowUpRight size={17} strokeWidth={1.75} /></a>}
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
       {insecure ? (
         <div className={styles.home}>
-          <Globe size={44} strokeWidth={1.25} />
+          <Globe size={40} strokeWidth={1.5} />
           <h1>无法嵌入 HTTP 网页</h1>
           <p>浏览器会拦截 HTTPS 页面中嵌入的 HTTP 网页。请切换到远程模式，或在新标签页打开。</p>
         </div>
@@ -105,9 +107,9 @@ function IframeBrowser({ ctx }: { ctx: WindowContext }) {
         </>
       ) : (
         <div className={styles.home}>
-          <Globe size={44} strokeWidth={1.25} />
+          <Globe size={40} strokeWidth={1.5} />
           <h1>浏览器</h1>
-          <p>在上方输入网址，直接在 binOS 中浏览网页。</p>
+          <p>在地址栏输入网址，直接在 binOS 中浏览网页。</p>
           <p>省略协议时使用 HTTPS，本机地址使用 HTTP。嵌入模式只能加载 HTTPS 和本机网址，部分网站也不允许嵌入，可切换到远程模式或在新标签页打开。</p>
         </div>
       )}
@@ -118,10 +120,10 @@ function IframeBrowser({ ctx }: { ctx: WindowContext }) {
 export function BrowserApp({ ctx }: { ctx: WindowContext }) {
   const [remote, setRemote] = useState(false)
   const remoteSession = useRef<string | undefined>(undefined)
-  return <div className={styles.app}>
+  return <div className={styles.shell}>
     <div className={styles.modeBar} role="group" aria-label="浏览模式">
-      <button type="button" aria-pressed={!remote} onClick={() => setRemote(false)}>嵌入模式</button>
-      <button type="button" aria-pressed={remote} onClick={() => setRemote(true)}>远程模式</button>
+      <button type="button" className={styles.mode} aria-pressed={!remote} onClick={() => setRemote(false)}>嵌入模式</button>
+      <button type="button" className={styles.mode} aria-pressed={remote} onClick={() => setRemote(true)}>远程模式</button>
     </div>
     <div className={styles.modeContent}>
       {remote ? <RemoteBrowser ctx={ctx} session={remoteSession} /> : <IframeBrowser ctx={ctx} />}

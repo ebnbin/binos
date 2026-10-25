@@ -71,7 +71,7 @@ export function CodeApp({ ctx }: { ctx: WindowContext }) {
               {missing ? (
                 <div className={styles.missing}>
                   <p>这个对话不存在</p>
-                  <button type="button" onClick={() => ctx.navigate('/')}>
+                  <button type="button" className={styles.missingButton} onClick={() => ctx.navigate('/')}>
                     返回对话列表
                   </button>
                 </div>
