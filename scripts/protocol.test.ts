@@ -54,7 +54,7 @@ function changes(before: string, after: string) {
     const definitions = (JSON.parse(text) as { definitions: Record<string, { properties?: Record<string, unknown> }> }).definitions
     return new Map(
       Object.entries(definitions).flatMap(([name, definition]) =>
-        ['Http', 'Errors', 'Sse', 'WebSockets'].includes(name) ? Object.entries(definition.properties ?? {}).map(([route, value]) => [`${name} ${route}`, JSON.stringify(value)]) : [[name, JSON.stringify(definition)]],
+        ['Http', 'Sse', 'WebSockets'].includes(name) ? Object.entries(definition.properties ?? {}).map(([route, value]) => [`${name} ${route}`, JSON.stringify(value)]) : [[name, JSON.stringify(definition)]],
       ),
     )
   }

@@ -6,7 +6,7 @@ import { defaultAgent } from '../../services/kita/types.js'
 import type { AgentId } from '../../services/kita/types.js'
 import { pushQueue, readQueue, takeQueue, unshiftQueue } from './queue.js'
 import { defaultProject, listProjects, projectDirectory } from './projects.js'
-import { RepositoryError } from './repositories.js'
+import { conflict } from '../../errors.js'
 import { projectInstructions } from './instructions.js'
 import { createSession, listSessions, readSession, sessionOf, setUserState, threadOf } from './sessions.js'
 import type { QueuedMessage, Upload } from './types.js'
@@ -66,7 +66,7 @@ export async function sendMessage(sessionId: number | undefined, text: string, u
   } else {
     const project = readSession(id).project
     if (project !== defaultProject && threadOf(id).metadata().cwd !== projectDirectory(project)) {
-      throw new RepositoryError('这个旧对话使用其他仓库的目录，请在当前项目中开启新对话')
+      throw conflict('这个旧对话使用其他仓库的目录，请在当前项目中开启新对话')
     }
     setUserState(id, { archived: undefined })
   }

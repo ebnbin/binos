@@ -2,6 +2,7 @@ import type { CodeApi } from '@binos/server/apps/code/api'
 import type { Upload } from '@binos/server/apps/code/types'
 import type { AgentId } from '@binos/server/services/kita/types'
 import { hc } from 'hono/client'
+import { errorMessage } from '../../api.ts'
 
 const client = hc<CodeApi>(`${window.location.origin}/api/apps/code`)
 const sessions = client.sessions
@@ -13,6 +14,14 @@ export async function listSessions(query?: string) {
     throw new Error(`读取 session 列表失败（${res.status}）`)
   }
   return (await res.json()).sessions
+}
+
+// 一个对话的概况；不存在了（被删掉）时返回 undefined，读不到时抛出
+export async function readSession(id: number) {
+  const res = await sessions[':id'].$get({ param: { id: String(id) } })
+  if (res.status === 404) return undefined
+  if (!res.ok) throw new Error(`读取 session 失败（${res.status}）`)
+  return res.json()
 }
 
 // interrupt：正在回答时先打断正在做的事；queue：正在回答时排到这一轮答完之后；
@@ -31,14 +40,10 @@ export async function sendMessage(
     ? sessions.$post({ json })
     : sessions[':id'].messages.$post({ param: { id: String(sessionId) }, json })
   ).catch(() => undefined)
-  if (res?.status === 200) {
+  if (res?.ok) {
     return await res.json()
   }
-  if (res?.status === 503) {
-    const body = await res.json().catch(() => undefined)
-    if (body && 'error' in body && body.error !== 'unavailable') return { error: body.error }
-  }
-  return { error: res?.status === 503 ? '消息没能交给 agent，稍后再试' : `发送失败（${res?.status ?? '网络错误'}）` }
+  return { error: await errorMessage(res, '发送失败') }
 }
 
 // 这 7 天 binOS 大约用了周额度的多少；估不出来时没有
@@ -60,7 +65,7 @@ export async function uploadFile(file: File): Promise<Upload | { error: string }
     const { file: name } = (await res.json()) as { file: string }
     return { file: name, name: file.name }
   }
-  return { error: `上传 ${file.name} 失败（${res?.status === 413 ? '文件太大' : (res?.status ?? '网络错误')}）` }
+  return { error: await errorMessage(res, `上传 ${file.name} 失败`) }
 }
 
 // 写操作都要带上 JSON 的 Content-Type，后端以此拒绝跨站请求
@@ -68,8 +73,8 @@ const jsonHeaders = { headers: { 'Content-Type': 'application/json' } }
 
 // 撤回排队的消息，拿回它的文字；已经发出去了时是 undefined
 export async function withdrawQueued(sessionId: number, item: string): Promise<string | undefined> {
-  const res = await sessions[':id'].queue[':item'].withdraw.$post({ param: { id: String(sessionId), item } }, jsonHeaders).catch(() => undefined)
-  return res?.status === 200 ? (await res.json()).text : undefined
+  const res = await sessions[':id'].queue[':item'].$delete({ param: { id: String(sessionId), item } }).catch(() => undefined)
+  return res?.ok ? (await res.json()).text : undefined
 }
 
 export async function sendQueued(sessionId: number, item: string) {
@@ -78,18 +83,16 @@ export async function sendQueued(sessionId: number, item: string) {
 }
 
 export async function stopSession(sessionId: number) {
-  await sessions[':id'].stop.$post({ param: { id: String(sessionId) } }, { headers: { 'Content-Type': 'application/json' } }).catch(() => undefined)
+  await sessions[':id'].stop.$post({ param: { id: String(sessionId) } }, jsonHeaders).catch(() => undefined)
 }
 
 export async function editSession(sessionId: number, edit: { title?: string; pinned?: boolean; archived?: boolean }) {
-  const res = await sessions[':id'].edit
-    .$post({ param: { id: String(sessionId) }, json: edit })
-    .catch(() => undefined)
+  const res = await sessions[':id'].$patch({ param: { id: String(sessionId) }, json: edit }).catch(() => undefined)
   return res?.ok ?? false
 }
 
 export async function markRead(sessionId: number) {
-  await sessions[':id'].read.$post({ param: { id: String(sessionId) } }, { headers: { 'Content-Type': 'application/json' } }).catch(() => undefined)
+  await sessions[':id'].read.$post({ param: { id: String(sessionId) } }, jsonHeaders).catch(() => undefined)
 }
 
 export async function searchContent(query: string) {
@@ -107,9 +110,9 @@ export async function listProjects() {
 export async function createProject(name: string, repository: string, create: boolean, projectId?: string) {
   const json = { name, repository, create }
   const res = await (projectId
-    ? client.projects[':project'].repository.$post({ param: { project: projectId }, json })
-    : client.projects.$post({ json }))
-  const body = await res.json()
-  if ('error' in body) throw new Error(body.error)
-  return body.project
+    ? client.projects[':project'].repository.$put({ param: { project: projectId }, json })
+    : client.projects.$post({ json })
+  ).catch(() => undefined)
+  if (!res?.ok) throw new Error(await errorMessage(res, '项目没能建好'))
+  return (await res.json()).project
 }

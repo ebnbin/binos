@@ -58,6 +58,6 @@ export function SubagentCall({
 
 // 没有过程的记录时交回的结果，发给页面时省略过就读完整的
 function SubagentResult({ thread, state }: { thread: string; state: CallState }) {
-  const { result } = useFullCall(thread, state.index, state.call, state.result)
+  const { result } = useFullCall(thread, state.seq, state.call, state.result)
   return result?.output ? <Markdown thread={thread} text={result.output} /> : null
 }

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const root = mkdtempSync(path.join(os.tmpdir(), 'binos-test-'))
 process.env.BINOS_ROOT = root
 const { encodeEntries } = await import('./journal.js')
-const { readCall, readEvents, appendEntries, createKitaSession, readEntries, sessionDir, sessionInfo, windowStart } = await import('./store.js')
+const { readEvents, appendEntries, createKitaSession, readEntries, sessionDir, sessionInfo, windowStart } = await import('./store.js')
 const time = () => new Date().toISOString()
 const input = (text: string, mode: 'start' | 'steer' = 'start') => ({ type: 'input' as const, time: time(), mode, text })
 const turnEnd = () => ({ type: 'turn_end' as const, time: time(), durationMs: 0 })
@@ -21,16 +21,7 @@ describe('store', () => {
     expect(windowStart(id, 2, 6)).toBe(3)
     expect(windowStart(id, 3, 3)).toBe(0)
     expect(windowStart(id, 100)).toBe(0)
-  })
-
-  it('按位置读调用时只在同一轮里找结果，不同轮的调用 id 可能相同', () => {
-    const id = newThread()
-    const call = (text: string) => ({ type: 'tool_call' as const, time: time(), id: 'call-1', name: 'Bash', tool: { kind: 'command' as const, command: text } })
-    const result = (output: string) => ({ type: 'tool_result' as const, time: time(), callId: 'call-1', status: 'done' as const, output })
-    appendEntries(id, [input('一'), call('ls'), turnEnd(), input('二'), call('pwd'), result('/tmp'), turnEnd()])
-    expect(readCall(id, 2)).toEqual({ call: expect.objectContaining({ tool: { kind: 'command', command: 'ls' } }) })
-    expect(readCall(id, 5)?.result).toMatchObject({ output: '/tmp' })
-    expect(readCall(id, 1)).toBeUndefined()
+    expect(windowStart(id, 7)).toBe(0)
   })
 
   it('summary.json 和 events.jsonl 对不上时从头重算；一轮进行中的 input 是插话，不算新的一轮', () => {

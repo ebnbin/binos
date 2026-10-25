@@ -12,6 +12,8 @@ export const youtubeOfficial: MusicProvider = {
       id: 'youtube', name: 'YouTube（官方）', description: '官方视频搜索与嵌入播放；单曲链接无需密钥。',
       input: { references: youtubeInputRules },
       capabilities: { search: configured, resolve: available, playlist: configured, playback: available, recommendations: { state: 'unsupported' }, lyrics: { state: 'unsupported' } },
+      // 曲目的 id 就是 YouTube 的视频 id，YouTube Music 能直接给出它的音频
+      stream: { provider: 'youtube-music' },
       configuration: { fields: [{ id: 'apiKey', label: '搜索密钥', description: '启用 YouTube Data API v3。密钥仅保存在服务端；API 限制设为此 API，请勿使用网站 Referer 限制。', secret: true, configured: Boolean(key()), links: [
         { label: '启用 API', url: 'https://console.cloud.google.com/apis/library/youtube.googleapis.com' },
         { label: '创建密钥', url: 'https://console.cloud.google.com/apis/credentials' },
@@ -19,7 +21,7 @@ export const youtubeOfficial: MusicProvider = {
     }
   },
   configure: values => {
-    if (values.apiKey !== undefined && (values.apiKey.length > 256 || /\s/.test(values.apiKey))) throw new MusicError('请输入有效的搜索密钥。', 'invalid-input')
+    if (typeof values.apiKey === 'string' && (values.apiKey.length > 256 || /\s/.test(values.apiKey))) throw new MusicError('请输入有效的搜索密钥。', 'invalid-input')
     saveProviderSettings('youtube', values)
   },
   search: (query, page) => youtubeCatalog.search(query, key(), page),

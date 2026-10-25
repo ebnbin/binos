@@ -1,5 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
+import { forbidden } from '../../errors.js'
 import { isCrossSite } from '../../websocket-origin.js'
 import { connectBrowser } from './session.js'
 import type { BrowserClientMessage, BrowserServerMessage } from './protocol.js'
@@ -7,7 +8,7 @@ import { parseMessage } from './protocol.js'
 
 export const browserApi = new Hono()
   .get('/socket', async (c, next) => {
-    if (isCrossSite(c)) return c.text('Forbidden', 403)
+    if (isCrossSite(c)) throw forbidden('不能从别的网站连接')
     return upgradeWebSocket(() => {
       let connection: Awaited<ReturnType<typeof connectBrowser>> | undefined
       let closed = false

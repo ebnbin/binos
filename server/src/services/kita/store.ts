@@ -30,7 +30,7 @@ export const hostDir = (id: string) => path.join(sessionDir(id), 'host')
 export const eventsPath = (id: string) => path.join(sessionDir(id), 'events.jsonl')
 const metadataPath = (id: string) => path.join(sessionDir(id), 'metadata.json')
 const infoPath = (id: string) => path.join(sessionDir(id), 'summary.json')
-const infoVersion = 1
+const infoVersion = 2
 
 export function workerDir(id: string): string {
   const file = path.join(sessionDir(id), 'runtime.json')
@@ -65,9 +65,10 @@ export type KitaSessionInfo = {
   context?: Context
   // 最近一轮结束的时间
   repliedAt?: string
-  // 最近一轮用的模型和思考程度
+  // 最近一轮选的模型和思考程度；usedModel 是这一轮结束时 agent 报告实际用的模型
   model?: string
   effort?: string
+  usedModel?: string
   // agent 那边的会话，agent 进程重新启动时接着它
   agentSession?: string
   // 用掉的 token，按模型：每一轮结束时报告的是 agent 那边的会话到这时为止的累计（usageLatest），
@@ -146,11 +147,14 @@ export function readEvents(id: string, from = 0, to?: number): Event[] {
   return structuredClone(readJournal(id).slice(from, to))
 }
 
-// 分段读取的起点：before（默认到最后）之前 size 条所在的一轮的开头（mode 为 start 的 input），前面没有一轮时是 0。
-// 页面按轮显示，每段都从一轮的开头读起
+// 全部事件，不复制，不能改动
+export const journalEvents = (id: string): readonly Event[] => readJournal(id)
+
+// 分段读取的起点（第几条之后）：前 before 条（默认是全部）里倒数 size 条所在的一轮的开头（mode 为 start 的 input）。
+// 页面按轮显示，每段都从一轮的开头读起；前面只剩第一条 session 条目时从 0 读起，把它也带上
 export function windowStart(id: string, size: number, before?: number): number {
   const events = readJournal(id)
-  for (let i = Math.min((before ?? events.length) - size, events.length - 1); i > 0; i--) {
+  for (let i = Math.min((before ?? events.length) - size, events.length - 1); i > 1; i--) {
     const { data } = events[i]
     if (data.type === 'input' && data.mode === 'start') return i
   }
@@ -158,18 +162,6 @@ export function windowStart(id: string, size: number, before?: number): number {
 }
 
 const journals = new Map<string, { size: number; events: Event[] }>()
-
-export type CallDetail = { call: Entry; result?: Entry }
-
-// index 处的工具调用和它的结果（在同一轮里按调用 id 对应），不是工具调用时返回 undefined
-export function readCall(id: string, index: number): CallDetail | undefined {
-  const events = readJournal(id)
-  const call = events[index]
-  if (call?.data.type !== 'tool_call') return undefined
-  const callId = call.data.id
-  const result = events.slice(index + 1).find(({ turnId, data }) => turnId === call.turnId && data.type === 'tool_result' && data.callId === callId)
-  return structuredClone({ call: call.data, ...(result && { result: result.data }) })
-}
 
 export function readEntries(id: string, from = 0): Entry[] {
   return readEvents(id, from).map((event) => event.data)
@@ -219,6 +211,7 @@ function apply(info: KitaSessionInfo, item: Entry) {
         delete info.outcome
         info.model = item.model
         info.effort = item.effort
+        delete info.usedModel
       }
       break
     case 'agent_session':
@@ -237,6 +230,9 @@ function apply(info: KitaSessionInfo, item: Entry) {
       }
       if (item.context) {
         info.context = item.context
+      }
+      if (item.model) {
+        info.usedModel = item.model
       }
       if (item.usage) {
         const cost = usageCost(info.agent, item.usage) - usageCost(info.agent, info.usageLatest)

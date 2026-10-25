@@ -4,6 +4,7 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream } from 'node:stream/web'
+import { ApiException } from '../../errors.js'
 import { notifyChange } from '../../events.js'
 import { kitaServiceDir } from '../../paths.js'
 import type { IdentityScope, Memory, MemoryKind, MemorySource, Profile } from './types.js'
@@ -18,10 +19,22 @@ export const photosDir = path.join(identityDir, 'photos')
 export const maxPhotoBytes = 20 * 1024 * 1024
 export const maxDescriptionLength = 20_000
 export const maxMemoryLength = 2000
-const photoTypes = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'avif']
 export const photoPattern = /^[0-9a-f]{32}\.[a-z]{3,4}$/
 
-export class PhotoRejected extends Error {}
+// 按文件开头的几个字节认格式，不看文件名
+export function photoType(head: Buffer): string | undefined {
+  const ascii = (start: number, end: number) => head.subarray(start, end).toString('latin1')
+  if (head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) return 'jpg'
+  if (ascii(0, 8) === '\x89PNG\r\n\x1a\n') return 'png'
+  if (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a') return 'gif'
+  if (ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'webp'
+  if (ascii(4, 8) === 'ftyp') {
+    const brand = ascii(8, 12)
+    if (['heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1'].includes(brand)) return 'heic'
+    if (brand === 'avif' || brand === 'avis') return 'avif'
+  }
+}
+const photoFormats = 'JPEG、PNG、WebP、GIF、HEIC、AVIF'
 
 function writeJson(file: string, value: unknown) {
   mkdirSync(identityDir, { recursive: true })
@@ -42,16 +55,14 @@ export function setDescription(description: string) {
   saveProfile({ ...readProfile(), description })
 }
 
-// 第一张照片自动成为头像
-export async function addPhoto(body: ReadableStream<Uint8Array>, name: string): Promise<string> {
-  const extension = path.extname(name).slice(1).toLowerCase()
-  if (!photoTypes.includes(extension)) {
-    throw new PhotoRejected(`只支持 ${photoTypes.join('、')} 格式的照片`)
-  }
-  const file = `${randomBytes(16).toString('hex')}.${extension}`
+// 先写到临时文件，认出格式后再按格式起名。第一张照片自动成为头像
+export async function addPhoto(body: ReadableStream<Uint8Array>): Promise<string> {
+  const id = randomBytes(16).toString('hex')
   mkdirSync(photosDir, { recursive: true })
-  const filePath = path.join(photosDir, file)
+  const partPath = path.join(photosDir, `${id}.part`)
   let size = 0
+  let head = Buffer.alloc(0)
+  let file: string
   try {
     await pipeline(
       Readable.fromWeb(body),
@@ -59,15 +70,20 @@ export async function addPhoto(body: ReadableStream<Uint8Array>, name: string): 
         for await (const chunk of source) {
           size += chunk.length
           if (size > maxPhotoBytes) {
-            throw new PhotoRejected(`照片最大 ${maxPhotoBytes / 1024 / 1024} MB`)
+            throw new ApiException(413, 'too-large', `照片最大 ${maxPhotoBytes / 1024 / 1024} MB`)
           }
+          if (head.length < 16) head = Buffer.concat([head, chunk]).subarray(0, 16)
           yield chunk
         }
       },
-      createWriteStream(filePath),
+      createWriteStream(partPath),
     )
+    const type = photoType(head)
+    if (!type) throw new ApiException(415, 'unsupported-media-type', `只支持 ${photoFormats} 格式的照片`)
+    file = `${id}.${type}`
+    renameSync(partPath, path.join(photosDir, file))
   } catch (error) {
-    rmSync(filePath, { force: true })
+    rmSync(partPath, { force: true })
     throw error
   }
   const profile = readProfile()
@@ -168,8 +184,8 @@ export function identityPrompt(scope: IdentityScope): string {
       '长期记忆通过本机 binOS API 读写，每条一句话，上面每条的 id 用来修改或删除它：',
       `- 用户明确让你记住一件事：${api} -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…","kind":"stated"}' http://localhost/api/kita/memories`,
       '- 从交流中看出可能长期有用的偏好或习惯，用 "kind":"inferred" 记下；一次性的事情不要记',
-      `- 用户纠正了某条记忆：${api} -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…"}' http://localhost/api/kita/memories/<id>`,
-      '- 用户让你忘掉某条：同样的地址加 /delete，请求体只带 session',
+      `- 用户纠正了某条记忆：${api} -X PATCH -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…"}' http://localhost/api/kita/memories/<id>`,
+      `- 用户让你忘掉某条：curl --unix-socket "$BINOS_API_SOCKET" -X DELETE "http://localhost/api/kita/memories/<id>?session=$BINOS_THREAD_ID"`,
       '记下、改动或删除记忆后，简短告诉用户。',
     ].join('\n'),
   ]

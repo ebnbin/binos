@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { PlayerCommand } from './commands.js'
+import { ApiException } from '../../errors.js'
 import type { CommandResult, PlayerErrorCode, PlayerMessage, PlayerReport, PlayerSnapshot, PlayerState } from './types.js'
 
-export class PlayerError extends Error {
-  code: PlayerErrorCode
-  status: 400 | 404 | 409 | 429
-  constructor(message: string, code: PlayerError['code'], status: PlayerError['status']) { super(message); this.code = code; this.status = status }
+export class PlayerError extends ApiException {
+  constructor(message: string, code: PlayerErrorCode, status: 400 | 404 | 409 | 429) { super(status, code, message) }
 }
 const invalid = () => new PlayerError('播放器请求无效。', 'invalid-input', 400)
 export function parsePlayerReport(value: unknown): PlayerReport {
@@ -24,12 +23,25 @@ export function parsePlayerReport(value: unknown): PlayerReport {
   }
 }
 
+// 进度照着上次报告的推算得出时不算变化，跳转了才算
+const seekTolerance = 2000
+function stateChanged({ state: before, updatedAt }: PlayerSnapshot, after: PlayerState, now: number) {
+  if (!before) return true
+  const { positionMs: was, ...rest } = before
+  const { positionMs: is, ...next } = after
+  if (JSON.stringify(rest) !== JSON.stringify(next)) return true
+  const expected = was + (before.status === 'playing' ? now - updatedAt : 0)
+  return Math.abs(is - expected) > seekTolerance
+}
+
 type Player = { snapshot: PlayerSnapshot; send: (message: PlayerMessage) => void; close: () => void }
 export class MusicPlayers {
   private players = new Map<string, Player>()
   private commands = new Map<string, CommandResult>()
   private now: () => number
-  constructor(now = Date.now) { this.now = now }
+  private changed: () => void
+  // changed：播放器上线、下线或播放状态变了
+  constructor(now = Date.now, changed: () => void = () => {}) { this.now = now; this.changed = changed }
 
   checkCapacity() {
     this.sweep()
@@ -39,6 +51,7 @@ export class MusicPlayers {
     this.checkCapacity()
     const id = randomUUID()
     this.players.set(id, { snapshot: { id, label, updatedAt: this.now(), state: null }, send, close })
+    this.changed()
     return id
   }
   disconnect(id: string) {
@@ -47,6 +60,7 @@ export class MusicPlayers {
     this.players.delete(id)
     for (const command of this.commands.values()) if (command.playerId === id && command.status === 'pending') this.fail(command, 'disconnected', '播放器已断开；操作可能已执行，请重新查询状态。')
     player.close()
+    this.changed()
   }
   private fail(command: CommandResult, code: NonNullable<CommandResult['error']>['code'], message: string) {
     command.status = 'failed'
@@ -72,6 +86,7 @@ export class MusicPlayers {
     const result = report.result
     const command = result && this.commands.get(result.id)
     if (result && (!command || command.playerId !== id)) throw invalid()
+    if (stateChanged(player.snapshot, report.state, this.now())) this.changed()
     player.snapshot = { ...player.snapshot, state: report.state, updatedAt: this.now() }
     if (command && command.status === 'pending') {
       command.state = report.state

@@ -1,18 +1,18 @@
+import type { PageEvent } from '@binos/server/services/kita/journal'
 import type { Entry, Live, KitaSessionEvent } from '@binos/server/services/kita/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { connectEventSource } from '../../../eventSource.ts'
 import { readOlderEvents, sessionStreamUrl } from '../api.ts'
 
-// items 是从 offset 开始的连续条目，offset 大于 0 时前面还有更早的；session 是第一条条目，连上之前是 undefined；
+// events 是连续的一段事件，第一条的 seq 大于 1 时前面还有更早的；session 是第一条条目，连上之前是 undefined；
 // live 是回答进行中的临时内容，null 表示没在回答
 export type KitaSessionContent = {
-  items: Entry[]
-  offset: number
+  events: PageEvent[]
   session: Extract<Entry, { type: 'session' }> | undefined
   live: Live | null
 }
 
-const initialContent: KitaSessionContent = { items: [], offset: 0, session: undefined, live: null }
+const initialContent: KitaSessionContent = { events: [], session: undefined, live: null }
 
 // 打开时先读最后至少这么多条，往上翻时每次再读这么多
 const pageSize = 300
@@ -68,30 +68,29 @@ function applyEvent(live: Live | null, event: Exclude<KitaSessionEvent, { type: 
   }
 }
 
-function applyEvents(content: KitaSessionContent, events: KitaSessionEvent[]): KitaSessionContent {
-  let { items, offset, session, live } = content
-  let added: Entry[] = []
-  for (const event of events) {
-    if (event.type === 'window') {
-      // 从头补发，之前收到的都不要了
-      items = []
-      added = []
-      offset = event.from
-      session = event.session
+function applyEvents(content: KitaSessionContent, messages: KitaSessionEvent[]): KitaSessionContent {
+  let { events, session, live } = content
+  let added: PageEvent[] = []
+  for (const message of messages) {
+    if (message.type === 'window') {
+      // 重新给出最后几轮，之前收到的都不要了
+      events = []
+      added = [...message.events]
+      session = message.session
       live = null
-    } else if (event.type === 'event' || event.type === 'events') {
-      for (const { data } of event.type === 'event' ? [event.event] : event.events) {
-        added.push(data)
-        live = applyItem(live, data)
+    } else if (message.type === 'event' || message.type === 'events') {
+      for (const event of message.type === 'event' ? [message.event] : message.events) {
+        added.push(event)
+        live = applyItem(live, event.data)
       }
     } else {
-      live = applyEvent(live, event)
+      live = applyEvent(live, message)
     }
   }
-  return { items: added.length ? [...items, ...added] : items, offset, session, live }
+  return { events: added.length ? [...events, ...added] : events, session, live }
 }
 
-// thread 的内容，随推送更新；thread 为 undefined 时是空的。先读最后几轮，loadOlder 往前补读更早的轮，给出 until 时一直读到包含它
+// thread 的内容，随推送更新；thread 为 undefined 时是空的。先读最后几轮，loadOlder 往前补读更早的轮，给出 until 时一直读到包含这个 seq
 export function useKitaSession(thread: string | undefined): KitaSessionContent & { loadOlder: (until?: number) => void } {
   const [state, setState] = useState<{ thread?: string; content: KitaSessionContent }>({ content: initialContent })
   const content = state.thread === thread ? state.content : (cached(thread) ?? initialContent)
@@ -119,23 +118,22 @@ export function useKitaSession(thread: string | undefined): KitaSessionContent &
       queue = []
       update(thread, (prev) => applyEvents(prev, events))
     }
-    // 浏览器自己重连时用 Last-Event-ID 接着补发；由 connectEventSource 重连时从已收到的位置接着补发，还没收到过时重新读最后几轮。
+    // 浏览器自己重连时用 Last-Event-ID 接着补发；由 connectEventSource 重连时从收到的最后一条接着补发，还没收到过时重新读最后几轮。
     // 打开过的从缓存的之后接着补发
-    const known = cached(thread)
-    let count = known && known.offset + known.items.length
-    const close = connectEventSource(() => sessionStreamUrl(thread, count, pageSize), {
+    let last = cached(thread)?.events.at(-1)?.seq
+    const close = connectEventSource(() => sessionStreamUrl(thread, last, pageSize), {
       onMessage: (data) => {
-        const event: KitaSessionEvent = JSON.parse(data)
-        if (event.type === 'window') {
-          count = event.from
-        } else if (event.type === 'event' || event.type === 'events') {
-          const events = event.type === 'event' ? [event.event] : event.events
-          if (count === undefined || events[0]?.seq !== count + 1) {
+        const message: KitaSessionEvent = JSON.parse(data)
+        if (message.type === 'window') {
+          last = message.events.at(-1)?.seq
+        } else if (message.type === 'event' || message.type === 'events') {
+          const events = message.type === 'event' ? [message.event] : message.events
+          if (last === undefined || events[0]?.seq !== last + 1) {
             return
           }
-          count += events.length
+          last = events.at(-1)!.seq
         }
-        queue.push(event)
+        queue.push(message)
         frame ||= requestAnimationFrame(flush)
       },
     })
@@ -147,27 +145,25 @@ export function useKitaSession(thread: string | undefined): KitaSessionContent &
 
   // 正在读更早的条目的 thread，同时只读一段
   const loading = useRef<string>(undefined)
-  const { offset } = content
+  const first = content.events[0]?.seq
   const loadOlder = useCallback(
     (until?: number) => {
-      if (thread === undefined || offset === 0 || loading.current === thread) {
+      if (thread === undefined || first === undefined || first <= 1 || loading.current === thread) {
         return
       }
       loading.current = thread
-      void readOlderEvents(thread, offset, Math.max(pageSize, offset - (until ?? offset))).then((events) => {
+      void readOlderEvents(thread, first, Math.max(pageSize, first - (until ?? first))).then((events) => {
         if (loading.current === thread) {
           loading.current = undefined
         }
-        if (!events?.length || events.at(-1)!.seq !== offset) {
+        if (!events?.length || events.at(-1)!.seq !== first - 1) {
           return
         }
-        // 这期间重新补发过时位置对不上，不接
-        update(thread, (prev) =>
-          prev.offset === offset ? { ...prev, offset: events[0].seq - 1, items: [...events.map((event) => event.data), ...prev.items] } : prev,
-        )
+        // 这期间重新给出过最后几轮时位置对不上，不接
+        update(thread, (prev) => (prev.events[0]?.seq === first ? { ...prev, events: [...events, ...prev.events] } : prev))
       })
     },
-    [thread, offset, update],
+    [thread, first, update],
   )
 
   return { ...content, loadOlder }

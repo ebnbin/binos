@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { downloadsRouter } from './apps/builds/install.js'
 import { api, createApi } from './api.js'
+import { errorHandler } from './errors.js'
 import { apiSocketPath, codeDir, libraryDir, serverLockPath } from './paths.js'
 import { previewProxy } from './previews.js'
 import { acquireProcessLock } from './process.js'
@@ -40,7 +41,7 @@ for (const app of serverApps) {
   app.start?.()
 }
 
-const app = new Hono().use(downloadsRouter).use(previewProxy).route('/', api)
+const app = new Hono().onError(errorHandler()).use(downloadsRouter).use(previewProxy).route('/', api)
 
 // 开发时页面由 Vite 提供，没有 web/dist
 const webDist = path.join(codeDir, 'web', 'dist')
