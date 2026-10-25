@@ -167,3 +167,10 @@
   margin-left: var(--activity-indent);
   padding: var(--space-1) 0 var(--space-2);
 }
+
+/* 窄的时候展开的内容只缩进一点：一层层展开时不会越来越窄 */
+@container (width < 600px) {
+  .activity {
+    --activity-indent: var(--space-3);
+  }
+}
