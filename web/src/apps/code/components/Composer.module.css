@@ -66,13 +66,11 @@
   cursor: default;
 }
 
-/* 放不下时（正在回答、出现打断和排队时）右边的按钮整组换到下一行，靠右 */
 .bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-1) var(--space-0-5);
+  gap: var(--space-0-5);
   margin-top: var(--space-1-5);
   margin-left: calc(var(--card-padding) - var(--space-4));
 }
@@ -181,25 +179,70 @@
   background: currentColor;
 }
 
-/* 正在回答时的打断、排队：带边框的胶囊按钮 */
-.interrupt {
-  composes: button from '../../../ui/controls.module.css';
+/* 正在回答时长按发送按钮浮出的排队、打断，贴着按钮右上方 */
+.send {
+  position: relative;
+  display: grid;
 }
 
-.actions .interrupt {
-  gap: var(--space-1);
-  margin-left: auto;
+.send .action {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.heldMenu {
+  composes: popover from '../../../ui/controls.module.css';
+  position: absolute;
+  right: calc(-1 * var(--space-1));
+  bottom: calc(100% + var(--space-2));
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+  padding: var(--space-1-5);
+  transform-origin: bottom right;
+  animation: heldMenuIn var(--duration-normal) var(--ease-spring);
+}
+
+.heldMenu button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-row);
   padding: 0 var(--space-2-5);
-  border-radius: var(--radius-full);
+  border: 0;
+  border-radius: var(--radius-item);
+  background: none;
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.actions .interrupt + .interrupt {
-  margin-left: 0;
+.heldMenu button[data-active] {
+  background: var(--color-selection);
+  color: var(--color-on-selection);
 }
 
-.interrupt + .action {
-  margin-left: var(--space-1);
+@media (hover: hover) {
+  .heldMenu button:hover {
+    background: var(--color-selection);
+    color: var(--color-on-selection);
+  }
+}
+
+@keyframes heldMenuIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heldMenu {
+    animation: none;
+  }
 }
 
 /* 排队的消息：输入框最上面，每条一个浅色的圆角条 */
