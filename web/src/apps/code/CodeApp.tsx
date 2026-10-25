@@ -65,7 +65,6 @@ export function CodeApp({ ctx }: { ctx: WindowContext }) {
                 sessionId={sessionId}
                 session={session}
                 onBack={ctx.back}
-                onNew={() => ctx.navigate(`/new?project=${encodeURIComponent(project)}`)}
                 onScrollTop={() => conversationScroll.current?.scrollTo({ top: 0, behavior: 'smooth' })}
                 onNavigate={ctx.navigate}
               />
