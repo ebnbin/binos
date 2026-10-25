@@ -4,6 +4,7 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream } from 'node:stream/web'
+import { ApiException } from '../../errors.js'
 import { notifyChange } from '../../events.js'
 import { kitaServiceDir } from '../../paths.js'
 import type { IdentityScope, Memory, MemoryKind, MemorySource, Profile } from './types.js'
@@ -20,8 +21,6 @@ export const maxDescriptionLength = 20_000
 export const maxMemoryLength = 2000
 const photoTypes = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'avif']
 export const photoPattern = /^[0-9a-f]{32}\.[a-z]{3,4}$/
-
-export class PhotoRejected extends Error {}
 
 function writeJson(file: string, value: unknown) {
   mkdirSync(identityDir, { recursive: true })
@@ -46,7 +45,7 @@ export function setDescription(description: string) {
 export async function addPhoto(body: ReadableStream<Uint8Array>, name: string): Promise<string> {
   const extension = path.extname(name).slice(1).toLowerCase()
   if (!photoTypes.includes(extension)) {
-    throw new PhotoRejected(`只支持 ${photoTypes.join('、')} 格式的照片`)
+    throw new ApiException(415, 'unsupported-media-type', `只支持 ${photoTypes.join('、')} 格式的照片`)
   }
   const file = `${randomBytes(16).toString('hex')}.${extension}`
   mkdirSync(photosDir, { recursive: true })
@@ -59,7 +58,7 @@ export async function addPhoto(body: ReadableStream<Uint8Array>, name: string): 
         for await (const chunk of source) {
           size += chunk.length
           if (size > maxPhotoBytes) {
-            throw new PhotoRejected(`照片最大 ${maxPhotoBytes / 1024 / 1024} MB`)
+            throw new ApiException(413, 'too-large', `照片最大 ${maxPhotoBytes / 1024 / 1024} MB`)
           }
           yield chunk
         }

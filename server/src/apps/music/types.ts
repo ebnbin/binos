@@ -15,9 +15,7 @@ export type Track = {
 export type CatalogPage = { tracks: Track[]; nextPage?: string; warning?: string }
 
 export type MusicErrorCode = 'configuration' | 'invalid-input' | 'unavailable' | 'quota' | 'network' | 'unsupported'
-
 export type PlayerErrorCode = 'invalid-input' | 'not-found' | 'busy' | 'conflict' | 'capacity'
-export type MusicApiError = { error: string; code: MusicErrorCode | PlayerErrorCode }
 
 export type QueueOperation = { type: 'add' | 'initialize'; tracks: Track[] } | { type: 'remove'; ref: TrackRef } | { type: 'clear' }
 export type QueueSnapshot = { revision: number; tracks: Track[] }

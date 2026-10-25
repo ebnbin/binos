@@ -1,18 +1,13 @@
 import { Hono } from 'hono'
+import { errorHandler } from '../../../../errors.js'
 import { cancelCodexLogin, codexLoginStatus, startCodexLogin } from './login.js'
-
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 // 在网页上重新登录 Codex（设备码登录，见 login.ts）：/api/kita/codex 下
 export const codexApi = new Hono()
+  // 登录过程里的错误都是给用户看的原因
+  .onError(errorHandler([502, 'unavailable']))
   // 开始登录，返回网址和一次性的码
-  .post('/login', async (c) => {
-    try {
-      return c.json(await startCodexLogin(), 200)
-    } catch (error) {
-      return c.json({ error: errorText(error) }, 500)
-    }
-  })
+  .post('/login', async (c) => c.json(await startCodexLogin(), 200))
   // 页面轮询：用户授权了没有
   .get('/login/:id', (c) => c.json(codexLoginStatus(c.req.param('id'))))
   .post('/login/:id/cancel', (c) => {

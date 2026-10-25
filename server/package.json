@@ -9,6 +9,7 @@
   "exports": {
     "./api": "./src/api.ts",
     "./types": "./src/types.ts",
+    "./errors": "./src/errors.ts",
     "./services/kita/api": "./src/services/kita/api.ts",
     "./services/kita/types": "./src/services/kita/types.ts",
     "./services/kita/drivers/claude/api": "./src/services/kita/drivers/claude/api.ts",

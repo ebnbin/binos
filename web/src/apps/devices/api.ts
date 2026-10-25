@@ -1,11 +1,12 @@
 import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
 import type { LeaseResult, Platform } from '@binos/server/apps/devices/types'
+import { errorMessage } from '../../api.ts'
+
 const base = '/api/apps/devices'
 async function request<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${base}${path}`, body === undefined ? undefined : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  const result = await response.json()
-  if (!response.ok) throw new Error(result.error ?? '设备操作失败')
-  return result as T
+  if (!response.ok) throw new Error(await errorMessage(response, '设备操作失败'))
+  return (await response.json()) as T
 }
 export const readDevices = () => request<DevicesSnapshot>('')
 export const discoverDevices = () => request<DevicesSnapshot>('/discover', {})

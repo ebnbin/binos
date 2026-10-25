@@ -1,12 +1,12 @@
 import type { MonitorStatus } from '@binos/server/apps/system/types'
 import { useSyncExternalStore } from 'react'
+import { errorMessage } from '../../api.ts'
 
 const systemUrl = '/api/apps/system'
 export async function systemRequest<T>(route: string, init?: RequestInit): Promise<T> {
   const response = await fetch(systemUrl + route, { ...init, signal: init?.signal || AbortSignal.timeout(12_000) })
-  const data = await response.json()
-  if (!response.ok) throw new Error(data.error || `读取失败（${response.status}）`)
-  return data as T
+  if (!response.ok) throw new Error(await errorMessage(response, '读取失败'))
+  return (await response.json()) as T
 }
 
 type State = { status?: MonitorStatus; error?: string; lastSuccess: number; now: number }

@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
+import { errorHandler } from '../../errors.js'
 import { serveFile } from '../../files.js'
 import type { Directory, FileEntry } from './types.js'
 
@@ -18,7 +19,8 @@ function child(dir: string, value: unknown) {
 }
 
 export const filesApi = new Hono()
-  .onError((error, c) => c.json({ error: error.message }, 400))
+  // 文件操作的错误是给用户看的原因
+  .onError(errorHandler([400, 'invalid-input']))
   .get('/', async (c) => {
     const dir = absolute(c.req.query('path') || os.homedir())
     const names = await readdir(dir)

@@ -1,11 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { PlayerCommand } from './commands.js'
+import { ApiException } from '../../errors.js'
 import type { CommandResult, PlayerErrorCode, PlayerMessage, PlayerReport, PlayerSnapshot, PlayerState } from './types.js'
 
-export class PlayerError extends Error {
-  code: PlayerErrorCode
-  status: 400 | 404 | 409 | 429
-  constructor(message: string, code: PlayerError['code'], status: PlayerError['status']) { super(message); this.code = code; this.status = status }
+export class PlayerError extends ApiException {
+  constructor(message: string, code: PlayerErrorCode, status: 400 | 404 | 409 | 429) { super(status, code, message) }
 }
 const invalid = () => new PlayerError('播放器请求无效。', 'invalid-input', 400)
 export function parsePlayerReport(value: unknown): PlayerReport {

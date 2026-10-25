@@ -14,12 +14,13 @@ import type { Directory, FileOperation } from './apps/files/types.js'
 import type { kitaAppApi } from './apps/kita/api.js'
 import type { Conversation, ConversationMessage } from './apps/kita/types.js'
 import type { musicApi } from './apps/music/api.js'
-import type { CatalogPage, CommandResult, Lyrics, MusicApiError, PlaybackSource, PlayerCommandRequest, PlayerMessage, PlayerReport, PlayerSnapshot, ProviderInfo, QueueMutation, QueueSnapshot } from './apps/music/types.js'
+import type { CatalogPage, CommandResult, Lyrics, PlaybackSource, PlayerCommandRequest, PlayerMessage, PlayerReport, PlayerSnapshot, ProviderInfo, QueueMutation, QueueSnapshot } from './apps/music/types.js'
 import type { systemApi } from './apps/system/api.js'
 import type { MonitorStatus } from './apps/system/types.js'
 import type { terminalApi } from './apps/terminal/api.js'
 import type { TerminalClientMessage, TerminalServerMessage, TerminalStreamMessage } from './apps/terminal/connection.js'
 import type { TerminalSession } from './apps/terminal/sessions.js'
+import type { ApiError } from './errors.js'
 import type { FileInfo } from './files.js'
 import type { claudeApi } from './services/kita/drivers/claude/api.js'
 import type { ClaudeLoginKind, ClaudeLoginStart } from './services/kita/drivers/claude/login.js'
@@ -31,18 +32,17 @@ import type { Activity, AgentAccount, AgentCatalog, AgentStatus, KitaSessionEven
 import type { AppRegistry, ChangeEvent, Health } from './types.js'
 
 // 客户端收发的全部 JSON：pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 protocol-id.ts。
-// http 的 request 是 JSON 请求体，response 是各种状态码下所有 JSON 响应体的并集；
-// 请求体或响应体是文件本身、纯文字的不在这里。errors 是这个前缀下的路由出错时统一返回的
+// http 的 request 是 JSON 请求体，response 是成功时的 JSON 响应体；请求体或响应体是文件本身、纯文字的不在这里。
+// 出错时（4xx、5xx）所有接口的响应体都是 error
 export type Protocol = {
   http: Http
-  errors: Errors
+  error: ApiError
   sse: Sse
   websocket: WebSockets
 }
 
 type Ok = { ok: true }
 type Done = { ok: boolean }
-type Failure = { error: string }
 
 export type Http = {
   'GET /api/health': { response: Health }
@@ -61,7 +61,7 @@ export type Http = {
   'GET /api/kita/activity': { response: { activity: Activity[] } }
   'GET /api/kita/profile': { response: { profile: Profile } }
   'POST /api/kita/profile/description': { request: { description: string }; response: Ok }
-  'POST /api/kita/profile/photos': { response: { file: string } | Failure }
+  'POST /api/kita/profile/photos': { response: { file: string } }
   // ?info=1 时
   'GET /api/kita/profile/photos/:file': { response: FileInfo }
   'POST /api/kita/profile/photos/:file/delete': { response: Done }
@@ -71,28 +71,28 @@ export type Http = {
   'POST /api/kita/memories/:id': { request: MemoryChange; response: { memory: Memory } }
   'POST /api/kita/memories/:id/delete': { request: Pick<MemoryChange, 'session'>; response: Done }
   'POST /api/kita/memories/:id/revert': { request: Pick<MemoryChange, 'session'>; response: { memory: Memory } }
-  'POST /api/kita/claude/login': { request: { kind: ClaudeLoginKind }; response: ClaudeLoginStart | Failure }
-  'POST /api/kita/claude/login/:id': { request: { code: string }; response: Ok | Failure }
+  'POST /api/kita/claude/login': { request: { kind: ClaudeLoginKind }; response: ClaudeLoginStart }
+  'POST /api/kita/claude/login/:id': { request: { code: string }; response: Ok }
   'POST /api/kita/claude/login/:id/cancel': { response: Ok }
-  'POST /api/kita/codex/login': { response: CodexLoginStart | Failure }
+  'POST /api/kita/codex/login': { response: CodexLoginStart }
   'GET /api/kita/codex/login/:id': { response: CodexLoginStatus }
   'POST /api/kita/codex/login/:id/cancel': { response: Ok }
 
   'GET /api/apps/builds': { response: BuildsSnapshot }
-  'POST /api/apps/builds': { request: Exclude<BuildRequest, { action: 'stop' | 'handoff' }>; response: BuildsSnapshot | Failure }
+  'POST /api/apps/builds': { request: Exclude<BuildRequest, { action: 'stop' | 'handoff' }>; response: BuildsSnapshot }
   'POST /api/apps/builds/:id/install': { response: InstallLink }
 
   'GET /api/apps/code/projects': { response: { projects: Project[] } }
-  'POST /api/apps/code/projects': { request: RepositoryBody; response: { project: Project } | Failure }
-  'POST /api/apps/code/projects/:project/repository': { request: RepositoryBody; response: { project: Project } | Failure }
+  'POST /api/apps/code/projects': { request: RepositoryBody; response: { project: Project } }
+  'POST /api/apps/code/projects/:project/repository': { request: RepositoryBody; response: { project: Project } }
   'GET /api/apps/code/search': { response: SearchResults }
   'GET /api/apps/code/sessions': { response: { sessions: SessionSummary[] } }
   'GET /api/apps/code/usage': { response: { usage: CodeUsage | null } }
   'POST /api/apps/code/uploads': { response: { file: string } }
-  'POST /api/apps/code/sessions': { request: MessageBody; response: SessionRef | { error: 'unavailable' } | Failure }
-  'POST /api/apps/code/sessions/:id/messages': { request: MessageBody; response: SessionRef | { error: 'unavailable' } | Failure }
-  'POST /api/apps/code/sessions/:id/queue/:item/withdraw': { response: { text: string } | { error: 'gone' } }
-  'POST /api/apps/code/sessions/:id/queue/:item/send': { response: SessionRef | { error: 'unavailable' } | { error: 'answering' } }
+  'POST /api/apps/code/sessions': { request: MessageBody; response: SessionRef }
+  'POST /api/apps/code/sessions/:id/messages': { request: MessageBody; response: SessionRef }
+  'POST /api/apps/code/sessions/:id/queue/:item/withdraw': { response: { text: string } }
+  'POST /api/apps/code/sessions/:id/queue/:item/send': { response: SessionRef }
   'POST /api/apps/code/sessions/:id/edit': { request: SessionEdit; response: Ok }
   'POST /api/apps/code/sessions/:id/read': { response: Ok }
   'POST /api/apps/code/sessions/:id/stop': { response: Ok }
@@ -100,7 +100,7 @@ export type Http = {
   'GET /api/apps/devices': { response: DevicesSnapshot }
   'POST /api/apps/devices/discover': { response: DevicesSnapshot }
   'POST /api/apps/devices/leases': { request: Pick<Extract<DeviceRequest, { action: 'acquire' }>, 'reason' | 'platforms' | 'requestId'>; response: LeaseResult }
-  'POST /api/apps/devices/leases/:id/release': { response: Ok | Failure }
+  'POST /api/apps/devices/leases/:id/release': { response: Ok }
   'POST /api/apps/devices/queue/cancel': { request: { requestId: string }; response: Ok }
   'POST /api/apps/devices/:id/control': { request: { operation: 'destroy' }; response: Ok }
   'GET /api/apps/devices/:id/screenshot': { response: DeviceScreenshot }
@@ -112,10 +112,10 @@ export type Http = {
   'POST /api/apps/files/upload': { response: Ok }
 
   'GET /api/apps/kita/conversations': { response: { conversations: Conversation[] } }
-  'POST /api/apps/kita/conversations': { request: ConversationMessage; response: { id: string } | { error: 'unavailable' } }
-  'POST /api/apps/kita/conversations/:id/messages': { request: Pick<ConversationMessage, 'text'>; response: Ok | { error: 'unavailable' } }
+  'POST /api/apps/kita/conversations': { request: ConversationMessage; response: { id: string } }
+  'POST /api/apps/kita/conversations/:id/messages': { request: Pick<ConversationMessage, 'text'>; response: Ok }
   'POST /api/apps/kita/conversations/:id/stop': { response: Done }
-  'POST /api/apps/kita/conversations/:id/delete': { response: Ok | { error: 'answering' } }
+  'POST /api/apps/kita/conversations/:id/delete': { response: Ok }
 
   // 音乐 API 的自述，给 agent 读：文字说明和指令的 JSON Schema
   'GET /api/apps/music': { response: { [key: string]: unknown } }
@@ -137,16 +137,8 @@ export type Http = {
 
   'GET /api/apps/terminal': { response: { available: boolean; sessions: TerminalSession[] } }
   'POST /api/apps/terminal/sessions': { response: TerminalSession }
-  'DELETE /api/apps/terminal/sessions/:id': { response: Ok | Failure }
-  'POST /api/apps/terminal/connections/:token': { request: TerminalClientMessage; response: Ok | Failure }
-}
-
-export type Errors = {
-  '/api/apps/builds': Failure
-  '/api/apps/devices': Failure
-  '/api/apps/files': Failure
-  '/api/apps/music': MusicApiError
-  '/api/apps/terminal': Failure
+  'DELETE /api/apps/terminal/sessions/:id': { response: Ok }
+  'POST /api/apps/terminal/connections/:token': { request: TerminalClientMessage; response: Ok }
 }
 
 // 每条消息是一个 data 字段里的 JSON；event 为 ping 的是保活，没有 JSON

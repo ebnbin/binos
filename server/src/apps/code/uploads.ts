@@ -4,6 +4,7 @@ import path from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import type { ReadableStream } from 'node:stream/web'
+import { ApiException } from '../../errors.js'
 import { dataDir } from './sessions.js'
 import type { Upload } from './types.js'
 
@@ -17,7 +18,7 @@ export const maxUploads = 20
 // 随机串加原来的扩展名，既是 uploads/ 下的文件名，也是交给 thread 后的文件名
 const filePattern = /^[0-9a-f]{32}(\.[a-z0-9]{1,10})?$/
 
-export class UploadTooLarge extends Error {}
+
 
 // 超过上限时中途放弃，不等整个文件传完
 export async function saveUpload(body: ReadableStream<Uint8Array>, name: string): Promise<string> {
@@ -33,7 +34,7 @@ export async function saveUpload(body: ReadableStream<Uint8Array>, name: string)
         for await (const chunk of source) {
           size += chunk.length
           if (size > maxUploadBytes) {
-            throw new UploadTooLarge()
+            throw new ApiException(413, 'too-large', `附件不能超过 ${maxUploadBytes / 1024 / 1024} MB`)
           }
           yield chunk
         }

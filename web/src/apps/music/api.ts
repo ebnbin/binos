@@ -1,13 +1,11 @@
 import type { MusicApi } from '@binos/server/apps/music/api'
-import type { CatalogPage, Lyrics, MusicApiError, PlaybackSource, ProviderInfo, QueueMutation, QueueSnapshot } from '@binos/server/apps/music/types'
+import { errorMessage } from '../../api.ts'
+import type { CatalogPage, Lyrics, PlaybackSource, ProviderInfo, QueueMutation, QueueSnapshot } from '@binos/server/apps/music/types'
 import { hc } from 'hono/client'
 
 const client = hc<MusicApi>(`${window.location.origin}/api/apps/music`)
 async function json<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const data = await response.json().catch(() => null) as MusicApiError | null
-    throw new Error(data?.error ?? '音乐服务暂时不可用。')
-  }
+  if (!response.ok) throw new Error(await errorMessage(response, '音乐服务暂时不可用'))
   return response.json() as Promise<T>
 }
 async function request<T>(provider: string, operation: string, query: string, page?: string, signal?: AbortSignal) {

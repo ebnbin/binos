@@ -2,6 +2,7 @@ import type { CodeApi } from '@binos/server/apps/code/api'
 import type { Upload } from '@binos/server/apps/code/types'
 import type { AgentId } from '@binos/server/services/kita/types'
 import { hc } from 'hono/client'
+import { errorMessage } from '../../api.ts'
 
 const client = hc<CodeApi>(`${window.location.origin}/api/apps/code`)
 const sessions = client.sessions
@@ -31,14 +32,10 @@ export async function sendMessage(
     ? sessions.$post({ json })
     : sessions[':id'].messages.$post({ param: { id: String(sessionId) }, json })
   ).catch(() => undefined)
-  if (res?.status === 200) {
+  if (res?.ok) {
     return await res.json()
   }
-  if (res?.status === 503) {
-    const body = await res.json().catch(() => undefined)
-    if (body && 'error' in body && body.error !== 'unavailable') return { error: body.error }
-  }
-  return { error: res?.status === 503 ? '消息没能交给 agent，稍后再试' : `发送失败（${res?.status ?? '网络错误'}）` }
+  return { error: await errorMessage(res, '发送失败') }
 }
 
 // 这 7 天 binOS 大约用了周额度的多少；估不出来时没有
@@ -60,7 +57,7 @@ export async function uploadFile(file: File): Promise<Upload | { error: string }
     const { file: name } = (await res.json()) as { file: string }
     return { file: name, name: file.name }
   }
-  return { error: `上传 ${file.name} 失败（${res?.status === 413 ? '文件太大' : (res?.status ?? '网络错误')}）` }
+  return { error: await errorMessage(res, `上传 ${file.name} 失败`) }
 }
 
 // 写操作都要带上 JSON 的 Content-Type，后端以此拒绝跨站请求
@@ -108,8 +105,8 @@ export async function createProject(name: string, repository: string, create: bo
   const json = { name, repository, create }
   const res = await (projectId
     ? client.projects[':project'].repository.$post({ param: { project: projectId }, json })
-    : client.projects.$post({ json }))
-  const body = await res.json()
-  if ('error' in body) throw new Error(body.error)
-  return body.project
+    : client.projects.$post({ json })
+  ).catch(() => undefined)
+  if (!res?.ok) throw new Error(await errorMessage(res, '项目没能建好'))
+  return (await res.json()).project
 }

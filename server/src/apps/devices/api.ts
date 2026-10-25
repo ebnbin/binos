@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { errorHandler, forbidden } from '../../errors.js'
 import { notifyChange } from '../../events.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
@@ -21,7 +22,8 @@ async function snapshot(discovery: boolean): Promise<DevicesSnapshot> {
 }
 export const devicesApi = new Hono()
   .use('*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next() })
-  .onError((error, c) => c.json({ error: error.message }, 409))
+  // 设备服务回复的错误是给用户看的原因
+  .onError(errorHandler([409, 'conflict']))
   .get('/', async (c) => c.json(await snapshot(false)))
   .post('/discover', async (c) => c.json(await snapshot(true)))
   .post('/leases', async (c) => {
@@ -35,7 +37,7 @@ export const devicesApi = new Hono()
     const status = await deviceRequest<Snapshot>({ action: 'status' })
     const lease = status.leases.find((item) => item.id === c.req.param('id'))
     if (!lease) return c.json({ ok: true })
-    if (lease.owner !== 'manual') return c.json({ error: '只能归还手动申请；回收其他会话请使用设备强制回收' }, 403)
+    if (lease.owner !== 'manual') throw forbidden('只能归还手动申请；回收其他会话请使用设备强制回收')
     await deviceRequest({ action: 'release', lease: lease.id, owner: lease.owner })
     notifyChange({ type: 'devices' })
     return c.json({ ok: true })

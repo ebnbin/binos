@@ -29,7 +29,7 @@ describe('YouTube 内容入口', () => {
     vi.stubGlobal('fetch', fetch)
     const missing = await musicApi.request('/providers/youtube/search?q=hello')
     expect(missing.status).toBe(409)
-    expect(await missing.json()).toMatchObject({ code: 'configuration' })
+    expect(await missing.json()).toMatchObject({ error: { code: 'configuration' } })
     expect((await musicApi.request('/providers/youtube/resolve?q=https://localhost/private')).status).toBe(400)
     expect(fetch).not.toHaveBeenCalled()
     expect((await musicApi.request('/providers/unknown/search?q=hello')).status).toBe(422)
@@ -53,7 +53,7 @@ describe('YouTube 内容入口', () => {
     vi.stubGlobal('fetch', fetch)
     const response = await musicApi.request('/providers/youtube/search?q=hello')
     expect(response.status).toBe(429)
-    expect(await response.json()).toMatchObject({ code: 'quota' })
+    expect(await response.json()).toMatchObject({ error: { code: 'quota' } })
     const [url, options] = fetch.mock.calls[0] as unknown as [URL, RequestInit]
     expect(url.href).not.toContain('test-search-key')
     expect(options.headers).toMatchObject({ 'X-Goog-Api-Key': 'test-search-key' })

@@ -23,7 +23,7 @@ it('有限能力的其他来源可接入同一接口，不支持和缺少配置�
   const search = vi.fn<NonNullable<MusicProvider['search']>>()
   const provider: MusicProvider = { info: () => ({ id: 'limited', name: '有限曲库', description: '', input: { references: [] }, configuration: { fields: [] }, capabilities: { resolve: unavailable, playback: unavailable, playlist: unavailable, recommendations: unavailable, lyrics: unavailable, search: { state: 'configuration-required', reason: '需要连接账号' } } }), search }
   const app = createMusicApi([provider])
-  expect(await (await app.request('/providers/limited/search?q=test')).json()).toEqual({ error: '需要连接账号', code: 'configuration' })
+  expect(await (await app.request('/providers/limited/search?q=test')).json()).toEqual({ error: { message: '需要连接账号', code: 'configuration' } })
   expect((await app.request('/providers/limited/lyrics?q=test')).status).toBe(422)
   expect(search).not.toHaveBeenCalled()
   expect((await app.request('/providers/limited/playlist?q=test')).status).toBe(422)

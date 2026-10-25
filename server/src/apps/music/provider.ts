@@ -1,8 +1,10 @@
+import { ApiException } from '../../errors.js'
 import type { CatalogPage, Lyrics, MusicErrorCode, PlaybackSource, ProviderInfo, TrackRef } from './types.js'
 
-export class MusicError extends Error {
-  code: MusicErrorCode
-  constructor(message: string, code: MusicErrorCode) { super(message); this.code = code }
+const statuses = { 'invalid-input': 400, unsupported: 422, configuration: 409, quota: 429, unavailable: 502, network: 502 } as const
+
+export class MusicError extends ApiException {
+  constructor(message: string, code: MusicErrorCode) { super(statuses[code], code, message) }
 }
 
 export interface MusicProvider {

@@ -3,6 +3,7 @@ import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { streamSSE } from 'hono/streaming'
+import { badRequest, errorHandler, forbidden, notFound } from '../../errors.js'
 import { isCrossSite } from '../../websocket-origin.js'
 import { connectTerminal, parseMessage } from './connection.js'
 import type { TerminalServerMessage, TerminalStreamMessage } from './connection.js'
@@ -23,22 +24,23 @@ const acquire = (id: string) => {
 }
 
 export const terminalApi = new Hono()
-  .onError((error, c) => c.json({ error: error.message }, 400))
+  // 终端操作的错误是给用户看的原因
+  .onError(errorHandler([400, 'invalid-input']))
   .use(bodyLimit({ maxSize: 128 * 1024 }))
   .get('/', async (c) => c.json({ available: !!tmux, sessions: await listSessions() }))
   .post('/sessions', async (c) => c.json(await createSession(), 201))
   .use('/sessions/:id/*', async (c, next) => {
-    if (!(await hasSession(c.req.param('id')!))) return c.json({ error: '终端会话已结束' }, 404)
+    if (!(await hasSession(c.req.param('id')!))) throw notFound('终端会话已结束')
     await next()
   })
   .delete('/sessions/:id', async (c) => {
     const id = c.req.param('id')
-    if (!(await hasSession(id))) return c.json({ error: '终端会话已结束' }, 404)
+    if (!(await hasSession(id))) throw notFound('终端会话已结束')
     await runTmux(['kill-session', '-t', id])
     return c.json({ ok: true })
   })
   .get('/sessions/:id/socket', async (c, next) => {
-    if (isCrossSite(c)) return c.text('Forbidden', 403)
+    if (isCrossSite(c)) throw forbidden('不能从别的网站连接')
     return upgradeWebSocket(() => {
       let connection: Connection | undefined
       let release: (() => void) | undefined
@@ -117,9 +119,9 @@ export const terminalApi = new Hono()
   })
   .post('/connections/:token', async (c) => {
     const connection = streams.get(c.req.param('token'))
-    if (!connection) return c.json({ error: '连接已断开' }, 404)
+    if (!connection) throw notFound('连接已断开')
     const message = parseMessage(await c.req.json())
-    if (!message) return c.json({ error: 'Invalid message' }, 400)
+    if (!message) throw badRequest('消息无效')
     connection.receive(message)
     return c.json({ ok: true })
   })

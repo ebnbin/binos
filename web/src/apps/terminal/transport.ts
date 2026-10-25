@@ -1,3 +1,5 @@
+import { errorMessage } from '../../api.ts'
+
 type Message = { type: string; data?: string; message?: string; id?: string }
 export type TerminalTransport = { send(value: object): void; close(): void }
 const base = '/api/apps/terminal'
@@ -7,9 +9,8 @@ export async function terminalRequest<T>(path: string, method = 'GET'): Promise<
     method,
     ...(method !== 'GET' && { headers: { 'Content-Type': 'application/json' }, body: '{}' }),
   })
-  const value = await response.json()
-  if (!response.ok) throw new Error(value.error ?? `请求失败 (${response.status})`)
-  return value as T
+  if (!response.ok) throw new Error(await errorMessage(response, '请求失败'))
+  return (await response.json()) as T
 }
 
 export function openTerminal(id: string, receive: (message: Message) => void, disconnected: () => void): TerminalTransport {

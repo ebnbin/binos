@@ -3,6 +3,7 @@ import { lstat, open } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { createReadStream } from 'node:fs'
+import { errorHandler, forbidden, notFound } from '../../errors.js'
 import { buildRequest } from './client.js'
 import { installableBuild, installationOrigin, installToken, ipaInfo } from './install.js'
 import { resultsDir } from './config.js'
@@ -11,16 +12,17 @@ import type { BuildsSnapshot, InstallLink } from './types.js'
 const idValid = (id: string) => /^[a-f0-9-]{36}$/.test(id)
 export const buildsApi = new Hono()
   .use('*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next() })
-  .onError((e, c) => c.json({ error: e.message }, 409))
+  // 构建服务回复的错误是给用户看的原因
+  .onError(errorHandler([409, 'conflict']))
   .get('/', async (c) => c.json(await buildRequest({ action: 'status' })))
   .post('/', async (c) => {
     const request = parseRequest(await c.req.json())
-    if (request.action === 'stop' || request.action === 'handoff') return c.json({ error: '网页不能停止构建服务' }, 403)
+    if (request.action === 'stop' || request.action === 'handoff') throw forbidden('网页不能停止构建服务')
     return c.json(await buildRequest(request))
   })
   .post('/:id/install', async (c) => {
     const item = await installableBuild(c.req.param('id'))
-    if (!item) return c.notFound()
+    if (!item) throw notFound('没有可安装的 iOS 包')
     const origin = installationOrigin(c.req.url)
     await ipaInfo(item.file)
     const token = installToken(item.build.id)
@@ -33,10 +35,10 @@ export const buildsApi = new Hono()
   })
   .get('/:id/log', async (c) => {
     const id = c.req.param('id')
-    if (!idValid(id)) return c.notFound()
+    if (!idValid(id)) throw notFound('构建不存在')
     if (c.req.query('download') === '1') {
       const file = path.join(resultsDir, id, 'build.log')
-      if (!(await lstat(file).catch(() => undefined))?.isFile()) return c.notFound()
+      if (!(await lstat(file).catch(() => undefined))?.isFile()) throw notFound('还没有日志')
       return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Disposition': 'attachment; filename=build.log', 'Cache-Control': 'no-store' } })
     }
     // 只读末尾 512 KiB，长构建日志不会耗尽后端内存。
@@ -47,11 +49,11 @@ export const buildsApi = new Hono()
   })
   .get('/:id/artifacts/:name', async (c) => {
     const id = c.req.param('id'); const name = c.req.param('name')
-    if (!idValid(id) || name.startsWith('.') || /[/\\]/.test(name)) return c.notFound()
+    if (!idValid(id) || name.startsWith('.') || /[/\\]/.test(name)) throw notFound('产物不存在')
     const snapshot = await buildRequest<BuildsSnapshot>({ action: 'status' })
     const b = snapshot.builds.find((b) => b.id === id && b.status === 'success')
-    if (!b?.artifacts.some((a) => a.kind === 'install' && a.name === name)) return c.notFound()
+    if (!b?.artifacts.some((a) => a.kind === 'install' && a.name === name)) throw notFound('产物不存在')
     const file = path.join(resultsDir, id, 'outputs', name)
-    if (!(await lstat(file).catch(() => undefined))?.isFile()) return c.notFound()
+    if (!(await lstat(file).catch(() => undefined))?.isFile()) throw notFound('产物不存在')
     return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, { headers: { 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${name.replaceAll('"', '')}"`, 'Cache-Control': 'no-store' } })
   })

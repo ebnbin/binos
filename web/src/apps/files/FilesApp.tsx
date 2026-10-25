@@ -3,6 +3,7 @@ import { Checkbox } from '../../ui/Checkbox.tsx'
 import { Select } from '../../ui/Select.tsx'
 import { ArrowLeft, ArrowUp, ChevronRight, Download, File, Folder, Home, List, LayoutGrid, RefreshCw, Search, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { errorMessage } from '../../api.ts'
 import { FilePreview } from '../../services/preview/index.ts'
 import type { WindowContext } from '../types.ts'
 import styles from './FilesApp.module.css'
@@ -12,9 +13,8 @@ type Listing = { path: string; parent: string; home: string; entries: Entry[] }
 const base = '/api/apps/files'
 async function request(url: string, init?: RequestInit) {
   const response = await fetch(base + url, init)
-  const data = await response.json()
-  if (!response.ok) throw new Error(data.error || '文件操作失败')
-  return data
+  if (!response.ok) throw new Error(await errorMessage(response, '文件操作失败'))
+  return response.json()
 }
 const size = (bytes: number) =>
   bytes < 1024

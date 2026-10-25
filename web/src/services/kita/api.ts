@@ -1,6 +1,7 @@
 import type { KitaApi } from '@binos/server/services/kita/api'
 import type { Entry, KitaSessionEvent } from '@binos/server/services/kita/types'
 import { hc } from 'hono/client'
+import { errorMessage } from '../../api.ts'
 
 export type SessionEvent = Extract<KitaSessionEvent, { type: 'event' }>['event']
 
@@ -85,8 +86,7 @@ export async function uploadPhoto(file: File): Promise<string | undefined> {
     headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
   }).catch(() => undefined)
   if (res?.ok) return undefined
-  const body = (await res?.json().catch(() => undefined)) as { error?: string } | undefined
-  return body?.error ?? `上传 ${file.name} 失败（${res?.status ?? '网络错误'}）`
+  return errorMessage(res, `上传 ${file.name} 失败`)
 }
 
 export async function removePhoto(file: string) {

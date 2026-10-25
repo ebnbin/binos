@@ -1,38 +1,31 @@
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
+import { badRequest, errorHandler } from '../../../../errors.js'
 import { cancelClaudeLogin, finishClaudeLogin, startClaudeLogin } from './login.js'
 import type { ClaudeLoginKind } from './login.js'
 
-const loginBody = validator('json', (value, c) => {
+const loginBody = validator('json', (value) => {
   const kind = (value as { kind?: unknown } | null)?.kind
-  return kind === 'login' || kind === 'token' ? { kind: kind as ClaudeLoginKind } : c.text('Bad Request', 400)
+  if (kind !== 'login' && kind !== 'token') throw badRequest()
+  return { kind: kind as ClaudeLoginKind }
 })
 
-const codeBody = validator('json', (value, c) => {
+const codeBody = validator('json', (value) => {
   const code = (value as { code?: unknown } | null)?.code
-  return typeof code === 'string' && /^[\w#.~-]{1,500}$/.test(code.trim()) ? { code } : c.text('Bad Request', 400)
+  if (typeof code !== 'string' || !/^[\w#.~-]{1,500}$/.test(code.trim())) throw badRequest('授权代码的格式不对')
+  return { code }
 })
-
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error))
 
 // 在网页上登录 Claude（见 login.ts）：/api/kita/claude 下
 export const claudeApi = new Hono()
+  // 登录过程里的错误都是给用户看的原因
+  .onError(errorHandler([502, 'unavailable']))
   // 开始登录，返回授权链接
-  .post('/login', loginBody, async (c) => {
-    try {
-      return c.json(await startClaudeLogin(c.req.valid('json').kind), 200)
-    } catch (error) {
-      return c.json({ error: errorText(error) }, 500)
-    }
-  })
+  .post('/login', loginBody, async (c) => c.json(await startClaudeLogin(c.req.valid('json').kind), 200))
   // 贴回授权后的代码，完成登录
   .post('/login/:id', codeBody, async (c) => {
-    try {
-      await finishClaudeLogin(c.req.param('id'), c.req.valid('json').code)
-      return c.json({ ok: true as const }, 200)
-    } catch (error) {
-      return c.json({ error: errorText(error) }, 500)
-    }
+    await finishClaudeLogin(c.req.param('id'), c.req.valid('json').code)
+    return c.json({ ok: true as const }, 200)
   })
   .post('/login/:id/cancel', (c) => {
     cancelClaudeLogin(c.req.param('id'))

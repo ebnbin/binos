@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Build, Target } from '@binos/server/apps/builds/types'
+import type { Build, InstallLink, Target } from '@binos/server/apps/builds/types'
+import { errorMessage } from '../../api.ts'
 import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
@@ -50,9 +51,8 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
     setBusy(true)
     try {
       const r = await fetch(`${base}/${id}/install`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      const value = await r.json()
-      if (!r.ok) throw new Error(value.error ?? '无法创建安装链接')
-      window.location.assign(value.url)
+      if (!r.ok) throw new Error(await errorMessage(r, '无法创建安装链接'))
+      window.location.assign(((await r.json()) as InstallLink).url)
     } catch (e) { setError(String(e)) } finally { setBusy(false) }
   }
   // 预览链接指向 PR 当前的预览，只在开着的 PR 最新一次成功的 Web 构建上显示

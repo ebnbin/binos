@@ -8,8 +8,8 @@
         "http": {
           "$ref": "#/definitions/Http"
         },
-        "errors": {
-          "$ref": "#/definitions/Errors"
+        "error": {
+          "$ref": "#/definitions/ApiError"
         },
         "sse": {
           "$ref": "#/definitions/Sse"
@@ -20,7 +20,7 @@
       },
       "required": [
         "http",
-        "errors",
+        "error",
         "sse",
         "websocket"
       ],
@@ -310,32 +310,16 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "file": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "file"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string"
                 }
-              ]
+              },
+              "required": [
+                "file"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -549,23 +533,7 @@
               "additionalProperties": false
             },
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/ClaudeLoginStart"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/ClaudeLoginStart"
             }
           },
           "required": [
@@ -590,33 +558,17 @@
               "additionalProperties": false
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -651,23 +603,7 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/CodexLoginStart"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/CodexLoginStart"
             }
           },
           "required": [
@@ -806,23 +742,7 @@
               ]
             },
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/BuildsSnapshot"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/BuildsSnapshot"
             }
           },
           "required": [
@@ -874,32 +794,16 @@
               "$ref": "#/definitions/RepositoryBody"
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "project": {
-                      "$ref": "#/definitions/Project"
-                    }
-                  },
-                  "required": [
-                    "project"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "project": {
+                  "$ref": "#/definitions/Project"
                 }
-              ]
+              },
+              "required": [
+                "project"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -915,32 +819,16 @@
               "$ref": "#/definitions/RepositoryBody"
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "project": {
-                      "$ref": "#/definitions/Project"
-                    }
-                  },
-                  "required": [
-                    "project"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "project": {
+                  "$ref": "#/definitions/Project"
                 }
-              ]
+              },
+              "required": [
+                "project"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1041,36 +929,7 @@
               "$ref": "#/definitions/MessageBody"
             },
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/SessionRef"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "unavailable"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/SessionRef"
             }
           },
           "required": [
@@ -1086,36 +945,7 @@
               "$ref": "#/definitions/MessageBody"
             },
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/SessionRef"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "unavailable"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/SessionRef"
             }
           },
           "required": [
@@ -1128,33 +958,16 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "text": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "text"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "gone"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
                 }
-              ]
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1166,37 +979,7 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/SessionRef"
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "unavailable"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "answering"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/SessionRef"
             }
           },
           "required": [
@@ -1337,33 +1120,17 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1557,33 +1324,16 @@
               "$ref": "#/definitions/ConversationMessage"
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "unavailable"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
                 }
-              ]
+              },
+              "required": [
+                "id"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1608,34 +1358,17 @@
               "additionalProperties": false
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "unavailable"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1669,34 +1402,17 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "const": "answering"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -1968,33 +1684,17 @@
           "type": "object",
           "properties": {
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -2009,33 +1709,17 @@
               "$ref": "#/definitions/TerminalClientMessage"
             },
             "response": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "const": true
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "error"
-                  ],
-                  "additionalProperties": false
+              "type": "object",
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
                 }
-              ]
+              },
+              "required": [
+                "ok"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -6072,112 +5756,51 @@
         }
       ]
     },
-    "Errors": {
-      "type": "object",
-      "properties": {
-        "/api/apps/builds": {
-          "type": "object",
-          "properties": {
-            "error": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "error"
-          ],
-          "additionalProperties": false
-        },
-        "/api/apps/devices": {
-          "type": "object",
-          "properties": {
-            "error": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "error"
-          ],
-          "additionalProperties": false
-        },
-        "/api/apps/files": {
-          "type": "object",
-          "properties": {
-            "error": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "error"
-          ],
-          "additionalProperties": false
-        },
-        "/api/apps/music": {
-          "$ref": "#/definitions/MusicApiError"
-        },
-        "/api/apps/terminal": {
-          "type": "object",
-          "properties": {
-            "error": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "error"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "/api/apps/builds",
-        "/api/apps/devices",
-        "/api/apps/files",
-        "/api/apps/music",
-        "/api/apps/terminal"
-      ],
-      "additionalProperties": false
-    },
-    "MusicApiError": {
+    "ApiError": {
       "type": "object",
       "properties": {
         "error": {
-          "type": "string"
-        },
-        "code": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MusicErrorCode"
+          "type": "object",
+          "properties": {
+            "code": {
+              "$ref": "#/definitions/ErrorCode"
             },
-            {
-              "$ref": "#/definitions/PlayerErrorCode"
+            "message": {
+              "type": "string"
             }
-          ]
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
-        "error",
-        "code"
+        "error"
       ],
       "additionalProperties": false
     },
-    "MusicErrorCode": {
+    "ErrorCode": {
       "type": "string",
       "enum": [
-        "configuration",
         "invalid-input",
+        "unauthorized",
+        "forbidden",
+        "not-found",
+        "conflict",
+        "gone",
+        "too-large",
+        "unsupported-media-type",
+        "answering",
+        "busy",
+        "capacity",
         "unavailable",
+        "configuration",
+        "unsupported",
         "quota",
         "network",
-        "unsupported"
-      ]
-    },
-    "PlayerErrorCode": {
-      "type": "string",
-      "enum": [
-        "invalid-input",
-        "not-found",
-        "busy",
-        "conflict",
-        "capacity"
+        "internal"
       ]
     },
     "Sse": {
