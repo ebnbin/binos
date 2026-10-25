@@ -79,8 +79,10 @@
   background: currentColor;
 }
 
+/* 和右边的用时等一起放不下时，标题先缩短 */
 .label {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   max-width: 70%;
   overflow: hidden;
   color: var(--color-label);
