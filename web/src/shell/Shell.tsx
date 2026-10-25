@@ -62,7 +62,7 @@ export function Shell() {
         <TaskBar
           ref={dock}
           placement={placement}
-          capsule={compact ? { collapsed: collapsed && !!focusedWindow, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd } : undefined}
+          capsule={compact ? { collapsed, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd } : undefined}
           accessory={!musicVisible && <MusicStatusButton collapsed={musicCollapsed} onToggle={() => setMusicCollapsed(value => !value)} />}
           windows={controller.windows}
           groups={controller.groups}

@@ -22,7 +22,7 @@ function LayoutGlyph({ layout, portrait, active }: { layout: LayoutId; portrait:
 }
 
 // 屏幕外面的 Dock：回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
-// 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 的一颗胶囊
+// 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
   ref,
   capsule,
@@ -74,7 +74,9 @@ export function TaskBar({
   // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
   const focusedUrl = findApplication(apps, windows.find((item) => item.id === focused)?.window.applicationId ?? '')?.url
   const canPick = !home && !locked && !groups.some((group) => focused && group.slots.includes(focused)) && allowed.length > 1
-  const capsuleApp = capsule?.current && findApplication(apps, capsule.current.window.applicationId)
+  // 胶囊在桌面上显示桌面，在 app 里只显示 app 的名字，不带窗口标题里的状态
+  const capsuleApp = !home && capsule?.current ? findApplication(apps, capsule.current.window.applicationId) : undefined
+  const capsuleName = capsuleApp?.name ?? '桌面'
   const dockId = useId()
   const dock = useRef<HTMLDivElement>(null)
   const capsuleButton = useRef<HTMLButtonElement>(null)
@@ -104,13 +106,13 @@ export function TaskBar({
       onPointerCancel={capsule?.onPointerEnd}
       onKeyDown={capsule?.onActivity}
     >
-      {capsule?.current && (
+      {capsule && (
         <button
           ref={capsuleButton}
           type="button"
           className={styles.capsule}
           inert={!collapsed}
-          aria-label={`${capsule.current.title}，展开 Dock`}
+          aria-label={`${capsuleName}，展开 Dock`}
           aria-expanded={false}
           aria-controls={dockId}
           onClick={(event) => {
@@ -118,8 +120,8 @@ export function TaskBar({
             capsule.onExpand()
           }}
         >
-          {capsuleApp && <AppIcon app={capsuleApp} className={styles.capsuleIcon} />}
-          <span className={styles.capsuleTitle}>{capsule.current.title}</span>
+          {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={20} inverted />}
+          <span className={styles.capsuleTitle}>{capsuleName}</span>
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
