@@ -9,6 +9,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -101,6 +102,8 @@ fun CodeHomeScreen() {
     val failed by CodeStore.failed.collectAsStateWithLifecycle()
     val status by CodeStore.status.collectAsStateWithLifecycle()
     val now = rememberNow(intervalMs = 60_000)
+    // 正在做的登录：登录好了提醒就没了，登录的过程还要留着显示结果
+    var login by remember { mutableStateOf<Attention?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var quotaOpen by remember { mutableStateOf(false) }
     var projectDialog by remember { mutableStateOf<Project?>(null) }
@@ -156,19 +159,9 @@ fun CodeHomeScreen() {
         ) {
             LazyColumn(contentPadding = PaddingValues(bottom = 96.dp), modifier = Modifier.fillMaxSize()) {
                 item(key = "search") { SearchField(query) { query = it } }
-                authAttention(status, now)?.let { text ->
-                    item(key = "auth") {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                        ) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Outlined.WarningAmber, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("$text，请在网页版的系统 app 里处理", style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
+                val attention = firstAttention(status, now)
+                if (attention != null || login != null) {
+                    item(key = "auth") { AuthBanner(attention, login, onOpen = { login = it }, onClose = { login = null }) }
                 }
                 when {
                     query.isNotBlank() -> item(key = "results") {
@@ -284,7 +277,6 @@ private fun ArchivedSection(archived: List<SessionSummary>, onOpen: (Int) -> Uni
 fun SessionRow(session: SessionSummary, onClick: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     Box {
         ListItem(
             modifier = Modifier.combinedClickable(onClick = onClick, onLongClick = { menu = true }),
@@ -318,14 +310,14 @@ fun SessionRow(session: SessionSummary, onClick: () -> Unit) {
             })
             DropdownMenuItem(text = { Text(if (session.pinned) "取消置顶" else "置顶") }, leadingIcon = { Icon(Icons.Outlined.PushPin, null) }, onClick = {
                 menu = false
-                scope.launch { runCatching { CodeStore.api.edit(session.id, pinned = !session.pinned) } }
+                CodeStore.edit(session.id, pinned = !session.pinned)
             })
             DropdownMenuItem(
                 text = { Text(if (session.archived) "取消归档" else "归档") },
                 leadingIcon = { Icon(if (session.archived) Icons.Outlined.Unarchive else Icons.Outlined.Archive, null) },
                 onClick = {
                     menu = false
-                    scope.launch { runCatching { CodeStore.api.edit(session.id, archived = !session.archived) } }
+                    CodeStore.edit(session.id, archived = !session.archived)
                 },
             )
         }
@@ -336,17 +328,14 @@ fun SessionRow(session: SessionSummary, onClick: () -> Unit) {
 @Composable
 fun RenameDialog(session: SessionSummary, onDone: () -> Unit) {
     var title by remember { mutableStateOf(session.title) }
-    val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDone,
         title = { Text("改名") },
         text = { OutlinedTextField(title, { title = it }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
         confirmButton = {
             TextButton(enabled = title.isNotBlank(), onClick = {
-                scope.launch {
-                    runCatching { CodeStore.api.edit(session.id, title = title.trim()) }
-                    onDone()
-                }
+                CodeStore.edit(session.id, title = title.trim())
+                onDone()
             }) { Text("保存") }
         },
         dismissButton = { TextButton(onClick = onDone) { Text("取消") } },
@@ -484,4 +473,26 @@ private fun ProjectDialog(connect: Project?, onDismiss: () -> Unit, onCreated: (
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("取消") } },
     )
+}
+
+// agent 的登录要处理时（快到期、失效了、在用备用的登录……），列表上面一条提醒，点了就地登录
+@Composable
+private fun AuthBanner(attention: Attention?, login: Attention?, onOpen: (Attention) -> Unit, onClose: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (attention?.bad == true) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.tertiaryContainer,
+        ),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        if (login != null) {
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { AgentLogin(login.agent, login.fix, onClose) }
+        } else if (attention != null) {
+            Row(Modifier.fillMaxWidth().clickable { onOpen(attention) }.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.WarningAmber, null)
+                Spacer(Modifier.width(8.dp))
+                Text(attention.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { onOpen(attention) }) { Text(attention.action) }
+            }
+        }
+    }
 }

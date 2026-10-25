@@ -138,21 +138,3 @@ fun QuotaDetails(status: AgentStatus?, now: Long) {
         }
     }
 }
-
-// 登录需要处理时的提醒，和 web 的 AuthBanner 对应
-fun authAttention(status: AgentStatus?, now: Long): String? {
-    val claude = status?.auth?.claude
-    val codex = status?.auth?.codex
-    val day = 86_400_000L
-    fun daysLeft(iso: String) = ((runCatching { Instant.parse(iso).toEpochMilli() }.getOrDefault(now) - now) / day).coerceAtLeast(0)
-    claude?.let { auth ->
-        if (auth.mode == "none") return "Claude 没有能用的登录"
-        if (auth.mode == "token") return if (auth.login?.broken == true) "Claude 的登录失效了，正在用备用 token" else "Claude 的登录过期了，正在用备用 token"
-        auth.login?.expiresAt?.let { if (daysLeft(it) < 7) return "Claude 的登录${if (daysLeft(it) == 0L) "今天" else "还有 ${daysLeft(it)} 天"}到期" }
-        auth.backup?.expiresAt?.let { if (daysLeft(it) < 30) return "Claude 的备用 token 还有 ${daysLeft(it)} 天到期" }
-    }
-    codex?.let { auth ->
-        if (auth.broken) return "Codex 的登录失效了"
-    }
-    return null
-}

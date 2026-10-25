@@ -1,5 +1,6 @@
 package app.binos.code
 
+import android.widget.Toast
 import app.binos.app
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,4 +61,13 @@ object CodeStore {
     }
 
     fun session(id: Int): SessionSummary? = _sessions.value?.find { it.id == id }
+
+    // 改名、置顶、归档；失败时提示
+    fun edit(id: Int, title: String? = null, pinned: Boolean? = null, archived: Boolean? = null) {
+        app.scope.launch {
+            runCatching { api.edit(id, title, pinned, archived) }
+                .onSuccess { refresh() }
+                .onFailure { Toast.makeText(app, "保存失败：${it.message ?: "请重试"}", Toast.LENGTH_SHORT).show() }
+        }
+    }
 }

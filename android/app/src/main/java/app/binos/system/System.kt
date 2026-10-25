@@ -32,12 +32,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,9 +55,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import app.binos.app
 import app.binos.code.AgentAccount
+import app.binos.code.AgentLogin
+import app.binos.code.AgentStatus
 import app.binos.code.CodeStore
 import app.binos.code.QuotaDetails
 import app.binos.code.agentName
+import app.binos.code.attention
+import app.binos.code.authRows
+import app.binos.code.loginActions
 import app.binos.shell.LocalNav
 import app.binos.ui.formatBytes
 import app.binos.ui.formatMoment
@@ -233,42 +240,48 @@ private fun Metric(icon: ImageVector, title: String, value: String, ratio: Doubl
 
 private val planNames = mapOf("max" to "Max", "pro" to "Pro", "prolite" to "Pro Lite", "plus" to "Plus", "team" to "Team", "enterprise" to "Enterprise", "free" to "Free")
 
-// agent 的账号、登录凭证和额度；登录本身需要在网页上完成
+// agent 的账号、登录凭证和额度；登录在这里就地完成
 @Composable
 fun AccountsScreen() {
     val nav = LocalNav.current
     var accounts by remember { mutableStateOf<List<AgentAccount>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var reloads by remember { mutableIntStateOf(0) }
     val status by CodeStore.status.collectAsStateWithLifecycle()
     val now = rememberNow(intervalMs = 60_000)
-    LaunchedEffect(status) { runCatching { CodeStore.api.accounts() }.onSuccess { accounts = it }.onFailure { error = it.message } }
+    LaunchedEffect(status, reloads) { runCatching { CodeStore.api.accounts() }.onSuccess { accounts = it; error = null }.onFailure { error = it.message } }
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Agent") },
                 navigationIcon = { IconButton(onClick = { nav.popBackStack() }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回") } },
+                actions = { IconButton(onClick = { reloads++ }) { Icon(Icons.Outlined.Refresh, "重新读取") } },
             )
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (accounts == null) item { if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error) else CircularProgressIndicator() }
-            items(accounts.orEmpty(), key = { it.agent }) { account -> AccountCard(account, now) }
+            items(accounts.orEmpty(), key = { it.agent }) { account -> AccountCard(account, status, now) }
             if (!status?.limits.isNullOrEmpty()) item { Card { Column(Modifier.padding(top = 16.dp)) { QuotaDetails(status, now) } } }
         }
     }
 }
 
 @Composable
-private fun AccountCard(account: AgentAccount, now: Long) {
+private fun AccountCard(account: AgentAccount, status: AgentStatus?, now: Long) {
+    var login by remember { mutableStateOf<String?>(null) }
+    val attention = attention(account.agent, status, now)
+    val actions = loginActions(account.agent, status)
+    val limits = status?.limits?.get(account.agent)
     ElevatedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(agentName(account.agent), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 Text(
                     when {
-                        account.version == null -> "未安装"
+                        account.version == null -> "没有安装"
                         account.loggedIn -> "已登录"
-                        else -> "未登录"
+                        else -> "没有登录"
                     },
                     color = if (account.loggedIn) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelLarge,
@@ -278,18 +291,45 @@ private fun AccountCard(account: AgentAccount, now: Long) {
             Row2("版本", account.version ?: "—")
             account.email?.let { Row2("账号", it) }
             account.plan?.let { Row2("套餐", planNames[it] ?: it) }
-            account.token?.expiresAt?.let { Row2("令牌到期", runCatching { formatMoment(Instant.parse(it).toEpochMilli(), now) }.getOrDefault(it) + if (account.token.refreshable) "，会自动续期" else "") }
-            account.details.forEach { Row2(it.label, it.value + (it.note?.let { note -> "（$note）" } ?: "")) }
-            Row2("正在回答", "${account.running} 个对话")
+            account.details.forEach { Row2(it.label, it.value, it.note) }
+            authRows(account.agent, status, now).forEach { Row2(it.label, it.value, it.note, it.expired) }
+            account.token?.let { token ->
+                val expires = token.expiresAt?.let { runCatching { Instant.parse(it).toEpochMilli() }.getOrNull() }
+                Row2(
+                    "访问令牌",
+                    expires?.let { "${formatMoment(it, now)}过期" } ?: "过期时间未知",
+                    if (token.refreshable) "有刷新令牌，到期前自动续期" else "没有刷新令牌，过期后要重新登录",
+                    expires != null && expires <= now,
+                )
+                token.refreshedAt?.let { at -> runCatching { Instant.parse(at).toEpochMilli() }.getOrNull()?.let { Row2("上次续期", formatMoment(it, now)) } }
+            }
+            limits?.updatedAt?.takeIf { it.isNotEmpty() }?.let { at -> runCatching { Instant.parse(at).toEpochMilli() }.getOrNull()?.let { Row2("额度更新于", formatMoment(it, now)) } }
+            Row2("正在运行", "${account.running} 个")
             Row2("配置目录", account.configDir)
+            attention?.let {
+                Text(it.text, style = MaterialTheme.typography.bodyMedium, color = if (it.bad) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.tertiary)
+            }
+            val fix = login
+            if (fix != null) {
+                HorizontalDivider()
+                AgentLogin(account.agent, fix) { login = null }
+            } else if (actions.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actions.forEach { (label, action) -> OutlinedButton(onClick = { login = action }) { Text(label) } }
+                }
+            }
         }
     }
 }
 
+// expired：已经用不了，标红
 @Composable
-private fun Row2(label: String, value: String) {
+private fun Row2(label: String, value: String, note: String? = null, expired: Boolean = false) {
     Row {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(96.dp))
-        Text(value, style = MaterialTheme.typography.bodyMedium)
+        Column {
+            Text(value, style = MaterialTheme.typography.bodyMedium, color = if (expired) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
     }
 }
