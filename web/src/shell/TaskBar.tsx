@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
-import type { ReactNode, Ref } from 'react'
+import type { PointerEventHandler, ReactNode, Ref } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
@@ -44,7 +44,15 @@ export function TaskBar({
   onClose,
 }: {
   ref?: Ref<HTMLElement>
-  capsule?: { collapsed: boolean; current?: OpenWindow; onExpand: () => void }
+  capsule?: {
+    collapsed: boolean
+    current?: OpenWindow
+    onExpand: () => void
+    onActivity: () => void
+    onPointerDown: PointerEventHandler
+    onPointerMove: PointerEventHandler
+    onPointerEnd: () => void
+  }
   placement: Exclude<BarPlacement, 'hidden'>
   accessory?: ReactNode
   windows: OpenWindow[]
@@ -90,6 +98,11 @@ export function TaskBar({
       data-placement={placement}
       data-compact={!!capsule}
       data-collapsed={collapsed}
+      onPointerDown={capsule?.onPointerDown}
+      onPointerMove={capsule?.onPointerMove}
+      onPointerUp={capsule?.onPointerEnd}
+      onPointerCancel={capsule?.onPointerEnd}
+      onKeyDown={capsule?.onActivity}
     >
       {capsule?.current && (
         <button

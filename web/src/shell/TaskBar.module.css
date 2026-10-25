@@ -221,6 +221,12 @@
     transform var(--duration-normal) var(--ease-standard);
 }
 
+/* 往下滑收起 Dock，只把横向的拖动留给浏览器滚动 app 那一段 */
+.bar[data-compact='true'] .dock,
+.bar[data-compact='true'] .apps {
+  touch-action: pan-x;
+}
+
 .bar[data-collapsed='true'] .dock {
   opacity: 0;
   transform: translateY(var(--space-6)) scale(0.6);
