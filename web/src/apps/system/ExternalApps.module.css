@@ -1,118 +1,178 @@
+/* 设置页里的一个分组：标题行右侧是无边框的“添加”，每个 app 一行，点开就地编辑 */
 .section {
-  padding: var(--space-2) var(--space-5) var(--space-6);
-  font-size: var(--font-size-md);
+  margin-bottom: var(--space-6);
 }
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-3);
+  padding: 0 var(--space-1) var(--space-1) var(--space-3);
 }
 
 .header h2 {
   margin: 0;
-  font-size: var(--font-size-md);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
   font-weight: var(--font-weight-semibold);
-}
-
-.hint {
-  margin: var(--space-1) 0 var(--space-2);
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
+  line-height: var(--line-height-footnote);
 }
 
 .add {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-full);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  composes: borderless from '../../ui/controls.module.css';
 }
 
-.add:disabled,
-.row:disabled {
-  opacity: var(--opacity-disabled);
+.header .add {
+  gap: var(--space-1);
+  height: var(--size-control-sm);
+  padding: 0 var(--space-2);
+  color: var(--color-link);
+  font-size: var(--font-size-callout);
 }
 
 @media (hover: hover) {
-  .add:hover:not(:disabled),
-  .row:hover:not(:disabled) {
-    background: var(--color-hover);
+  .header .add:hover:not(:disabled) {
+    color: var(--color-link);
   }
 }
 
+.hint {
+  composes: groupFooter from '../../ui/controls.module.css';
+}
+
 .list {
+  composes: group from '../../ui/controls.module.css';
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.list:empty {
+  display: none;
+}
+
 .list li {
-  border-bottom: 1px solid var(--color-separator);
+  position: relative;
+}
+
+.list li + li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(var(--space-3) + var(--tile) + var(--space-2-5));
+  border-top: 0.5px solid var(--color-separator);
+}
+
+.list {
+  --tile: var(--size-control-md);
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2-5);
   width: 100%;
-  padding: var(--space-3) var(--space-2);
-  border-radius: var(--radius-item);
-  color: var(--color-text-secondary);
+  min-height: var(--size-row);
+  padding: var(--space-1-5) var(--space-3);
+  color: var(--color-label);
   text-align: left;
+}
+
+.row:disabled {
+  opacity: var(--opacity-disabled);
+}
+
+@media (hover: hover) {
+  .row:hover:not(:disabled) {
+    background: var(--color-hover);
+  }
+}
+
+.row:active:not(:disabled) {
+  background: var(--color-pressed);
+}
+
+/* 设置里的图标：强调色的圆角方块，白色图标 */
+.tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--tile);
+  height: var(--tile);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .name {
   flex: none;
-  color: var(--color-text);
 }
 
 .url {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
+  color: var(--color-label-secondary);
+  text-align: right;
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
 }
 
+.chevron {
+  flex: none;
+  color: var(--color-label-tertiary);
+}
+
+/* 编辑：组里的几行表单，标签在左，控件在右 */
 .editor {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-3) 0 var(--space-4);
 }
 
 .editor label,
 .field {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-row);
+  padding: var(--space-1-5) var(--space-3);
+  color: var(--color-label);
 }
 
-.editor input {
-  height: var(--size-control-lg);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  outline: none;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--font-size-md);
+.editor > * + *::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-3);
+  border-top: 0.5px solid var(--color-separator);
 }
 
-.editor input:focus {
-  border-color: var(--color-text-tertiary);
+.editor label > span,
+.field > span {
+  flex: none;
+  width: 4em;
+}
+
+.field {
+  align-items: flex-start;
+}
+
+.field > span {
+  line-height: var(--size-control-lg);
+}
+
+.input {
+  composes: field from '../../ui/controls.module.css';
+  flex: 1;
 }
 
 .icons {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   gap: var(--space-1);
 }
@@ -122,52 +182,49 @@
   place-items: center;
   width: var(--size-control-lg);
   height: var(--size-control-lg);
-  border-radius: var(--radius-control);
-  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  color: var(--color-label-secondary);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .icons button:hover {
+    background: var(--color-hover);
+    color: var(--color-label);
+  }
 }
 
 .icons button[aria-pressed='true'] {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .actions {
+  position: relative;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  padding: var(--space-2-5) var(--space-3);
 }
 
 .spacer {
   flex: 1;
 }
 
-.actions button {
-  padding: var(--space-1-5) var(--space-4);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-sm);
-}
-
 .primary {
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-}
-
-.primary:disabled {
-  opacity: var(--opacity-disabled);
+  composes: prominent from '../../ui/controls.module.css';
 }
 
 .secondary {
-  background: var(--color-fill);
+  composes: button from '../../ui/controls.module.css';
 }
 
 .danger {
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
+  composes: destructive from '../../ui/controls.module.css';
 }
 
-/* 触屏设备上输入框字号小于 16px 时 iOS 会自动放大页面 */
-@media (pointer: coarse) {
-  .editor input {
-    font-size: var(--font-size-body);
-  }
+/* 删除在确认前也是红色文字 */
+.actions > .secondary:first-child {
+  color: var(--color-destructive-text);
 }

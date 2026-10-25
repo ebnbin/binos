@@ -1,12 +1,10 @@
+/* 主屏幕：墙纸上是 app 图标和小组件，像 iPadOS 的主屏幕 */
 .desktop {
   position: absolute;
   inset: 0;
   overflow: hidden auto;
   overscroll-behavior: contain;
-  background:
-    radial-gradient(ellipse at 20% 0%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 55%),
-    radial-gradient(ellipse at 85% 100%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 60%),
-    var(--color-bg-subtle);
+  background: var(--wallpaper);
 }
 
 .columns {
@@ -30,60 +28,53 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  -webkit-touch-callout: none;
 }
 
-.glyph {
-  display: grid;
-  place-items: center;
+.icon > .glyph {
   width: 80%;
+  height: auto;
   aspect-ratio: 1;
-  border-radius: 24%;
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--duration-fast) var(--ease-standard);
+  transition:
+    transform var(--duration-normal) var(--ease-spring),
+    filter var(--duration-fast) var(--ease-standard);
 }
 
-.glyph svg {
-  width: 45%;
-  height: 45%;
-}
-
-@media (hover: hover) {
-  .icon:hover .glyph {
-    transform: translateY(calc(-1 * var(--space-0-5)));
-  }
+/* 按下时图标缩小、变暗 */
+.icon:active > .glyph {
+  transform: scale(0.92);
+  filter: brightness(0.85);
 }
 
 .label {
   position: absolute;
-  top: calc(80% + var(--space-1));
+  top: calc(80% + var(--space-1-5));
   max-width: calc(100% + var(--gap));
   overflow: hidden;
+  color: var(--color-on-wallpaper);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-tight);
+  text-shadow: var(--shadow-on-wallpaper);
 }
 
+/* 小组件：不透明的圆角块，圆角随格子缩放 */
 .widget {
   min-width: 0;
   min-height: 0;
   padding: var(--space-4);
   overflow: hidden;
-  border-radius: calc(var(--cell) * 0.3);
-  background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-separator), var(--shadow-md);
-  font-size: var(--font-size-md);
-  cursor: default;
+  border-radius: calc(var(--cell) * 0.32);
+  background: var(--color-background-elevated);
+  box-shadow: var(--shadow-card), 0 6px 20px color-mix(in srgb, var(--color-chrome) 12%, transparent);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
 
 .failed {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
-}
-
-.widget[data-opens-window='true'] {
-  cursor: pointer;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
 }

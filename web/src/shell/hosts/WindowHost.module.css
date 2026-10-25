@@ -5,18 +5,14 @@
   justify-content: center;
   gap: var(--space-2);
   height: 100%;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-md);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
 }
 
 .message p {
   margin: 0;
 }
 
-.message button {
-  padding: var(--space-1) var(--space-4);
-  border-radius: var(--radius-full);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
-  font-size: var(--font-size-sm);
+.retry {
+  composes: prominent from '../../ui/controls.module.css';
 }

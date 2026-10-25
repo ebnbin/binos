@@ -1,0 +1,490 @@
+/* 系统控件的样式，各处用 composes 组合，不重复写控件的形态和状态。
+   形态按 macOS 26 / iOS 26：常规控件是圆角矩形，大号和触屏上是胶囊形；按下变暗，不做悬停高亮（工具栏和菜单除外）。 */
+/* 放在 controls 层里：组合了这些样式的模块不论先后加载，自己写的覆盖都优先（未分层的样式总是高于分层的） */
+@layer controls {
+  /* 带边框的按钮（push button） */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1-5);
+    flex: none;
+    min-width: 0;
+    height: var(--size-control-md);
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--radius-control);
+    background: var(--color-control);
+    box-shadow: var(--shadow-control);
+    color: var(--color-label);
+    font-size: var(--font-size-body);
+    font-weight: var(--font-weight-regular);
+    line-height: var(--line-height-tight);
+    white-space: nowrap;
+    text-decoration: none;
+    user-select: none;
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard);
+  }
+
+  .button:active:not(:disabled) {
+    background-image: linear-gradient(var(--color-pressed), var(--color-pressed));
+  }
+
+  .button:disabled,
+  .button[aria-disabled='true'] {
+    opacity: var(--opacity-disabled);
+  }
+
+  /* 主要操作：强调色填充，一组操作里最多一个 */
+  .prominent {
+    composes: button;
+    background-color: var(--color-accent);
+    box-shadow: none;
+    color: var(--color-on-accent);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* 破坏性操作：红色的次要着色 */
+  .destructive {
+    composes: button;
+    background-color: color-mix(in srgb, var(--color-destructive) 14%, transparent);
+    box-shadow: none;
+    color: var(--color-destructive-text);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* 次要着色：强调色的浅底 */
+  .tinted {
+    composes: button;
+    background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
+    box-shadow: none;
+    color: var(--color-link);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* 大号按钮是胶囊形 */
+  .large {
+    height: var(--size-control-lg);
+    padding: 0 var(--space-5);
+    border-radius: var(--radius-full);
+  }
+
+  /* 无边框按钮：只有文字或图标，悬停时出现浅底 */
+  .borderless {
+    composes: button;
+    background: none;
+    box-shadow: none;
+    color: var(--color-label-secondary);
+  }
+
+  .link {
+    composes: borderless;
+    padding: 0 var(--space-1);
+    color: var(--color-link);
+  }
+
+  @media (hover: hover) {
+    .borderless:hover:not(:disabled) {
+      background-color: var(--color-hover);
+      color: var(--color-label);
+    }
+
+    .link:hover:not(:disabled) {
+      background-color: transparent;
+      color: var(--color-link);
+      text-decoration: underline;
+    }
+  }
+
+  /* 只有图标的方形按钮，用在工具栏和列表行里 */
+  .icon {
+    composes: borderless;
+    width: var(--size-toolbar-item);
+    height: var(--size-toolbar-item);
+    padding: 0;
+    border-radius: var(--radius-full);
+  }
+
+  .iconSmall {
+    composes: borderless;
+    width: var(--size-control-md);
+    height: var(--size-control-md);
+    padding: 0;
+    border-radius: var(--radius-control-sm);
+  }
+
+  /* Liquid Glass：浮在内容上的导航层 */
+  .glass {
+    background: var(--material-glass);
+    box-shadow: var(--shadow-glass);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+  }
+
+  /* 工具栏里一组图标按钮，共用一块胶囊形的玻璃 */
+  .glassGroup {
+    composes: glass;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: var(--size-toolbar-item);
+    padding: 0 var(--space-0-5);
+    border-radius: var(--radius-full);
+  }
+
+  .glassGroup > * {
+    height: calc(var(--size-toolbar-item) - var(--space-1));
+  }
+
+  /* 单独的玻璃按钮 */
+  .glassButton {
+    composes: button;
+    composes: glass;
+    height: var(--size-toolbar-item);
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+  }
+
+  .glassIcon {
+    composes: glassButton;
+    width: var(--size-toolbar-item);
+    padding: 0;
+  }
+
+  /* 文本框 */
+  .field {
+    width: 100%;
+    min-width: 0;
+    height: var(--size-control-md);
+    padding: 0 var(--space-2);
+    border: 0;
+    border-radius: var(--radius-control-sm);
+    outline-offset: 0;
+    background: var(--color-text-background);
+    box-shadow: inset 0 0 0 0.5px var(--color-separator), var(--shadow-control);
+    color: var(--color-label);
+    font-size: var(--font-size-input);
+    line-height: var(--line-height-tight);
+  }
+
+  .field:focus {
+    outline: 3px solid var(--color-focus-ring);
+  }
+
+  .field:disabled {
+    opacity: var(--opacity-disabled);
+  }
+
+  /* 搜索框：胶囊形的填充 */
+  .search {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1-5);
+    min-width: 0;
+    height: var(--size-control-md);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--color-fill-tertiary);
+    color: var(--color-label-secondary);
+  }
+
+  .search:focus-within {
+    outline: 3px solid var(--color-focus-ring);
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: var(--color-label);
+    font-size: var(--font-size-input);
+  }
+
+  /* 分段控件：一条填充的轨道，选中的一段浮起来 */
+  .segmented {
+    display: inline-flex;
+    align-items: stretch;
+    flex: none;
+    height: var(--size-control-md);
+    padding: var(--space-0-5);
+    border-radius: var(--radius-full);
+    background: var(--color-fill-tertiary);
+  }
+
+  .segment {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    flex: 1;
+    min-width: 0;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-full);
+    color: var(--color-label);
+    font-size: var(--font-size-body);
+    white-space: nowrap;
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .segment[aria-pressed='true'],
+  .segment[aria-selected='true'],
+  .segment[data-state='active'],
+  .segment[data-selected='true'] {
+    background: var(--color-control);
+    box-shadow: var(--shadow-control);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* 分组列表：圆角的一块，行之间有缩进的分隔线 */
+  .group {
+    overflow: hidden;
+    border-radius: var(--radius-card);
+    background: var(--color-background-grouped-secondary);
+    box-shadow: var(--shadow-card);
+  }
+
+  .groupHeader {
+    margin: 0;
+    padding: 0 var(--space-3) var(--space-1-5);
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-footnote);
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-footnote);
+  }
+
+  .groupFooter {
+    margin: 0;
+    padding: var(--space-1-5) var(--space-3) 0;
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-footnote);
+    line-height: var(--line-height-footnote);
+  }
+
+  .row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2-5);
+    min-height: var(--size-row);
+    padding: var(--space-1-5) var(--space-3);
+  }
+
+  .row + .row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: var(--space-3);
+    border-top: 0.5px solid var(--color-separator);
+  }
+
+  /* 侧栏和列表里可选中的一行 */
+  .item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    min-height: var(--size-row);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-item);
+    color: var(--color-label);
+    text-align: left;
+  }
+
+  @media (hover: hover) {
+    .item:hover {
+      background: var(--color-hover);
+    }
+  }
+
+  .item[aria-current='page'],
+  .item[aria-current='true'],
+  .item[aria-selected='true'],
+  .item[data-selected='true'] {
+    background: var(--color-selection-unemphasized);
+  }
+
+  /* 弹出菜单：厚一些的玻璃，菜单项高亮是强调色的圆角矩形 */
+  .menu {
+    composes: glass;
+    z-index: var(--z-overlay);
+    min-width: 180px;
+    padding: var(--space-1-5);
+    border-radius: var(--radius-menu);
+    background: var(--material-glass-thick);
+    -webkit-backdrop-filter: var(--material-blur-thick);
+    backdrop-filter: var(--material-blur-thick);
+    box-shadow: var(--shadow-overlay);
+    color: var(--color-label);
+    font-size: var(--font-size-body);
+  }
+
+  .menuItem {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: var(--size-control-md);
+    padding: var(--space-0-5) var(--space-2-5);
+    border-radius: var(--radius-item);
+    outline: none;
+    color: var(--color-label);
+    font-size: var(--font-size-body);
+    text-align: left;
+    user-select: none;
+  }
+
+  .menuItem[data-highlighted],
+  .menuItem:focus-visible {
+    background: var(--color-selection);
+    color: var(--color-on-selection);
+  }
+
+  @media (hover: hover) {
+    .menuItem:hover:not(:disabled, [data-disabled]) {
+      background: var(--color-selection);
+      color: var(--color-on-selection);
+    }
+  }
+
+  .menuItem:disabled,
+  .menuItem[data-disabled] {
+    opacity: var(--opacity-disabled);
+  }
+
+  .menuSeparator {
+    height: 0.5px;
+    margin: var(--space-1) var(--space-2-5);
+    background: var(--color-separator);
+  }
+
+  .menuLabel {
+    padding: var(--space-1) var(--space-2-5) var(--space-0-5);
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-subheadline);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  /* 弹层：常规玻璃 */
+  .popover {
+    composes: glass;
+    z-index: var(--z-overlay);
+    border-radius: var(--radius-overlay);
+    background: var(--material-glass-thick);
+    -webkit-backdrop-filter: var(--material-blur-thick);
+    backdrop-filter: var(--material-blur-thick);
+    box-shadow: var(--shadow-overlay);
+    color: var(--color-label);
+  }
+
+  /* 模态对话框：不透明的圆角卡片，背后变暗 */
+  .dialog {
+    max-width: min(420px, calc(100vw - var(--space-8)));
+    padding: var(--space-5);
+    border: 0;
+    border-radius: var(--radius-dialog);
+    background: var(--color-background-elevated);
+    box-shadow: var(--shadow-dialog);
+    color: var(--color-label);
+  }
+
+  .dialog::backdrop {
+    background: var(--color-scrim);
+  }
+
+  /* 内容层里的卡片 */
+  .card {
+    border-radius: var(--radius-card);
+    background: var(--color-background-grouped-secondary);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* 标签：小号的胶囊 */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    flex: none;
+    height: calc(var(--line-height-caption) + var(--space-1));
+    padding: 0 var(--space-1-5);
+    border-radius: var(--radius-full);
+    background: var(--color-fill-tertiary);
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-caption);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+  }
+
+  /* 窗口顶部的工具栏：标题和控件在一条上 */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex: none;
+    min-height: var(--size-toolbar);
+    padding: 0 var(--space-3);
+  }
+
+  .title {
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-label);
+    font-size: var(--font-size-headline);
+    font-weight: var(--font-weight-headline);
+    line-height: var(--line-height-headline);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .largeTitle {
+    margin: 0;
+    color: var(--color-label);
+    font-size: var(--font-size-large-title);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-large-title);
+  }
+
+  .secondary {
+    color: var(--color-label-secondary);
+  }
+
+  .footnote {
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-footnote);
+    line-height: var(--line-height-footnote);
+  }
+
+  /* 没有内容时的占位 */
+  .empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-8) var(--space-4);
+    color: var(--color-label-secondary);
+    font-size: var(--font-size-body);
+    text-align: center;
+  }
+
+  /* 进度条：细轨道，强调色填充 */
+  .progress {
+    height: var(--space-1);
+    overflow: hidden;
+    border-radius: var(--radius-full);
+    background: var(--color-fill-tertiary);
+  }
+
+  .progress > * {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--color-accent);
+  }
+}

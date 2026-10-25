@@ -38,6 +38,6 @@
   min-height: 0;
   overflow: hidden;
   border-radius: var(--radius-window);
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-background);
+  color: var(--color-label);
 }

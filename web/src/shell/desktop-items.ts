@@ -14,6 +14,7 @@ const widget = (id: string, applicationId: string, widgetId: string, size: Widge
 const defaultDesktop = (apps: ApplicationDefinition[]): DesktopItem[] => [
   widget('system-status', 'system', 'status', '4x2'),
   shortcut('code'),
+  shortcut('kita'),
   shortcut('browser'),
   shortcut('system'),
   shortcut('terminal'),
@@ -23,6 +24,7 @@ const defaultDesktop = (apps: ApplicationDefinition[]): DesktopItem[] => [
   widget('code-recent', 'code', 'recent', '4x2'),
   widget('calendar-main', 'calendar', 'main', '4x4'),
   widget('music-main', 'music', 'main', '2x2'),
+  widget('kita-status', 'kita', 'status', '2x2'),
 ]
 
 // 去掉还没有的 app、widget 和不支持的尺寸

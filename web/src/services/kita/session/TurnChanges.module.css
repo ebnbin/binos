@@ -1,41 +1,78 @@
+/* 一轮改了哪些文件：一块分组列表，标题一行，下面每个文件一行，行之间是缩进的细分隔线，点开一行看修改 */
 .card {
+  --row-icon: 15px;
+  --row-gap: var(--space-2);
+
   overflow: hidden;
   border-radius: var(--radius-card);
-  background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-separator);
-  font-size: var(--font-size-sm);
+  background: var(--color-background-grouped-secondary);
+  box-shadow: var(--shadow-card);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+@media (pointer: coarse) {
+  .card {
+    --row-icon: 18px;
+  }
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--row-gap);
+  min-height: var(--size-row);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-separator);
-  color: var(--color-text-secondary);
-  font-weight: var(--font-weight-medium);
+}
+
+.headerIcon {
+  flex: none;
+  width: var(--row-icon);
+  height: var(--row-icon);
+  color: var(--color-accent);
+}
+
+.headerTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .files {
   margin: 0;
-  padding: var(--space-1);
+  padding: 0;
   list-style: none;
+}
+
+.files > li {
+  position: relative;
+}
+
+.files > li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(var(--space-3) + var(--row-icon) + var(--row-gap));
+  border-top: 0.5px solid var(--color-separator);
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
+  gap: var(--row-gap);
   width: 100%;
-  min-height: var(--size-control-sm);
-  padding: 0 var(--space-2);
+  min-height: var(--size-row);
+  padding: var(--space-1) var(--space-3);
   border: 0;
-  border-radius: var(--radius-item);
   background: none;
-  color: var(--color-text);
+  color: var(--color-label);
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
 @media (hover: hover) {
@@ -44,9 +81,16 @@
   }
 }
 
+.row:active {
+  background: var(--color-pressed);
+}
+
+/* 展开箭头在最前，和标题的图标同一栏 */
 .chevron {
   flex: none;
-  color: var(--color-text-tertiary);
+  width: var(--row-icon);
+  height: calc(var(--row-icon) - 3px);
+  color: var(--color-label-tertiary);
   transition: transform var(--duration-normal) var(--ease-standard);
 }
 
@@ -54,34 +98,40 @@
   transform: rotate(90deg);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
 .name {
   flex: none;
   max-width: 60%;
   overflow: hidden;
+  font-weight: var(--font-weight-medium);
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
 }
 
 .dir {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
   white-space: nowrap;
   text-overflow: ellipsis;
-  color: var(--color-text-tertiary);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
 }
 
 .kind {
   flex: none;
   padding: 0 var(--space-1-5);
   border-radius: var(--radius-full);
-  background: var(--color-hover);
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-2xs);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-caption);
 }
 
 .counts {
@@ -90,21 +140,21 @@
   gap: var(--space-1-5);
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-footnote);
   font-variant-numeric: tabular-nums;
 }
 
 .added {
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 
 .removed {
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
 }
 
 .body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-1) var(--space-1) var(--space-2) 27px;
+  padding: var(--space-1) var(--space-3) var(--space-3) calc(var(--space-3) + var(--row-icon) + var(--row-gap));
 }

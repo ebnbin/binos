@@ -1,81 +1,167 @@
-/* binOS 的设计 token。界面上的颜色、字号、间距、圆角、阴影和动效都只取这里的变量，
-   换一套设计只需要改写这个文件的取值；组件之间的差异用语义 token（如 --radius-control）表达，
-   不直接引用基础阶梯。 */
+/* binOS 的设计 token，按 Apple Human Interface Guidelines（macOS 26 / iOS 26，Liquid Glass）的体系分层：
+   系统色 → 语义色（label、fill、separator、background）→ 材质 → 字体样式 → 控件尺寸与形状 → 阴影 → 动效。
+   界面只引用这里的变量。用鼠标时取 macOS 的度量（正文 13px、常规控件 24px），触屏时取 iOS 的度量（正文 17px、点按区域 44px），
+   颜色在两个平台上一致。系统色取 HIG 公布的 26 版取值，语义色取 UIKit / AppKit 的动态颜色。 */
 :root {
   color-scheme: light;
 
-  /* 颜色：页面底色 → 表面 → 填充，文字分三级，边框分两级 */
-  --color-bg: #f8f7f4;
-  --color-bg-subtle: #f1efeb;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #f6f5f2;
-  --color-fill: #edebe6;
-  --color-hover: rgb(36 34 30 / 5%);
-  --color-text: #24221e;
-  --color-text-secondary: #5f5b54;
-  --color-text-tertiary: #959087;
-  --color-border: #e7e4de;
-  --color-separator: rgb(36 34 30 / 7%);
-  --color-primary: #24221e;
-  --color-on-primary: #ffffff;
-  --color-accent: #d4862b;
-  --color-danger: #c8442f;
-  --color-danger-subtle: #fbefec;
-  --color-success: #1a7f37;
-  --color-info: #276aca;
-  --color-done: #8250df;
-  --color-scrim: rgb(20 18 15 / 32%);
-  --color-focus: rgb(36 34 30 / 40%);
-  --color-shadow: rgb(36 34 30 / 10%);
+  /* 系统色 */
+  --color-red: #ff383c;
+  --color-orange: #ff8d28;
+  --color-yellow: #fc0;
+  --color-green: #34c759;
+  --color-mint: #00c8b3;
+  --color-teal: #00c3d0;
+  --color-cyan: #00c0e8;
+  --color-blue: #0088ff;
+  --color-indigo: #6155f5;
+  --color-purple: #cb30e0;
+  --color-pink: #ff2d55;
+  --color-brown: #ac7f5e;
+  --color-gray: #8e8e93;
+  --color-gray-2: #aeaeb2;
+  --color-gray-3: #c7c7cc;
+  --color-gray-4: #d1d1d6;
+  --color-gray-5: #e5e5ea;
+  --color-gray-6: #f2f2f7;
+
+  /* 强调色和状态色。系统色本身对比度不够，用作小号文字时取 HIG 的高对比度版本 */
+  --color-accent: var(--color-blue);
+  --color-on-accent: #fff;
+  --color-link: #0068da;
+  --color-destructive: var(--color-red);
+  --color-destructive-text: #e9152d;
+  --color-success: var(--color-green);
+  --color-success-text: #008932;
+  --color-warning: var(--color-orange);
+  --color-warning-text: #c55300;
+  --color-done: var(--color-purple);
+
+  /* 文字（label）四级 */
+  --color-label: #000;
+  --color-label-secondary: rgb(60 60 67 / 60%);
+  --color-label-tertiary: rgb(60 60 67 / 30%);
+  --color-label-quaternary: rgb(60 60 67 / 18%);
+  --color-placeholder: var(--color-label-tertiary);
+
+  /* 填充四级：控件、轨道、选中和悬停的底色 */
+  --color-fill: rgb(120 120 128 / 20%);
+  --color-fill-secondary: rgb(120 120 128 / 16%);
+  --color-fill-tertiary: rgb(118 118 128 / 12%);
+  --color-fill-quaternary: rgb(116 116 128 / 8%);
+
+  --color-separator: rgb(60 60 67 / 29%);
+  --color-separator-opaque: #c6c6c8;
+  /* 描边和内容里的细分隔线，比 separator 轻，对应 macOS 的 separatorColor */
+  --color-border: rgb(0 0 0 / 10%);
+
+  /* 背景：普通层级三级，分组（设置页一类）三级 */
+  --color-background: #fff;
+  --color-background-secondary: #f2f2f7;
+  --color-background-tertiary: #fff;
+  --color-background-grouped: #f2f2f7;
+  --color-background-grouped-secondary: #fff;
+  --color-background-grouped-tertiary: #f2f2f7;
+  /* 浮在内容上的弹层、对话框的不透明底色；深色时比 background 亮一级 */
+  --color-background-elevated: #fff;
+  /* 带边框的按钮、输入框的底色（macOS 的 controlColor / textBackgroundColor） */
+  --color-control: #fff;
+  --color-text-background: #fff;
+
+  /* 选中：列表行和菜单项高亮用强调色，窗口不在前台或次要的选中用灰色 */
+  --color-selection: var(--color-accent);
+  --color-on-selection: #fff;
+  --color-selection-unemphasized: rgb(0 0 0 / 8%);
+  --color-text-selection: #b3d7ff;
+  --color-focus-ring: color-mix(in srgb, var(--color-accent) 50%, transparent);
+  --color-hover: rgb(0 0 0 / 5%);
+  --color-pressed: rgb(0 0 0 / 10%);
+  --color-scrim: rgb(0 0 0 / 20%);
   /* 网页和文档预览的底色，和网页自己的默认一致，不跟随深浅色 */
-  --color-document: #ffffff;
+  --color-document: #fff;
 
-  /* 外框：屏幕四周和任务栏，不跟随深浅色 */
-  --color-chrome: #000000;
-  --color-on-chrome: #ffffff;
-  --color-on-chrome-secondary: rgb(255 255 255 / 65%);
-  --color-chrome-hover: rgb(255 255 255 / 8%);
-  --color-chrome-selected: rgb(255 255 255 / 16%);
-  --color-chrome-border: rgb(255 255 255 / 20%);
+  /* Liquid Glass：只用在浮在内容之上的导航层（工具栏、侧栏、菜单、弹层、Dock） */
+  --material-glass: rgb(255 255 255 / 62%);
+  --material-glass-thick: rgb(246 246 248 / 84%);
+  --material-glass-highlight: rgb(255 255 255 / 70%);
+  --material-glass-edge: rgb(0 0 0 / 8%);
+  --material-sidebar: rgb(246 246 248 / 76%);
+  --material-blur: blur(24px) saturate(180%);
+  --material-blur-thick: blur(40px) saturate(180%);
 
-  /* 终端始终是深色 */
-  --color-terminal-bg: #161513;
-  --color-terminal-text: #ecebe7;
-  --color-terminal-selection: #55514a;
+  /* 外框：屏幕四周的边框，像设备的黑边，不跟随深浅色 */
+  --color-chrome: #000;
+  --color-on-chrome: #fff;
+  --color-on-chrome-secondary: rgb(255 255 255 / 60%);
+  --color-chrome-border: rgb(255 255 255 / 16%);
+  /* Dock 是外框上的一块深色玻璃 */
+  --material-dock: rgb(255 255 255 / 10%);
+  --material-dock-edge: rgb(255 255 255 / 14%);
+  --color-dock-hover: rgb(255 255 255 / 10%);
 
-  /* 字体 */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', system-ui, sans-serif;
-  --font-mono: 'SF Mono', ui-monospace, Menlo, monospace;
+  /* 桌面墙纸，图标名字压在墙纸上 */
+  --wallpaper:
+    radial-gradient(120% 90% at 10% 0%, #8fd3ff 0%, transparent 55%), radial-gradient(90% 80% at 100% 20%, #b9a6ff 0%, transparent 60%),
+    radial-gradient(120% 100% at 60% 110%, #2a7cf7 0%, transparent 65%), linear-gradient(160deg, #5ab8ff, #3a6ff2 55%, #6a54e8);
+  --color-on-wallpaper: #fff;
+  --shadow-on-wallpaper: 0 1px 3px rgb(0 0 0 / 35%);
 
-  --font-size-2xs: 11px;
-  --font-size-xs: 12px;
-  --font-size-sm: 13px;
-  --font-size-md: 14px;
-  --font-size-lg: 15px;
-  --font-size-xl: 17px;
-  --font-size-2xl: 22px;
-  --font-size-3xl: 28px;
-  --font-size-4xl: 34px;
-  --font-size-body: var(--font-size-lg);
+  /* app 图标的底色，按 app 的语义取系统色 */
+  --app-icon-highlight: linear-gradient(180deg, rgb(255 255 255 / 22%), transparent 60%);
+  --app-icon-graphite: linear-gradient(180deg, #4a4a4f, #1c1c1e);
+  --app-icon-light: linear-gradient(180deg, #fff, #ececf0);
+
+  /* 终端始终是深色，取 macOS 终端的默认配色 */
+  --color-terminal-bg: #1e1e1e;
+  --color-terminal-text: #f2f2f2;
+  --color-terminal-selection: #3f638b;
+
+  /* 字体：系统字体就是 SF Pro / 苹方，SF 不能作为网页字体分发 */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+  --font-rounded: ui-rounded, 'SF Pro Rounded', var(--font-sans);
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* 文字样式，macOS 的取值。footnote 和 caption 是 10px，中文太小，按 HIG 的最小可读尺寸放到 11px */
+  --font-size-large-title: 26px;
+  --font-size-title-1: 22px;
+  --font-size-title-2: 17px;
+  --font-size-title-3: 15px;
+  --font-size-headline: 13px;
+  --font-size-body: 13px;
+  --font-size-callout: 12px;
+  --font-size-subheadline: 11px;
+  --font-size-footnote: 11px;
+  --font-size-caption: 11px;
+  /* 阅读的正文（对话、文档），比控件文字大一号 */
+  --font-size-content: 14px;
+  /* 输入框里的文字；触屏上小于 16px 时 iOS 会自动放大页面 */
+  --font-size-input: var(--font-size-body);
+
+  --line-height-large-title: 32px;
+  --line-height-title-1: 26px;
+  --line-height-title-2: 22px;
+  --line-height-title-3: 20px;
+  --line-height-headline: 16px;
+  --line-height-body: 16px;
+  --line-height-callout: 15px;
+  --line-height-subheadline: 14px;
+  --line-height-footnote: 14px;
+  --line-height-caption: 14px;
+  --line-height-content: 1.6;
+  --line-height-tight: 1.2;
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
+  --font-weight-headline: var(--font-weight-bold);
 
-  --line-height-tight: 1.25;
-  --line-height-snug: 1.4;
-  --line-height-normal: 1.6;
-  --line-height-relaxed: 1.8;
-
-  --letter-spacing-tight: -0.02em;
-  --letter-spacing-wide: 0.06em;
-
-  /* 间距：4px 网格，后缀是 4px 的倍数 */
+  /* 间距：8pt 网格，可以用半格。后缀是 4px 的倍数 */
   --space-0-5: 2px;
   --space-1: 4px;
   --space-1-5: 6px;
   --space-2: 8px;
+  --space-2-5: 10px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
@@ -84,78 +170,210 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
+  /* 窗口内容到边缘的距离 */
+  --space-margin: var(--space-5);
 
-  /* 控件高度，按钮、输入框、列表项都从这里取 */
-  --size-control-xs: 24px;
-  --size-control-sm: 28px;
-  --size-control-md: 32px;
-  --size-control-lg: 36px;
+  /* 控件高度：small / regular / large / extra large。macOS 26 的 large 以上是胶囊形 */
+  --size-control-sm: 20px;
+  --size-control-md: 24px;
+  --size-control-lg: 32px;
   --size-control-xl: 40px;
-  --size-touch-target: 44px;
+  /* 工具栏里的玻璃按钮、列表行、最小点按区域 */
+  --size-toolbar-item: 32px;
+  --size-toolbar: 52px;
+  --size-row: 28px;
+  --size-touch-target: 28px;
+  --size-sidebar: 240px;
+  --size-checkbox: 14px;
 
-  /* 圆角 */
+  /* 圆角。基础阶梯之外，语义圆角按 Liquid Glass 的同心规则取：里面的圆角 = 外面的圆角 − 间距 */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-2xl: 24px;
   --radius-full: 999px;
-  --radius-item: var(--radius-sm);
-  --radius-control: var(--radius-md);
-  --radius-card: var(--radius-lg);
-  --radius-overlay: var(--radius-lg);
-  --radius-window: 12px;
+  --radius-control: 7px;
+  --radius-control-sm: 5px;
+  --radius-control-lg: var(--radius-full);
+  --radius-item: 7px;
+  --radius-menu: 12px;
+  --radius-card: 12px;
+  --radius-overlay: 16px;
+  --radius-dialog: 24px;
+  --radius-window: 16px;
+  --radius-checkbox: 4px;
+  /* 超椭圆 app 图标的近似圆角 */
+  --radius-app-icon: 22.5%;
 
-  /* 阴影：sm 贴着表面，md 浮起的菜单和卡片，lg 悬浮的窗口 */
-  --shadow-sm: 0 0 0 1px var(--color-separator), 0 1px 2px rgb(36 34 30 / 4%);
-  --shadow-md: 0 1px 2px rgb(36 34 30 / 4%), 0 6px 24px -6px var(--color-shadow);
-  --shadow-lg: 0 2px 6px rgb(36 34 30 / 6%), 0 12px 40px -8px rgb(36 34 30 / 20%);
+  /* 阴影：控件贴着表面，卡片微微浮起，玻璃和弹层浮在内容上，对话框和窗口最高 */
+  --shadow-control: 0 0 0 0.5px rgb(0 0 0 / 12%), 0 0.5px 1.5px rgb(0 0 0 / 12%);
+  --shadow-card: 0 0 0 0.5px rgb(0 0 0 / 5%), 0 1px 3px rgb(0 0 0 / 6%);
+  --shadow-glass: inset 0 0.5px 0 var(--material-glass-highlight), 0 0 0 0.5px var(--material-glass-edge), 0 8px 24px rgb(0 0 0 / 10%);
+  --shadow-overlay: 0 0 0 0.5px rgb(0 0 0 / 12%), 0 10px 30px rgb(0 0 0 / 18%);
+  --shadow-dialog: 0 0 0 0.5px rgb(0 0 0 / 12%), 0 22px 70px 4px rgb(0 0 0 / 30%);
 
-  /* 动效 */
+  /* 动效：默认是不回弹的平滑弹簧，玻璃和可拖动的东西用轻微回弹 */
   --duration-fast: 150ms;
-  --duration-normal: 200ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
   --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in-out: cubic-bezier(0.42, 0, 0.58, 1);
+  --ease-spring: linear(0, 0.18 7%, 0.54 18%, 0.83 30%, 0.98 42%, 1.03 52%, 1.02 64%, 1 78%, 1);
 
-  --opacity-disabled: 0.4;
+  --opacity-disabled: 0.35;
   --z-overlay: 1000;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --color-bg: #1b1a18;
-    --color-bg-subtle: #161513;
-    --color-surface: #23221f;
-    --color-surface-sunken: #1f1e1b;
-    --color-fill: #2c2a27;
-    --color-hover: rgb(255 255 255 / 5%);
-    --color-text: #ecebe7;
-    --color-text-secondary: #b6b2aa;
-    --color-text-tertiary: #7f7a71;
-    --color-border: #33312d;
-    --color-separator: rgb(255 255 255 / 6%);
-    --color-primary: #ecebe7;
-    --color-on-primary: #1b1a18;
-    --color-accent: #e8a24f;
-    --color-danger: #f0806b;
-    --color-danger-subtle: #33201b;
-    --color-success: #4fb76a;
-    --color-info: #5b9cf0;
-    --color-done: #a57ff0;
-    --color-scrim: rgb(0 0 0 / 50%);
-    --color-focus: rgb(236 235 231 / 40%);
-    --color-shadow: rgb(0 0 0 / 50%);
 
-    --shadow-sm: 0 0 0 1px var(--color-separator), 0 1px 2px rgb(0 0 0 / 30%);
-    --shadow-md: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 28px -8px var(--color-shadow);
-    --shadow-lg: 0 2px 6px rgb(0 0 0 / 30%), 0 12px 40px -8px rgb(0 0 0 / 60%);
+    --color-red: #ff4245;
+    --color-orange: #ff9230;
+    --color-yellow: #ffd600;
+    --color-green: #30d158;
+    --color-mint: #00dac3;
+    --color-teal: #00d2e0;
+    --color-cyan: #3cd3fe;
+    --color-blue: #0091ff;
+    --color-indigo: #6d7cff;
+    --color-purple: #db34f2;
+    --color-pink: #ff375f;
+    --color-brown: #b78a66;
+    --color-gray: #8e8e93;
+    --color-gray-2: #636366;
+    --color-gray-3: #48484a;
+    --color-gray-4: #3a3a3c;
+    --color-gray-5: #2c2c2e;
+    --color-gray-6: #1c1c1e;
+
+    --color-link: #419cff;
+    --color-destructive-text: #ff6165;
+    --color-success-text: #4ad968;
+    --color-warning-text: #ffa056;
+
+    --color-label: #fff;
+    --color-label-secondary: rgb(235 235 245 / 60%);
+    --color-label-tertiary: rgb(235 235 245 / 30%);
+    --color-label-quaternary: rgb(235 235 245 / 16%);
+
+    --color-fill: rgb(120 120 128 / 36%);
+    --color-fill-secondary: rgb(120 120 128 / 32%);
+    --color-fill-tertiary: rgb(118 118 128 / 24%);
+    --color-fill-quaternary: rgb(118 118 128 / 18%);
+
+    --color-separator: rgb(84 84 88 / 60%);
+    --color-separator-opaque: #38383a;
+    --color-border: rgb(255 255 255 / 10%);
+
+    /* 深色的底不用纯黑，大面积的黑配白字对比太强，看久了刺眼 */
+    --color-background: #232325;
+    --color-background-secondary: #2a2a2c;
+    --color-background-tertiary: #323234;
+    --color-background-grouped: #232325;
+    --color-background-grouped-secondary: #2e2e30;
+    --color-background-grouped-tertiary: #3a3a3c;
+    --color-background-elevated: #323234;
+    --color-control: rgb(255 255 255 / 14%);
+    --color-text-background: rgb(255 255 255 / 6%);
+
+    --color-selection-unemphasized: rgb(255 255 255 / 10%);
+    --color-text-selection: #3f638b;
+    --color-hover: rgb(255 255 255 / 7%);
+    --color-pressed: rgb(255 255 255 / 14%);
+    --color-scrim: rgb(0 0 0 / 45%);
+
+    --material-glass: rgb(40 40 42 / 58%);
+    --material-glass-thick: rgb(40 40 42 / 86%);
+    --material-glass-highlight: rgb(255 255 255 / 16%);
+    --material-glass-edge: rgb(0 0 0 / 50%);
+    --material-sidebar: rgb(44 44 46 / 72%);
+
+    --wallpaper:
+      radial-gradient(120% 90% at 10% 0%, #1f4f8f 0%, transparent 55%), radial-gradient(90% 80% at 100% 20%, #3b2a7a 0%, transparent 60%),
+      radial-gradient(120% 100% at 60% 110%, #0b3a8c 0%, transparent 65%), linear-gradient(160deg, #10284f, #0b1a3a 55%, #1a1240);
+    --app-icon-light: linear-gradient(180deg, #3a3a3c, #2c2c2e);
+
+    --shadow-control: 0 0 0 0.5px rgb(255 255 255 / 6%), 0 0.5px 1.5px rgb(0 0 0 / 30%);
+    --shadow-card: 0 0 0 0.5px rgb(255 255 255 / 8%), 0 1px 3px rgb(0 0 0 / 30%);
+    --shadow-glass: inset 0 0.5px 0 var(--material-glass-highlight), 0 0 0 0.5px var(--material-glass-edge), 0 8px 24px rgb(0 0 0 / 35%);
+    --shadow-overlay: inset 0 0 0 0.5px rgb(255 255 255 / 12%), 0 0 0 0.5px rgb(0 0 0 / 60%), 0 10px 30px rgb(0 0 0 / 45%);
+    --shadow-dialog: inset 0 0 0 0.5px rgb(255 255 255 / 12%), 0 0 0 0.5px rgb(0 0 0 / 60%), 0 22px 70px 4px rgb(0 0 0 / 56%);
   }
 }
 
-/* 触屏上屏幕圆角跟随设备；输入框字号小于 16px 时 iOS 会自动放大页面 */
+/* 触屏用 iOS 的度量：Dynamic Type 默认的 Large 字号、44px 的点按区域、胶囊形按钮和更大的同心圆角 */
 @media (pointer: coarse) {
   :root {
-    --radius-window: 22px;
-    --font-size-body: 16px;
+    --font-size-large-title: 34px;
+    --font-size-title-1: 28px;
+    --font-size-title-2: 22px;
+    --font-size-title-3: 20px;
+    --font-size-headline: 17px;
+    --font-size-body: 17px;
+    --font-size-callout: 16px;
+    --font-size-subheadline: 15px;
+    --font-size-footnote: 13px;
+    --font-size-caption: 12px;
+    --font-size-content: 17px;
+    --font-size-input: 17px;
+
+    --line-height-large-title: 41px;
+    --line-height-title-1: 34px;
+    --line-height-title-2: 28px;
+    --line-height-title-3: 25px;
+    --line-height-headline: 22px;
+    --line-height-body: 22px;
+    --line-height-callout: 21px;
+    --line-height-subheadline: 20px;
+    --line-height-footnote: 18px;
+    --line-height-caption: 16px;
+
+    --font-weight-headline: var(--font-weight-semibold);
+
+    --space-margin: var(--space-4);
+
+    --size-control-sm: 28px;
+    --size-control-md: 34px;
+    --size-control-lg: 44px;
+    --size-control-xl: 50px;
+    --size-toolbar-item: 44px;
+    --size-toolbar: 56px;
+    --size-row: 44px;
+    --size-touch-target: 44px;
+    --size-checkbox: 22px;
+
+    --radius-control: var(--radius-full);
+    --radius-control-sm: var(--radius-full);
+    --radius-item: 12px;
+    --radius-menu: 22px;
+    --radius-card: 22px;
+    --radius-overlay: 22px;
+    --radius-dialog: 34px;
+    --radius-window: 24px;
+    --radius-checkbox: var(--radius-full);
+  }
+}
+
+@media (pointer: coarse) and (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #1c1c1e;
+    --color-background-secondary: #2c2c2e;
+    --color-background-tertiary: #3a3a3c;
+    --color-background-grouped: #1c1c1e;
+    --color-background-grouped-secondary: #2c2c2e;
+    --color-background-grouped-tertiary: #3a3a3c;
+    --color-background-elevated: #2c2c2e;
+  }
+}
+
+/* 降低透明度时玻璃变成不透明的 */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --material-glass: var(--color-background-elevated);
+    --material-glass-thick: var(--color-background-elevated);
+    --material-sidebar: var(--color-background-secondary);
   }
 }

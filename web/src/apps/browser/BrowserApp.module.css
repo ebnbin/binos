@@ -1,139 +1,195 @@
-.app {
-  container: browser / inline-size;
+/* Safari 26 的紧凑工具栏：玻璃胶囊的按钮组、居中的地址栏；触屏上地址栏浮在底部 */
+.shell {
+  /* 模式切换浮在工具栏右侧，工具栏给它留出位置 */
+  --mode-width: 172px;
+
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--color-surface);
+  background: var(--color-background);
 }
+
+.app,
+.modeContent,
+.remote {
+  container: browser / inline-size;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.modeBar {
+  composes: segmented from '../../ui/controls.module.css';
+  position: absolute;
+  z-index: 1;
+  top: calc((var(--size-toolbar) - var(--size-control-md)) / 2);
+  right: var(--space-3);
+}
+
+.mode {
+  composes: segment from '../../ui/controls.module.css';
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2);
+  flex: none;
+  min-height: var(--size-toolbar);
+  padding: var(--space-2) calc(var(--mode-width) + var(--space-5)) var(--space-2) var(--space-3);
+  border-bottom: 0.5px solid var(--color-separator);
 }
+
 .navigation {
-  display: flex;
+  composes: glassGroup from '../../ui/controls.module.css';
 }
+
 .address {
   display: flex;
   align-items: center;
   flex: 1;
-  min-width: 120px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-bg);
+  min-width: 140px;
+  max-width: 720px;
+  height: var(--size-toolbar-item);
+  margin: 0 auto;
+  padding: 0 var(--space-1) 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-tertiary);
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
+
+.address:focus-within {
+  outline: 3px solid var(--color-focus-ring);
+  background: var(--color-text-background);
+  box-shadow: inset 0 0 0 0.5px var(--color-separator);
+}
+
 .address input {
+  flex: 1;
   width: 100%;
   min-width: 0;
-  padding: var(--space-2) var(--space-3);
+  height: 100%;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius-control);
+  outline: none;
   background: transparent;
-  font-size: var(--font-size-xl);
+  color: var(--color-label);
+  font-size: var(--font-size-input);
+  text-align: center;
+  text-overflow: ellipsis;
 }
-.address button {
-  flex-shrink: 0;
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-sm);
+
+.address input:focus {
+  text-align: left;
 }
+
+.address input::placeholder {
+  color: var(--color-placeholder);
+}
+
+.go {
+  composes: link from '../../ui/controls.module.css';
+  height: calc(var(--size-toolbar-item) - var(--space-1-5));
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-medium);
+}
+
 .external {
-  display: grid;
-  place-items: center;
-  width: var(--size-control-lg);
-  height: var(--size-control-lg);
-  color: var(--color-text-secondary);
-  border-radius: var(--radius-control);
+  composes: glassIcon from '../../ui/controls.module.css';
 }
-.external:hover,
-.address button:hover {
-  background: var(--color-hover);
+
+.action {
+  composes: glassButton from '../../ui/controls.module.css';
 }
+
 .notice {
-  padding: var(--space-1-5) var(--space-3);
-  font-size: var(--font-size-xs);
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
+  flex: none;
+  padding: var(--space-1-5) var(--space-margin);
+  border-bottom: 0.5px solid var(--color-separator);
+  background: var(--color-background-secondary);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
+
 .error {
-  margin: 0;
+  flex: none;
+  margin: var(--space-2) var(--space-3) 0;
   padding: var(--space-2) var(--space-3);
-  color: var(--color-danger);
-  background: var(--color-danger-subtle);
-  font-size: var(--font-size-sm);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-label);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
+  overflow-wrap: anywhere;
 }
+
 .frame {
   flex: 1;
   width: 100%;
   min-height: 0;
   border: 0;
-  background: var(--color-surface);
+  background: var(--color-document);
   color-scheme: normal;
 }
+
+/* 起始页：像 Safari 的起始页，内容居中在分组背景上 */
 .home {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
   overflow: auto;
-  padding: var(--space-8) var(--space-6);
+  padding: var(--space-10) var(--space-margin);
+  background: var(--color-background-secondary);
+  color: var(--color-label-secondary);
   text-align: center;
-  color: var(--color-text-secondary);
-}
-.home h1 {
-  color: var(--color-text);
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-medium);
-  margin: var(--space-4) 0 var(--space-2);
-}
-.home p {
-  max-width: 380px;
-  margin: var(--space-1) 0;
-  font-size: var(--font-size-sm);
-}
-@container browser (width < 440px) {
-  .address {
-    order: 1;
-    flex-basis: 100%;
-  }
-  .external {
-    margin-left: auto;
-  }
 }
 
-.modeBar {
-  display: flex;
-  gap: var(--space-1);
-  padding: var(--space-1-5) var(--space-2);
-  border-bottom: 1px solid var(--color-border);
+.home > svg {
+  box-sizing: content-box;
+  padding: var(--space-4);
+  border-radius: var(--radius-app-icon);
+  background: var(--color-background-grouped-secondary);
+  box-shadow: var(--shadow-card);
+  color: var(--color-accent);
 }
-.modeBar button {
-  padding: var(--space-1-5) var(--space-3);
-  border-radius: var(--radius-control);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+
+.home h1 {
+  margin: var(--space-3) 0 0;
+  color: var(--color-label);
+  font-size: var(--font-size-title-1);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-1);
 }
-.modeBar button[aria-pressed="true"] {
-  color: var(--color-text);
-  background: var(--color-hover);
+
+.home p {
+  max-width: 420px;
+  margin: 0;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
-.modeContent, .remote {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
+
+.home p + p {
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
+
 .remoteViewport {
   position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  background: var(--color-surface);
+  background: var(--color-background-secondary);
 }
+
 .remoteImage {
   display: block;
   width: 100%;
@@ -142,23 +198,75 @@
   user-select: none;
   object-fit: contain;
 }
+
+/* 状态提示是一块浮在画面中央的玻璃胶囊 */
 .remoteStatus {
+  composes: glass from '../../ui/controls.module.css';
   position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: var(--color-text-secondary);
-  background: color-mix(in srgb, var(--color-surface) 85%, transparent);
+  top: 50%;
+  left: 50%;
+  max-width: calc(100% - var(--space-8));
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
+  text-align: center;
   pointer-events: none;
+  transform: translate(-50%, -50%);
 }
+
 .remoteInput {
   position: absolute;
-  left: 0;
   top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   padding: 0;
   border: 0;
   opacity: 0;
   resize: none;
+}
+
+@container browser (width < 520px) {
+  .address {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .external {
+    margin-left: auto;
+  }
+}
+
+/* 触屏：模式切换单独一行在顶部，工具栏移到底部，地址栏在按钮上面 */
+@media (pointer: coarse) {
+  .modeBar {
+    position: static;
+    align-self: center;
+    margin: var(--space-2) var(--space-margin);
+  }
+
+  .toolbar {
+    order: 1;
+    justify-content: center;
+    padding: var(--space-2) var(--space-margin) calc(var(--space-2) + env(safe-area-inset-bottom));
+    border-top: 0.5px solid var(--color-separator);
+    border-bottom: 0;
+  }
+
+  .address {
+    order: -1;
+    background: var(--material-glass);
+    box-shadow: var(--shadow-glass);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .address:focus-within {
+    background: var(--color-background-elevated);
+  }
 }

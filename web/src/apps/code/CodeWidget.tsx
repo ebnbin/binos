@@ -25,7 +25,7 @@ export function CodeWidget({ size, open }: WidgetContext) {
             open('/new')
           }}
         >
-          <SquarePen size={15} strokeWidth={1.75} />
+          <SquarePen size={16} strokeWidth={1.75} />
         </button>
       </header>
       {size === '2x2' ? (

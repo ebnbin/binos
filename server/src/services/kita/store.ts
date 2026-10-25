@@ -109,6 +109,12 @@ export function createKitaSession(first: Extract<Entry, { type: 'session' }>): s
   return id
 }
 
+export function removeKitaSession(id: string) {
+  rmSync(sessionDir(id), { recursive: true, force: true })
+  journals.delete(id)
+  infos.delete(id)
+}
+
 // 只容忍最后未提交的半行；中间的损坏必须报错，不能把损坏的历史当成有效会话。
 function readJournal(id: string): Event[] {
   metadata(id)
@@ -136,11 +142,32 @@ function readJournal(id: string): Event[] {
   return events
 }
 
-export function readEvents(id: string, from = 0): Event[] {
-  return structuredClone(readJournal(id).slice(from))
+export function readEvents(id: string, from = 0, to?: number): Event[] {
+  return structuredClone(readJournal(id).slice(from, to))
+}
+
+// 分段读取的起点：before（默认到最后）之前 size 条所在的一轮的开头（mode 为 start 的 input），前面没有一轮时是 0。
+// 页面按轮显示，每段都从一轮的开头读起
+export function windowStart(id: string, size: number, before?: number): number {
+  const events = readJournal(id)
+  for (let i = Math.min((before ?? events.length) - size, events.length - 1); i > 0; i--) {
+    const { data } = events[i]
+    if (data.type === 'input' && data.mode === 'start') return i
+  }
+  return 0
 }
 
 const journals = new Map<string, { size: number; events: Event[] }>()
+
+// index 处的工具调用和它的结果（在同一轮里按调用 id 对应），不是工具调用时返回 undefined
+export function readCall(id: string, index: number): { call: Entry; result?: Entry } | undefined {
+  const events = readJournal(id)
+  const call = events[index]
+  if (call?.data.type !== 'tool_call') return undefined
+  const callId = call.data.id
+  const result = events.slice(index + 1).find(({ turnId, data }) => turnId === call.turnId && data.type === 'tool_result' && data.callId === callId)
+  return structuredClone({ call: call.data, ...(result && { result: result.data }) })
+}
 
 export function readEntries(id: string, from = 0): Entry[] {
   return readEvents(id, from).map((event) => event.data)

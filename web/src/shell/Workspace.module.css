@@ -13,7 +13,7 @@
   min-height: 0;
   overflow: hidden;
   border-radius: var(--radius-window);
-  background: var(--color-bg);
+  background: var(--color-background);
   transition: left var(--duration-normal) var(--ease-standard), width var(--duration-normal) var(--ease-standard), top var(--duration-normal) var(--ease-standard), height var(--duration-normal) var(--ease-standard);
 }
 
@@ -42,16 +42,21 @@
   left: 50%;
   z-index: 3;
   transform: translateX(-50%);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2-5) var(--space-4);
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-chrome) 80%, transparent);
-  color: var(--color-on-chrome);
-  font-size: var(--font-size-md);
+  background: var(--material-glass-thick);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+  box-shadow: var(--shadow-overlay);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-medium);
   pointer-events: none;
 }
 
 .picker {
   height: 100%;
+  background: var(--color-background-grouped);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,7 +66,12 @@
   padding: var(--space-5);
 }
 
-.picker p { margin: 0; }
+.picker p {
+  margin: 0;
+  font-size: var(--font-size-title-2);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-2);
+}
 
 .choices {
   --gap: var(--space-3);
@@ -75,14 +85,14 @@
 
 .choices button { aspect-ratio: 1; }
 
-.picker > button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  box-shadow: 0 0 0 1px var(--color-separator);
+/* 选择分屏时，图标下的名字在普通背景上，不是墙纸上 */
+.choices button span:last-child {
+  color: var(--color-label);
+  text-shadow: none;
+}
+
+.cancel {
+  composes: button large from '../ui/controls.module.css';
 }
 
 .divider {
@@ -102,7 +112,7 @@
   width: 4px;
   height: 48px;
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--color-on-chrome) 40%, transparent);
+  background: color-mix(in srgb, var(--color-on-chrome) 45%, transparent);
   transition: width var(--duration-fast) var(--ease-standard), height var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard);
   pointer-events: none;
 }
@@ -134,7 +144,11 @@
 }
 
 .pane[inert] .content { opacity: 0.85; }
-.picker small { color: var(--color-text-tertiary); text-align: center; }
+.picker small {
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  text-align: center;
+}
 
 .waitingMask {
   position: absolute;

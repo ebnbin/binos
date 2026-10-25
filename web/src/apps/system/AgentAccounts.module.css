@@ -1,25 +1,38 @@
+/* 设置页的形式：每个 agent 一个分组，标签在左、值在右 */
 .page {
+  --content-width: 760px;
+
   height: 100%;
   overflow-y: auto;
-  font-size: var(--font-size-md);
+  background: var(--color-background-grouped);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
 }
 
+.page > * {
+  max-width: var(--content-width);
+  margin-inline: auto;
+}
+
+/* 大标题和重新读取按钮；分区已在工具栏的分段控件里，返回按钮不再显示 */
 .bar {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-bg);
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-margin) var(--space-2);
+}
+
+.bar > :first-child {
+  display: none;
 }
 
 .bar h1 {
   flex: 1;
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
 }
 
 .spinning svg {
@@ -36,65 +49,92 @@
   display: flex;
   justify-content: center;
   padding: var(--space-10);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-title-3);
 }
 
 .failed {
-  padding: var(--space-5);
-  color: var(--color-danger);
+  composes: empty from '../../ui/controls.module.css';
+}
+
+.page .failed {
+  color: var(--color-destructive-text);
 }
 
 .section {
-  padding: var(--space-2) var(--space-5) var(--space-5);
+  padding: var(--space-3) var(--space-margin) var(--space-3);
 }
 
+.section:last-child {
+  padding-bottom: var(--space-8);
+}
+
+/* 分组的标题：名字、状态标签，版本号靠右 */
 .header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2);
 }
 
 .header h2 {
   margin: 0;
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-title-3);
 }
 
 .status {
-  color: var(--color-danger);
-  font-size: var(--font-size-xs);
+  composes: badge from '../../ui/controls.module.css';
+}
+
+.header .status {
+  --tone: var(--color-destructive);
+  --tone-text: var(--color-destructive-text);
+  background: color-mix(in srgb, var(--tone) 15%, transparent);
+  color: var(--tone-text);
 }
 
 .status[data-ok='true'] {
-  color: var(--color-success);
+  --tone: var(--color-success);
+  --tone-text: var(--color-success-text);
+}
+
+.status[data-missing='true'] {
+  --tone: var(--color-gray);
+  --tone-text: var(--color-label-secondary);
 }
 
 .version {
   margin-left: auto;
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-footnote);
 }
 
 .list {
-  margin: var(--space-1) 0 0;
+  composes: group from '../../ui/controls.module.css';
+  margin: 0;
 }
 
 .row {
-  display: flex;
+  composes: row from '../../ui/controls.module.css';
+}
+
+.list .row {
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-separator);
 }
 
 .row dt {
   flex-shrink: 0;
-  color: var(--color-text-secondary);
+  color: var(--color-label);
 }
 
 .row dd {
   min-width: 0;
   margin: 0;
+  color: var(--color-label-secondary);
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -107,56 +147,72 @@
 }
 
 [data-expired='true'] {
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
 }
 
 .note {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .mono {
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-footnote);
 }
 
+/* 要留意的事：组里一行带色调的说明 */
 .attention {
-  margin: var(--space-3) 0 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
+  composes: row from '../../ui/controls.module.css';
+}
+
+.list .attention {
+  margin: 0;
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  color: var(--color-label);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
 }
 
 .attention[data-tone='bad'] {
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive-text);
 }
 
 .loginActions {
-  display: flex;
-  gap: var(--space-2);
-  padding: var(--space-3) 0 var(--space-0-5);
+  composes: row from '../../ui/controls.module.css';
 }
 
-.loginActions button {
-  height: var(--size-control-md);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: var(--font-size-sm);
-  cursor: pointer;
+.list .loginActions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.loginButton {
+  composes: tinted from '../../ui/controls.module.css';
 }
 
 .login {
-  padding: var(--space-3) 0 var(--space-0-5);
+  composes: row from '../../ui/controls.module.css';
+}
+
+.list .login {
+  display: block;
+  padding-block: var(--space-3);
 }
 
 .quotaWindows {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-separator);
+  composes: row from '../../ui/controls.module.css';
+}
+
+.list .quotaWindows {
+  display: block;
+  padding-block: var(--space-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning svg {
+    animation: none;
+  }
 }

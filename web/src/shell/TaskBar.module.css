@@ -1,17 +1,19 @@
-/* 黑底，和屏幕四周的外框连在一起，只有图标有颜色 */
+/* Dock：外框黑底上的一块深色玻璃，里面是彩色的 app 图标，正在显示的 app 下面有个点 */
 .bar {
+  --item: 44px;
+  --icon: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex: none;
   min-width: 0;
   min-height: 0;
-  padding: var(--space-1-5) 0;
+  padding: var(--space-1) 0;
 }
 
 .bar[data-placement='left'],
 .bar[data-placement='right'] {
-  padding: 0 var(--space-1-5);
+  padding: 0 var(--space-1);
 }
 
 .bar[data-placement='left'] {
@@ -21,17 +23,21 @@
 .dock {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-0-5);
   min-width: 0;
   min-height: 0;
   max-width: 100%;
   max-height: 100%;
+  padding: var(--space-0-5);
+  border-radius: calc(var(--radius-lg) + var(--space-0-5));
+  background: var(--material-dock);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
 }
 
 /* 最宽和屏幕一样：开着的 app 多了，只在这一段里滚动，桌面、分屏和关闭按钮不动 */
 .apps {
   display: flex;
-  gap: var(--space-1);
+  gap: var(--space-0-5);
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -40,10 +46,7 @@
 }
 
 .bar[data-placement='left'] .apps,
-.bar[data-placement='right'] .apps {
-  flex-direction: column;
-}
-
+.bar[data-placement='right'] .apps,
 .bar[data-placement='left'] .dock,
 .bar[data-placement='right'] .dock {
   flex-direction: column;
@@ -54,63 +57,70 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: var(--size-control-xl);
-  height: var(--size-control-xl);
+  width: var(--item);
+  height: var(--item);
   border-radius: var(--radius-lg);
   color: var(--color-on-chrome-secondary);
-  transition: background-color var(--duration-fast), color var(--duration-fast);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 @media (hover: hover) {
   .item:hover {
-    background: var(--color-chrome-hover);
+    background: var(--color-dock-hover);
     color: var(--color-on-chrome);
   }
 }
 
+.item:active > * {
+  filter: brightness(0.8);
+}
+
 .item[aria-pressed='true'] {
-  background: var(--color-chrome-selected);
   color: var(--color-on-chrome);
 }
 
-/* 正在显示的 app 旁边有个点 */
+/* 正在显示的 app 下面有个点 */
 .item[data-visible='true']::after {
   content: '';
   position: absolute;
-  bottom: 3px;
+  bottom: 0;
   width: 4px;
   height: 4px;
-  border-radius: 50%;
-  background: var(--color-on-chrome-secondary);
+  border-radius: var(--radius-full);
+  background: var(--color-on-chrome);
+  opacity: 0.85;
 }
 
 .bar[data-placement='left'] .item[data-visible='true']::after,
 .bar[data-placement='right'] .item[data-visible='true']::after {
-  top: 18px;
+  top: calc(50% - 2px);
   bottom: auto;
 }
 
 .bar[data-placement='left'] .item[data-visible='true']::after {
-  right: 2px;
+  right: 0;
 }
 
 .bar[data-placement='right'] .item[data-visible='true']::after {
-  left: 2px;
+  left: 0;
 }
 
+/* 和 macOS 的 Dock 一样，用一条细竖线把桌面、app 和窗口操作分开 */
 .separator {
   flex: none;
   width: 1px;
-  height: 22px;
-  margin: 0 var(--space-1-5);
+  height: calc(var(--item) - var(--space-3));
+  margin: 0 var(--space-1);
   background: var(--color-chrome-border);
 }
 
 .bar[data-placement='left'] .separator,
 .bar[data-placement='right'] .separator {
-  width: 22px;
+  width: calc(var(--item) - var(--space-3));
   height: 1px;
-  margin: var(--space-1-5) 0;
+  margin: var(--space-1) 0;
 }
 
 .glyph {
@@ -141,17 +151,6 @@
   background: var(--color-on-chrome);
 }
 
-.item[data-group='true'] {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1-5);
-  width: 58px;
-  box-shadow: inset 0 0 0 1px var(--color-chrome-border);
-}
-
-.item[data-group='true']::after { display: none; }
-
 .member {
   position: relative;
   display: grid;
@@ -159,13 +158,37 @@
   height: 100%;
 }
 
+.member > span {
+  width: var(--icon);
+  height: var(--icon);
+}
+
+/* 分屏的一组：两个小图标放在一起，外面一圈细框 */
+.item[data-group='true'] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  width: calc(var(--item) * 1.6);
+  box-shadow: inset 0 0 0 1px var(--color-chrome-border);
+}
+
+.item[data-group='true'] .member > span {
+  width: calc(var(--icon) * 0.75);
+  height: calc(var(--icon) * 0.75);
+}
+
+.item[data-group='true']::after {
+  display: none;
+}
+
 .member[data-focused='true']::after {
   content: '';
   position: absolute;
-  bottom: 3px;
+  bottom: 0;
   left: calc(50% - 2px);
   width: 4px;
   height: 4px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background: var(--color-on-chrome);
 }

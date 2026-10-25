@@ -1,8 +1,9 @@
+/* 搜索结果：按对话分组的列表。对话一行，匹配的消息缩进在下面，命中的文字用查找的黄色高亮 */
 .results {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
 }
 
 .summary {
@@ -10,38 +11,56 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: var(--space-1-5);
-  padding: 0 var(--space-1);
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  padding: var(--space-2) var(--space-2-5) 0;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-subheadline);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-subheadline);
+}
+
+.summary > span:last-child {
+  font-weight: var(--font-weight-regular);
+  font-variant-numeric: tabular-nums;
+}
+
+.limit {
+  margin: 0;
+  padding: 0 var(--space-2-5);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .group {
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
 }
 
 .heading,
 .match {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1-5);
+  gap: var(--space-0-5);
   width: 100%;
-  padding: var(--space-3) var(--space-3);
+  padding: var(--space-1-5) var(--space-2-5);
+  border-radius: var(--radius-item);
+  color: var(--color-label);
   text-align: left;
+  transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
-.heading:focus-visible,
-.match:focus-visible {
-  outline-offset: -3px;
+.heading:active,
+.match:active {
+  background: var(--color-selection-unemphasized);
 }
 
 .context,
 .count,
 .kind {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-2xs);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-subheadline);
+  line-height: var(--line-height-subheadline);
 }
 
 .context {
@@ -53,9 +72,9 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-snug);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-body);
   overflow-wrap: anywhere;
 }
 
@@ -63,11 +82,16 @@
 .kind {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1-5);
+  gap: var(--space-1);
+  font-variant-numeric: tabular-nums;
 }
 
+/* 匹配的消息：缩进一级，左边一条细线表示属于上面的对话 */
 .match {
-  border-top: 1px solid var(--color-separator);
+  margin-left: var(--space-2-5);
+  width: calc(100% - var(--space-2-5));
+  box-shadow: inset 2px 0 0 var(--color-separator);
+  border-radius: 0 var(--radius-item) var(--radius-item) 0;
 }
 
 .snippet {
@@ -75,18 +99,18 @@
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-normal);
+  color: var(--color-label);
+  font-size: var(--font-size-callout);
+  line-height: var(--line-height-callout);
   overflow-wrap: anywhere;
 }
 
 .results mark {
-  padding: 0 1px;
+  padding: 0 var(--space-0-5);
   border-radius: var(--radius-xs);
-  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
-  color: var(--color-text);
-  font-weight: var(--font-weight-medium);
+  background: color-mix(in srgb, var(--color-yellow) 55%, transparent);
+  color: var(--color-label);
+  font-weight: var(--font-weight-semibold);
 }
 
 .state {
@@ -94,48 +118,65 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-12) var(--space-4);
-  color: var(--color-text-secondary);
+  padding: var(--space-10) var(--space-4);
+  color: var(--color-label-secondary);
   text-align: center;
-  font-size: var(--font-size-md);
+}
+
+.state > span {
+  color: var(--color-label);
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-title-3);
 }
 
 .state svg {
-  color: var(--color-text-tertiary);
+  color: var(--color-label-tertiary);
 }
 
-.state p,
-.limit {
+.state p {
   margin: 0;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
 }
 
-.limit {
-  padding: 0 var(--space-1);
-}
-
-.state button {
-  padding: var(--space-1-5) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  color: var(--color-text);
-  background: var(--color-surface);
+.retry {
+  composes: button from '../../../ui/controls.module.css';
+  margin-top: var(--space-1);
 }
 
 .loading {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
   padding: var(--space-10) var(--space-3);
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
 }
 
 @media (hover: hover) {
   .heading:hover,
   .match:hover {
     background: var(--color-hover);
+  }
+}
+
+@container agent (width < 960px) {
+  .summary,
+  .limit,
+  .heading {
+    padding-left: var(--space-margin);
+    padding-right: var(--space-margin);
+  }
+
+  .heading,
+  .match {
+    border-radius: 0;
+  }
+
+  .match {
+    margin-left: var(--space-margin);
+    width: calc(100% - var(--space-margin));
   }
 }

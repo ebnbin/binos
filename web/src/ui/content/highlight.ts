@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { HighlighterCore, ThemedToken } from 'shiki/core'
+import { xcodeDark, xcodeLight } from './xcode-themes.ts'
 
 // 超过这么长的代码不高亮，直接显示
 const maxLength = 100_000
@@ -10,7 +11,7 @@ let highlighter: Promise<HighlighterCore> | undefined
 function getHighlighter() {
   highlighter ??= Promise.all([import('shiki/core'), import('shiki/engine/javascript')]).then(([{ createHighlighterCore }, { createJavaScriptRegexEngine }]) =>
     createHighlighterCore({
-      themes: [import('shiki/themes/github-light.mjs'), import('shiki/themes/github-dark.mjs')],
+      themes: [xcodeLight, xcodeDark],
       langs: [],
       engine: createJavaScriptRegexEngine(),
     }),
@@ -29,7 +30,7 @@ async function highlight(code: string, lang: string): Promise<ThemedToken[][] | 
   if (!instance.getLoadedLanguages().includes(lang)) {
     await instance.loadLanguage(loader)
   }
-  return instance.codeToTokens(code, { lang, themes: { light: 'github-light', dark: 'github-dark' }, defaultColor: false }).tokens
+  return instance.codeToTokens(code, { lang, themes: { light: 'xcode-light', dark: 'xcode-dark' }, defaultColor: false }).tokens
 }
 
 // 高亮好之前（以及代码变了、新的还没高亮好时）返回 undefined，先显示原样的代码

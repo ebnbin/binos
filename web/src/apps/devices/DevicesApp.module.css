@@ -1,51 +1,462 @@
-.app { height: 100%; overflow: auto; padding: var(--space-6); color: var(--color-text); background: var(--color-bg); box-sizing: border-box; }
-.header, .sectionTitle, .cardTitle { display: flex; align-items: center; gap: var(--space-3); }
-.header { justify-content: space-between; margin-bottom: var(--space-5); }
-.header h1 { margin: 0; font-size: var(--font-size-2xl); font-weight: var(--font-weight-semibold); letter-spacing: var(--letter-spacing-tight); }
-.header h1 span { margin-left: var(--space-2); font-size: var(--font-size-lg); font-weight: var(--font-weight-regular); color: var(--color-text-tertiary); }
-.header p, .cardTitle p { margin: var(--space-1-5) 0 0; color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
-.app button, .app select, .app input { font: inherit; font-size: var(--font-size-sm); color: var(--color-text); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); padding: var(--space-2) var(--space-3); min-width: 0; }
-.app button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1-5); cursor: pointer; }
-.app button:disabled { opacity: var(--opacity-disabled); cursor: default; }
-.app button:hover:not(:disabled) { background: var(--color-bg); }
-.app :focus-visible { outline: 2px solid var(--color-text-secondary); outline-offset: 2px; }
-.icon { width: var(--size-control-lg); height: var(--size-control-lg); }
-.notice { border: 1px solid var(--color-border); background: var(--color-surface); padding: var(--space-3); border-radius: var(--radius-card); font-size: var(--font-size-sm); }
-.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin: var(--space-5) 0; }
-.summary > div { display: flex; flex-direction: column; gap: var(--space-1-5); padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
-.summary strong { font-size: var(--font-size-3xl); font-weight: var(--font-weight-semibold); }
-.summary span { font-size: var(--font-size-xs); color: var(--color-text-tertiary); }
-.acquire { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
-.acquire input { flex: 1; min-width: 90px; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--space-4); }
-.card { border: 1px solid var(--color-border); border-radius: var(--radius-card); padding: var(--space-4); background: var(--color-surface); min-width: 0; }
-.cardTitle h2 { font-size: var(--font-size-md); margin: 0; overflow-wrap: anywhere; }
-.cardTitle > div { flex: 1; min-width: 0; }
-.badge { font-size: var(--font-size-2xs); border-radius: var(--radius-full); padding: var(--space-1-5) var(--space-2); white-space: nowrap; background: var(--color-bg); color: var(--color-text-tertiary); }
-.badge[data-status=free] { color: var(--color-success); }
-.badge[data-status=broken] { color: var(--color-danger); }
-.badge[data-status=leased] { color: var(--color-info); }
-.placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); height: 190px; color: var(--color-text-tertiary); background: var(--color-bg); border-radius: var(--radius-card); margin: var(--space-5) 0; font-size: var(--font-size-xs); }
-.screenshot { display: block; width: 100%; height: 280px; object-fit: contain; margin: var(--space-5) 0 var(--space-2); background: var(--color-bg); border-radius: var(--radius-card); }
-.details { font-size: var(--font-size-xs); margin: var(--space-4) 0; }
-.details > div { display: flex; gap: var(--space-4); margin: var(--space-2) 0; }
-.details dt { color: var(--color-text-tertiary); flex: 0 0 30px; }
-.details dd { margin: 0; overflow-wrap: anywhere; }
-.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.section { padding-top: var(--space-6); margin-top: var(--space-5); border-top: 1px solid var(--color-border); }
-.section h2 { font-size: var(--font-size-lg); margin: 0 0 var(--space-3); font-weight: var(--font-weight-semibold); }
-.sectionTitle { justify-content: space-between; }
-.hint { color: var(--color-text-tertiary); font-size: var(--font-size-xs); line-height: var(--line-height-relaxed); }
-.error { color: var(--color-danger); font-size: var(--font-size-sm); line-height: var(--line-height-normal); overflow-wrap: anywhere; }
-.empty { padding: var(--space-8) 0; color: var(--color-text-tertiary); font-size: var(--font-size-md); line-height: var(--line-height-relaxed); }
-.queue { margin: 0; padding-left: var(--space-6); font-size: var(--font-size-sm); }
-.queue li { padding: var(--space-2); }
-.queue span { display: block; color: var(--color-text-tertiary); margin-top: var(--space-1-5); }
-.observed { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); font-size: var(--font-size-xs); padding: var(--space-3) 0; }
-.observed span:last-child { color: var(--color-text-tertiary); }
-.events { list-style: none; padding: 0; margin: 0; }
-.events li { display: flex; gap: var(--space-4); font-size: var(--font-size-xs); line-height: var(--line-height-normal); padding: var(--space-2) 0; }
-.events time { color: var(--color-text-tertiary); flex: 0 0 42px; }
-.events small { display: block; color: var(--color-text-tertiary); overflow-wrap: anywhere; }
-.app footer { padding-top: var(--space-6); }
-@media (max-width: 480px) { .app { padding: var(--space-4); } .summary { gap: var(--space-2); } .summary > div { padding: var(--space-3); } .acquire input { flex-basis: 100%; order: 2; } .acquire > button { flex: 1; } }
+/* 设备：分组背景上居中的一栏，统计、申请表单、设备卡片和几个分组列表 */
+.app {
+  height: 100%;
+  overflow: auto;
+  background: var(--color-background-grouped);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
+}
+
+.content {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-margin) var(--space-8);
+}
+
+/* 大标题和玻璃的刷新按钮 */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
+}
+
+.header h1 span {
+  margin-left: var(--space-1-5);
+  color: var(--color-label-secondary);
+  font-weight: var(--font-weight-regular);
+}
+
+.header p {
+  margin: var(--space-0-5) 0 0;
+  color: var(--color-label-secondary);
+}
+
+.icon {
+  composes: glassIcon from '../../ui/controls.module.css';
+}
+
+.button {
+  composes: button from '../../ui/controls.module.css';
+}
+
+.prominent {
+  composes: prominent from '../../ui/controls.module.css';
+}
+
+.destructive {
+  composes: destructive from '../../ui/controls.module.css';
+}
+
+.borderless {
+  composes: borderless from '../../ui/controls.module.css';
+}
+
+.sectionTitle .borderless {
+  height: var(--size-control-sm);
+  padding: 0 var(--space-1-5);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+}
+
+.link {
+  composes: link from '../../ui/controls.module.css';
+}
+
+.details .link {
+  height: auto;
+  padding: 0;
+  font-size: inherit;
+  white-space: normal;
+  text-align: right;
+}
+
+.field {
+  composes: field from '../../ui/controls.module.css';
+}
+
+.notice {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-label);
+  font-size: var(--font-size-callout);
+}
+
+.alert {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2-5) var(--space-3);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive-text);
+  font-size: var(--font-size-callout);
+  overflow-wrap: anywhere;
+}
+
+.error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-destructive-text);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+  overflow-wrap: anywhere;
+}
+
+/* 统计：三张小卡片，数字是圆体 */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.summary > div {
+  border-radius: var(--radius-card);
+  background: var(--color-background-grouped-secondary);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  padding: var(--space-3) var(--space-4);
+}
+
+.summary strong {
+  font-family: var(--font-rounded);
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary span {
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+}
+
+.groupHeader {
+  composes: groupHeader from '../../ui/controls.module.css';
+}
+
+.footer {
+  composes: groupFooter from '../../ui/controls.module.css';
+}
+
+/* 申请表单：组里一行，弹出按钮、输入框和主要操作 */
+.acquire {
+  composes: group from '../../ui/controls.module.css';
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+.acquire > input {
+  flex: 1;
+  min-width: 120px;
+  width: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+/* 设备卡片 */
+.card {
+  composes: card from '../../ui/controls.module.css';
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+}
+
+.cardIcon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: var(--size-control-lg);
+  height: var(--size-control-lg);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label-secondary);
+}
+
+.cardTitle > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle h2 {
+  margin: 0;
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-headline);
+  line-height: var(--line-height-headline);
+  overflow-wrap: anywhere;
+}
+
+.cardTitle p {
+  margin: 0;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+}
+
+/* 状态标签：系统色的浅底胶囊 */
+.badge {
+  composes: badge from '../../ui/controls.module.css';
+}
+
+.cardTitle .badge {
+  --tone: var(--color-gray);
+  --tone-text: var(--color-label-secondary);
+  background: color-mix(in srgb, var(--tone) 15%, transparent);
+  color: var(--tone-text);
+}
+
+.badge[data-status='free'] {
+  --tone: var(--color-success);
+  --tone-text: var(--color-success-text);
+}
+
+.badge[data-status='leased'],
+.badge[data-status='reserved'] {
+  --tone: var(--color-blue);
+  --tone-text: var(--color-link);
+}
+
+.badge[data-status='creating'],
+.badge[data-status='checking'],
+.badge[data-status='cleaning'],
+.badge[data-status='destroying'] {
+  --tone: var(--color-warning);
+  --tone-text: var(--color-warning-text);
+}
+
+.badge[data-status='broken'] {
+  --tone: var(--color-destructive);
+  --tone-text: var(--color-destructive-text);
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 180px;
+  margin: var(--space-3) 0;
+  border-radius: var(--radius-md);
+  background: var(--color-fill-quaternary);
+  color: var(--color-label-tertiary);
+  font-size: var(--font-size-footnote);
+}
+
+.placeholder span {
+  color: var(--color-label-secondary);
+}
+
+.screenshot {
+  display: block;
+  width: 100%;
+  height: 280px;
+  margin: var(--space-3) 0 var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-quaternary);
+  object-fit: contain;
+}
+
+.caption {
+  margin: 0 0 var(--space-2);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-caption);
+  text-align: center;
+}
+
+/* 详情：标签在左、值在右，行间细分隔线 */
+.details {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+}
+
+.details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-1-5) 0;
+}
+
+.details > div + div {
+  border-top: 0.5px solid var(--color-separator);
+}
+
+.details dt {
+  flex: none;
+  color: var(--color-label-secondary);
+}
+
+.details dd {
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+/* 分组列表 */
+.section {
+  margin-top: var(--space-6);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sectionTitle > button {
+  margin-bottom: var(--space-1);
+}
+
+.group {
+  composes: group from '../../ui/controls.module.css';
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stacked {
+  composes: row from '../../ui/controls.module.css';
+}
+
+.group .stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-0-5);
+}
+
+.stacked span {
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  overflow-wrap: anywhere;
+}
+
+.placeholderRow {
+  composes: group from '../../ui/controls.module.css';
+  margin: 0;
+  padding: var(--space-2-5) var(--space-3);
+  color: var(--color-label-secondary);
+}
+
+.observed {
+  composes: row from '../../ui/controls.module.css';
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.observed span:last-child {
+  color: var(--color-label-secondary);
+}
+
+.events {
+  composes: group from '../../ui/controls.module.css';
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.events:empty {
+  display: none;
+}
+
+.events li {
+  position: relative;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  line-height: var(--line-height-body);
+}
+
+.events li + li::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-3);
+  border-top: 0.5px solid var(--color-separator);
+}
+
+.events time {
+  flex: none;
+  min-width: 3.2em;
+  color: var(--color-label-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.events span {
+  min-width: 0;
+}
+
+.events small {
+  display: block;
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  overflow-wrap: anywhere;
+}
+
+.app > .content > footer {
+  margin-top: var(--space-4);
+}
+
+.empty {
+  composes: empty from '../../ui/controls.module.css';
+}
+
+@media (max-width: 480px) {
+  .summary {
+    gap: var(--space-2);
+  }
+
+  .summary > div {
+    padding: var(--space-2-5) var(--space-3);
+  }
+
+  .summary strong {
+    font-size: var(--font-size-title-1);
+    line-height: var(--line-height-title-1);
+  }
+
+  .acquire > input {
+    flex: 1 1 100%;
+    order: 2;
+  }
+
+  .acquire > button {
+    flex: 1 1 auto;
+    order: 3;
+  }
+}

@@ -1,22 +1,4 @@
 .button {
-  display: grid;
-  place-items: center;
-  width: var(--size-control-xs);
-  height: var(--size-control-xs);
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius-item);
-  background: none;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast),
-    color var(--duration-fast);
-}
-
-@media (hover: hover) {
-  .button:hover {
-    background: var(--color-hover);
-    color: var(--color-text);
-  }
+  composes: iconSmall from './controls.module.css';
+  color: var(--color-label-tertiary);
 }

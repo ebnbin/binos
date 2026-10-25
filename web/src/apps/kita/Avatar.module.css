@@ -1,0 +1,40 @@
+.avatar {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: var(--radius-full);
+  background: var(--color-fill-tertiary);
+  color: var(--color-label-secondary);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+/* 在回答时外面有一圈慢慢呼吸的强调色光环 */
+.avatar[data-busy]::after {
+  position: absolute;
+  inset: -3px;
+  border: 2px solid var(--color-accent);
+  border-radius: var(--radius-full);
+  content: '';
+  animation: breathe 1.8s var(--ease-in-out) infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar[data-busy]::after {
+    animation: none;
+  }
+}

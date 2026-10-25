@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { icons, iconNames } from '../external/icons.ts'
 import { saveExternalApps, useExternalApps } from '../external/registry.ts'
@@ -38,11 +38,10 @@ export function ExternalApps() {
       <header className={styles.header}>
         <h2>外部 app</h2>
         <button type="button" className={styles.add} disabled={editing !== null} onClick={() => setEditing({ index: null, draft: newApp() })}>
-          <Plus size={15} strokeWidth={2} />
+          <Plus size={14} strokeWidth={2} />
           添加
         </button>
       </header>
-      <p className={styles.hint}>独立部署的 web app，在窗口里打开。清单存在这台 Mac 的系统数据里，不在 binOS 的代码中；app 本身要允许被 binos.app 嵌入。</p>
       <ul className={styles.list}>
         {list.map((app, index) =>
           editing?.index === index ? (
@@ -52,9 +51,12 @@ export function ExternalApps() {
           ) : (
             <li key={app.id}>
               <button type="button" className={styles.row} disabled={editing !== null} onClick={() => setEditing({ index, draft: app })}>
-                <AppIcon name={app.icon} />
+                <span className={styles.tile}>
+                  <AppIcon name={app.icon} />
+                </span>
                 <span className={styles.name}>{app.name}</span>
                 <span className={styles.url}>{app.url}</span>
+                <ChevronRight className={styles.chevron} size={14} strokeWidth={2} aria-hidden />
               </button>
             </li>
           ),
@@ -65,13 +67,14 @@ export function ExternalApps() {
           </li>
         )}
       </ul>
+      <p className={styles.hint}>独立部署的 web app，在窗口里打开。清单存在这台 Mac 的系统数据里，不在 binOS 的代码中；app 本身要允许被 binos.app 嵌入。</p>
     </section>
   )
 }
 
 function AppIcon({ name }: { name: ExternalAppConfig['icon'] }) {
   const Icon = icons[name]
-  return <Icon size={18} strokeWidth={1.75} />
+  return <Icon size={16} strokeWidth={1.75} />
 }
 
 function Editor({
@@ -104,11 +107,12 @@ function Editor({
     >
       <label>
         <span>名称</span>
-        <input value={draft.name} onChange={(event) => set({ name: event.target.value })} autoFocus />
+        <input className={styles.input} value={draft.name} onChange={(event) => set({ name: event.target.value })} autoFocus />
       </label>
       <label>
         <span>网址</span>
         <input
+          className={styles.input}
           type="url"
           value={draft.url}
           placeholder="https://"

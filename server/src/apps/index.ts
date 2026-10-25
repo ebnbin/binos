@@ -8,6 +8,7 @@ import { systemApi } from './system/api.js'
 import { monitor } from './system/monitor.js'
 import { filesApi } from './files/api.js'
 import { codeApp } from './code/index.js'
+import { kitaApp } from './kita/index.js'
 import type { ServerApp } from './types.js'
 import { musicApi } from './music/api.js'
 
@@ -16,6 +17,7 @@ export const serverApps: ServerApp[] = [
   { id: 'devices', api: devicesApi },
   { id: 'builds', api: buildsApi, start: () => { void buildRequest({ action: 'status' }).catch(console.error) } },
   codeApp,
+  kitaApp,
   { id: 'terminal', api: terminalApi },
   { id: 'files', api: filesApi },
   { id: 'music', api: musicApi },

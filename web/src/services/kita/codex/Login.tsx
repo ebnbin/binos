@@ -68,7 +68,7 @@ export function CodexLogin({ onClose }: { onClose: () => void }) {
         <div className={styles.steps}>
           <a className={styles.link} href={step.url} target="_blank" rel="noreferrer">
             1. 打开登录页面，用 ChatGPT 账号登录
-            <ExternalLink size={14} strokeWidth={1.75} />
+            <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
           </a>
           <div className={styles.codeLabel}>
             2. 输入这个一次性的码（15 分钟内有效）

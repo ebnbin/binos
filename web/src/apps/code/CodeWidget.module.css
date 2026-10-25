@@ -1,8 +1,10 @@
+/* 桌面小组件：标题一行，下面是最近的对话 */
 .widget {
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  color: var(--color-label);
 }
 
 .header {
@@ -13,45 +15,49 @@
 }
 
 .name {
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-headline);
+  line-height: var(--line-height-headline);
 }
 
 .running {
-  color: var(--color-accent);
-  font-size: var(--font-size-xs);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+  font-weight: var(--font-weight-medium);
 }
 
 .new {
-  display: grid;
-  place-items: center;
-  width: var(--size-control-sm);
-  height: var(--size-control-sm);
-  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1-5)) calc(-1 * var(--space-1)) auto;
-  border-radius: var(--radius-control);
-  color: var(--color-text-secondary);
+  composes: iconSmall from '../../ui/controls.module.css';
+}
+
+.header .new {
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-1)) calc(-1 * var(--space-1)) auto;
+  color: var(--color-accent);
 }
 
 .summary {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
+  flex-direction: column;
   margin-top: auto;
 }
 
 .count {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--letter-spacing-tight);
+  font-family: var(--font-rounded);
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
+  font-variant-numeric: tabular-nums;
 }
 
 .muted {
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .list {
   min-height: 0;
-  margin: var(--space-1-5) calc(-1 * var(--space-2)) 0;
+  margin: var(--space-2) calc(-1 * var(--space-2)) 0;
   padding: 0;
   overflow: hidden;
   list-style: none;
@@ -62,25 +68,30 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-1-5) var(--space-2);
+  min-height: var(--size-row);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-item);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
   text-align: left;
-  font-size: var(--font-size-sm);
 }
 
 @media (hover: hover) {
-  .new:hover,
   .row:hover {
     background: var(--color-hover);
   }
+}
+
+.row:active {
+  background: var(--color-pressed);
 }
 
 .dot {
   flex: none;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-fill);
 }
 
 .dot[data-running='true'] {
@@ -97,14 +108,14 @@
 
 .time {
   flex: none;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-xs);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
   font-variant-numeric: tabular-nums;
 }
 
 .empty {
   margin: auto 0;
-  color: var(--color-text-tertiary);
-  font-size: var(--font-size-sm);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-body);
   text-align: center;
 }

@@ -1,4 +1,4 @@
-/* 最长的窗口（最外圈）是黄色，其余是绿色，快满了是红色 */
+/* 额度的颜色：最长的窗口（最外圈）是蓝色，其余是绿色，快满了是红色 */
 .ring {
   flex: none;
   transform: rotate(-90deg);
@@ -6,12 +6,12 @@
 
 .ring g,
 .window {
-  --window: var(--color-success);
+  --window: var(--color-green);
 }
 
 .ring [data-longest],
 .window[data-longest] {
-  --window: var(--color-accent);
+  --window: var(--color-blue);
 }
 
 .ring g {
@@ -19,23 +19,25 @@
 }
 
 .ring [data-full] {
-  color: var(--color-danger);
+  color: var(--color-red);
 }
 
+/* 每个窗口一节：名字、用了多少和什么时候重置，下面一条细进度条，再下面是比匀速快还是慢 */
 .windows {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  font-size: var(--font-size-sm);
+  gap: var(--space-4);
+  font-size: var(--font-size-body);
+  line-height: var(--line-height-body);
   font-variant-numeric: tabular-nums;
 }
 
 .limited {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-card);
-  background: var(--color-danger-subtle);
-  color: var(--color-danger);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-destructive) 12%, transparent);
+  color: var(--color-destructive-text);
 }
 
 .window {
@@ -48,7 +50,8 @@
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
 }
 
 .windowLine > :last-child {
@@ -59,30 +62,38 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
-  font-size: var(--font-size-sm);
+  color: var(--color-label);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-body);
+}
+
+.windowName + span {
+  color: var(--color-label);
+  font-size: var(--font-size-body);
   font-weight: var(--font-weight-medium);
 }
 
 .swatch {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
   background: var(--window);
 }
 
 .muted {
-  color: var(--color-text-tertiary);
+  color: var(--color-label-secondary);
 }
 
 .danger {
-  color: var(--color-danger);
+  color: var(--color-destructive-text);
 }
 
+/* 进度条：系统的细胶囊，颜色是这个窗口的颜色，快满了变红 */
 .bar {
+  composes: progress from '../../ui/controls.module.css';
   position: relative;
-  height: 6px;
-  border-radius: var(--radius-full);
-  background: var(--color-hover);
+  overflow: visible;
 }
 
 .bar span {
@@ -93,16 +104,17 @@
 }
 
 .bar[data-full] span {
-  background: var(--color-danger);
+  background: var(--color-red);
 }
 
-/* 匀速线 */
+/* 匀速线：匀速用到现在该到的位置 */
 .bar i {
   position: absolute;
   top: -3px;
   bottom: -3px;
   width: 2px;
+  height: auto;
   margin-left: -1px;
   border-radius: var(--radius-full);
-  background: var(--color-text-secondary);
+  background: var(--color-label-secondary);
 }

@@ -24,7 +24,7 @@ export function MusicStatusButton({ collapsed, onToggle }: { collapsed: boolean;
   if (!track || state.status === 'idle') return null
   return (
     <button type="button" className={styles.statusButton} aria-label={collapsed ? '显示音乐播放器' : '收起音乐播放器'} aria-expanded={!collapsed} title={`${track.title} · ${labels[state.status]}`} onClick={onToggle}>
-      <Music2 size={21} strokeWidth={1.75} />
+      <Music2 size={20} strokeWidth={1.75} />
       {(state.status === 'playing' || state.status === 'loading') && <span className={styles.playingDot} />}
     </button>
   )
@@ -73,9 +73,9 @@ function PlayerPanel({ screen, onCollapse, onOpen, locked }: { screen: Dimension
             update(next)
             savePosition(next)
           }}
-        ><GripHorizontal size={15} /><span>{labels[state.status]}</span></button>
-        <button type="button" className={styles.iconButton} aria-label="停止播放" title="停止播放" onClick={() => music.stop()}><Square size={13} /></button>
-        <button type="button" className={styles.iconButton} aria-label="收起音乐播放器" title="收起，音乐继续播放" onClick={onCollapse}><Minus size={16} /></button>
+        ><GripHorizontal size={14} strokeWidth={2} /><span>{labels[state.status]}</span></button>
+        <button type="button" className={styles.iconButton} aria-label="停止播放" title="停止播放" onClick={() => music.stop()}><Square size={11} fill="currentColor" strokeWidth={2} /></button>
+        <button type="button" className={styles.iconButton} aria-label="收起音乐播放器" title="收起，音乐继续播放" onClick={onCollapse}><Minus size={15} strokeWidth={2} /></button>
       </header>
       <button type="button" className={styles.info} aria-label="打开音乐 App" onClick={onOpen}>
         <span className={styles.artwork}>{track.artworkUrl ? <img src={track.artworkUrl} alt="" referrerPolicy="no-referrer" /> : <Disc3 size={28} strokeWidth={1.5} />}</span>

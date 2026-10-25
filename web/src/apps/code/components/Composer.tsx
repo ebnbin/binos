@@ -288,7 +288,7 @@ export function Composer({
           }}>
             <Select.Trigger className={styles.model} aria-label="模型" title={running ? '回答结束后可切换模型' : '选择模型'}>
               <span>{selectedModel?.name ?? choice.model ?? agents[choice.agent].name}</span>
-              <ChevronDown size={13} />
+              <ChevronDown size={12} strokeWidth={2.25} />
             </Select.Trigger>
             <Select.Portal>
               <Select.Content className={styles.modelMenu} position="popper" side="top" sideOffset={8} collisionPadding={12}>
@@ -311,7 +311,7 @@ export function Composer({
           </Select.Root>
           <Popover open={settingsOpen} onOpenChange={setSettingsOpen} label="思考程度" side="top" align="start" className={styles.settingsMenu} trigger={
             <button type="button" className={styles.settings} disabled={running} aria-label={`思考程度：${choice.effort ? effortName(choice.effort) : '默认'}`} title="思考程度">
-              <Settings2 size={18} />
+              <Settings2 size={16} strokeWidth={1.75} />
               {choice.effort && <span>{effortName(choice.effort)}</span>}
             </button>
           }>
@@ -350,7 +350,7 @@ export function Composer({
                       aria-label="打断并发送"
                       title="打断正在做的事，马上处理这句话"
                     >
-                      <Zap size={14} strokeWidth={2} />
+                      <Zap size={13} strokeWidth={2} />
                       打断
                     </button>
                     <button
@@ -360,7 +360,7 @@ export function Composer({
                       aria-label="排队"
                       title={enterSends ? `排队：这一轮答完再发（${queueShortcut}）` : '排队：这一轮答完再发'}
                     >
-                      <ListPlus size={14} strokeWidth={2} />
+                      <ListPlus size={13} strokeWidth={2} />
                       排队
                     </button>
                   </>
@@ -372,7 +372,7 @@ export function Composer({
                   aria-label={running ? '插话' : '发送'}
                   title={running ? '插话：agent 在下一步看到' : '发送'}
                 >
-                  <ArrowUp size={17} strokeWidth={2.2} />
+                  <ArrowUp size={16} strokeWidth={2.5} />
                 </button>
               </>
             )}

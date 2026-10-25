@@ -1,7 +1,10 @@
-/* 按 app 自己的宽度排版，不按整个页面：宽度不小于 960（列表 320 + 对话区最小可读宽度 640）时两列并排，否则一次只显示一页 */
+/* 按 app 自己的宽度排版，不按整个页面：宽度不小于 960 时侧栏和对话并排，否则一次只显示一页。
+   并排时侧栏是一块浮起的玻璃，四周和窗口留出间距，圆角和窗口同心；对话区铺满右边 */
 .app {
   container: agent / inline-size;
   height: 100%;
+  background: var(--color-background);
+  color: var(--color-label);
 }
 
 .layout {
@@ -10,8 +13,12 @@
   height: 100%;
 }
 
+/* 侧栏浮在对话之上，阴影不被对话顶部的渐隐盖住 */
 .listPane {
+  position: relative;
+  z-index: 2;
   min-height: 0;
+  padding: var(--space-2) 0 var(--space-2) var(--space-2);
 }
 
 .conversationPane {
@@ -22,39 +29,21 @@
 }
 
 .missing {
-  display: flex;
+  composes: empty from '../../ui/controls.module.css';
   flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  color: var(--color-text-tertiary);
 }
 
 .missing p {
   margin: 0;
+  color: var(--color-label);
+  font-size: var(--font-size-title-3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-title-3);
 }
 
-.missing button {
-  color: var(--color-text);
-  text-decoration: underline;
-}
-
-@container agent (width < 960px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* 隐藏的一页叠在下面，保留滚动位置：返回列表时还在原来的位置 */
-  .listPane,
-  .conversationPane {
-    grid-area: 1 / 1;
-  }
-
-  .layout[data-view='list'] .conversationPane,
-  .layout[data-view='conversation'] .listPane {
-    visibility: hidden;
-  }
+.missingButton {
+  composes: button from '../../ui/controls.module.css';
+  margin-top: var(--space-2);
 }
 
 .toolBar {
@@ -67,11 +56,52 @@
 }
 
 @container agent (width < 960px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .listPane {
+    padding: 0;
+  }
+
+  /* 隐藏的一页叠在下面，保留滚动位置：返回列表时还在原来的位置 */
+  .listPane,
+  .conversationPane {
+    grid-area: 1 / 1;
+  }
+
+  .layout[data-view='list'] .conversationPane,
+  .layout[data-view='conversation'] .listPane {
+    visibility: hidden;
+  }
+
+  /* 导航栏：左边玻璃的返回按钮，标题居中 */
   .toolBar {
-    display: flex;
+    display: grid;
+    grid-template-columns: var(--size-toolbar-item) minmax(0, 1fr) var(--size-toolbar-item);
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--color-border);
+    flex: none;
+    min-height: var(--size-toolbar);
+    padding: 0 var(--space-margin);
+  }
+
+  .toolBar > button {
+    background: var(--material-glass);
+    box-shadow: var(--shadow-glass);
+    color: var(--color-label);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+  }
+
+  .toolBar > span {
+    overflow: hidden;
+    color: var(--color-label);
+    font-size: var(--font-size-headline);
+    font-weight: var(--font-weight-headline);
+    line-height: var(--line-height-headline);
+    text-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 }

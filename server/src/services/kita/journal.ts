@@ -62,3 +62,27 @@ export function projectItems(events: Event[]): Item[] {
   }
   return [...items.values()]
 }
+
+// 发给页面的命令和输出最多这么长：收起时只显示命令的开头、输出的最后几行，展开时再读完整的
+const pageTextLimit = 512
+
+// 从末尾往前留 limit 个字符，能在换行处切开就不留半行
+function tail(text: string, limit: number) {
+  const kept = text.slice(-limit)
+  const newline = kept.indexOf('\n')
+  return newline >= 0 && newline < kept.length - 1 ? kept.slice(newline + 1) : kept
+}
+
+// 页面只用到事件的序号和条目
+export type PageEvent = Pick<Event, 'seq' | 'data'>
+
+// 发给页面的事件：过长的命令和工具输出省略掉，长会话里它们占了绝大部分的体积
+export function clipEvent({ seq, data }: PageEvent): PageEvent {
+  if (data.type === 'tool_call' && data.tool.kind === 'command' && data.tool.command.length > pageTextLimit) {
+    return { seq, data: { ...data, tool: { ...data.tool, command: data.tool.command.slice(0, pageTextLimit) }, clipped: true } }
+  }
+  if (data.type === 'tool_result' && data.output && data.output.length > pageTextLimit) {
+    return { seq, data: { ...data, output: tail(data.output, pageTextLimit), clipped: true } }
+  }
+  return { seq, data }
+}

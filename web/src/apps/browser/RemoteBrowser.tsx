@@ -257,15 +257,17 @@ export function RemoteBrowser({ ctx, session }: { ctx: WindowContext; session: R
       <div className={styles.navigation}>
         <IconButton icon={ArrowLeft} label="后退" disabled={closed || !state.canBack} onClick={() => send({ type: 'back' })} />
         <IconButton icon={ArrowRight} label="前进" disabled={closed || !state.canForward} onClick={() => send({ type: 'forward' })} />
+      </div>
+      <div className={styles.navigation}>
         <IconButton icon={RotateCw} label="刷新网页" disabled={closed} onClick={() => send({ type: 'reload' })} />
         <IconButton icon={Keyboard} label="输入文字" disabled={closed} onClick={() => input.current?.focus({ preventScroll: true })} />
         <IconButton icon={X} label="关闭远程标签页" disabled={closed || !session.current} onClick={() => send({ type: 'close' })} />
       </div>
       <form className={styles.address} onSubmit={(event) => { event.preventDefault(); visit() }}>
         <input aria-label="网址" value={address} onChange={(event) => setAddress(event.target.value)} onFocus={(event) => event.target.select()} placeholder="输入网址" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-        <button type="submit" disabled={closed || !!status && status !== '正在加载页面…'}>前往</button>
+        <button type="submit" className={styles.go} disabled={closed || !!status && status !== '正在加载页面…'}>前往</button>
       </form>
-      <button type="button" onClick={() => { setClosed(false); setRetry((value) => value + 1) }}>{closed ? '打开远程标签页' : '重新连接'}</button>
+      <button type="button" className={styles.action} onClick={() => { setClosed(false); setRetry((value) => value + 1) }}>{closed ? '打开远程标签页' : '重新连接'}</button>
     </div>
     <div className={styles.notice}>使用 Mac 上个人 Chrome 的登录状态。当前支持页面画面与基础操作，暂不支持声音、文件传输、复制和新窗口。</div>
     {error && <p className={styles.error} role="alert">{error}</p>}

@@ -1,4 +1,4 @@
-import { CalendarDays, CodeXml, Folder, Gauge, Globe, Music, Terminal } from 'lucide-react'
+import { CalendarDays, Cat, CodeXml, Folder, Gauge, Globe, Music, Terminal } from 'lucide-react'
 import { lazy } from 'react'
 import type { ApplicationDefinition } from './types.ts'
 
@@ -75,6 +75,17 @@ export const builtinApplications: ApplicationDefinition[] = [
       },
     },
     widgets: { recent: { name: '最近的对话', viewId: 'recent', sizes: ['2x2', '4x2', '4x4'] } },
+  },
+  {
+    id: 'kita',
+    name: '喜多',
+    icon: Cat,
+    mainWindow: { viewId: 'main' },
+    views: {
+      main: { kind: 'window', component: lazy(() => import('./kita/KitaApp.tsx').then((module) => ({ default: module.KitaApp }))) },
+      status: { kind: 'widget', component: lazy(() => import('./kita/KitaWidget.tsx').then((module) => ({ default: module.KitaWidget }))) },
+    },
+    widgets: { status: { name: '喜多', viewId: 'status', sizes: ['2x2', '4x2', '4x4'] } },
   },
   {
     id: 'system',

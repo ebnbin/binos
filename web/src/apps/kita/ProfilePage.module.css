@@ -1,0 +1,146 @@
+/* 喜多的资料：像通讯录的联系人卡片，头像和大标题在上，照片和描述是分组 */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-background-grouped);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-margin) var(--space-10);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: var(--font-size-large-title);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-large-title);
+}
+
+.page section {
+  display: flex;
+  flex-direction: column;
+}
+
+.heading {
+  composes: groupHeader from '../../ui/controls.module.css';
+}
+
+.photos {
+  composes: group from '../../ui/controls.module.css';
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.photo {
+  position: relative;
+  margin: 0;
+  aspect-ratio: 1;
+}
+
+.pick {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border-radius: calc(var(--radius-card) - var(--space-2));
+  background: var(--color-fill-tertiary);
+}
+
+/* 当前的头像外面有一圈强调色 */
+.photo[data-avatar] .pick {
+  box-shadow: 0 0 0 3px var(--color-accent);
+}
+
+.photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter var(--duration-fast) var(--ease-standard);
+}
+
+.pick:active img {
+  filter: brightness(0.85);
+}
+
+/* 删除：照片角上的一个小玻璃圆按钮 */
+.photo .remove {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+  background: var(--material-glass-thick);
+  box-shadow: var(--shadow-glass);
+  color: var(--color-label);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+}
+
+.upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  aspect-ratio: 1;
+  border-radius: calc(var(--radius-card) - var(--space-2));
+  background: var(--color-fill-quaternary);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+  font-weight: var(--font-weight-medium);
+}
+
+@media (hover: hover) {
+  .upload:hover {
+    background: var(--color-fill-tertiary);
+  }
+}
+
+.upload:active {
+  background: var(--color-fill);
+}
+
+.description {
+  composes: group from '../../ui/controls.module.css';
+  padding: var(--space-3);
+  border: 0;
+  outline-offset: 0;
+  color: var(--color-label);
+  font-size: var(--font-size-input);
+  line-height: var(--line-height-content);
+  resize: vertical;
+}
+
+.description:focus {
+  outline: 3px solid var(--color-focus-ring);
+}
+
+.save {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.button {
+  composes: button from '../../ui/controls.module.css';
+}
+
+.primary {
+  composes: prominent from '../../ui/controls.module.css';
+}

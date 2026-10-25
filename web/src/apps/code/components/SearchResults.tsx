@@ -29,7 +29,7 @@ export function SearchResults({
       <div className={styles.state} role="alert">
         <span>搜索失败</span>
         <p>未能加载结果，请重试。</p>
-        <button type="button" onClick={onRetry}>
+        <button type="button" className={styles.retry} onClick={onRetry}>
           重新搜索
         </button>
       </div>
@@ -44,7 +44,7 @@ export function SearchResults({
   if (!data.results.length)
     return (
       <div className={styles.state} role="status">
-        <Search size={24} strokeWidth={1.5} />
+        <Search size={32} strokeWidth={1.5} />
         <span>没有找到相关内容</span>
         <p>试试更短的关键词，或换个说法。</p>
       </div>
@@ -80,7 +80,7 @@ export function SearchResults({
               </span>
               <span className={styles.count}>
                 {matches.length} 处匹配
-                <ArrowUpRight size={13} />
+                <ArrowUpRight size={12} strokeWidth={2} />
               </span>
             </button>
             {matches
@@ -90,7 +90,7 @@ export function SearchResults({
                 return (
                   <button type="button" className={styles.match} key={match.item} onClick={() => onNavigate(`/${id}?item=${match.item}`)}>
                     <span className={styles.kind}>
-                      <Icon size={12} />
+                      <Icon size={12} strokeWidth={2} />
                       {match.kind === 'input' ? '你' : '回复'}
                     </span>
                     <span className={styles.snippet}>

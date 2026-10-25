@@ -1,0 +1,130 @@
+/* 记忆：设置页式的分组列表，待确认和已确认各一组 */
+.page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--color-background-grouped);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-margin) var(--space-10);
+}
+
+.hint {
+  composes: group from '../../ui/controls.module.css';
+  margin: 0;
+  padding: var(--space-3);
+  color: var(--color-label-secondary);
+}
+
+.page section {
+  display: flex;
+  flex-direction: column;
+}
+
+.heading {
+  composes: groupHeader from '../../ui/controls.module.css';
+}
+
+.add {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.field {
+  composes: field from '../../ui/controls.module.css';
+  flex: 1;
+}
+
+.prominent {
+  composes: prominent from '../../ui/controls.module.css';
+}
+
+.list {
+  composes: group from '../../ui/controls.module.css';
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2-5) var(--space-3);
+}
+
+.item + .item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-3);
+  border-top: 0.5px solid var(--color-separator);
+}
+
+.text {
+  margin: 0;
+  line-height: var(--line-height-content);
+  white-space: pre-wrap;
+}
+
+.edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.textarea {
+  composes: field from '../../ui/controls.module.css';
+  height: auto;
+  padding: var(--space-2);
+  line-height: var(--line-height-content);
+  resize: vertical;
+}
+
+.edit div {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.button {
+  composes: button from '../../ui/controls.module.css';
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--color-label-secondary);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
+}
+
+.actions {
+  display: flex;
+  flex: none;
+  margin-right: calc(-1 * var(--space-1));
+}
+
+.actions button {
+  width: var(--size-control-md);
+  height: var(--size-control-md);
+}
+
+.source {
+  composes: link from '../../ui/controls.module.css';
+  height: auto;
+  padding: 0;
+  font-size: inherit;
+}

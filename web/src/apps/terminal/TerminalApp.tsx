@@ -65,7 +65,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
     <div className={styles.app}>
       <header className={styles.toolbar}>
         <strong>
-          <TerminalIcon size={17} />
+          <TerminalIcon size={16} strokeWidth={1.75} />
           宿主 Mac
         </strong>
         <div className={styles.actions}>
@@ -131,7 +131,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
         </>
       ) : (
         <div className={styles.empty}>
-          <TerminalIcon size={36} strokeWidth={1.3} />
+          <TerminalIcon size={32} strokeWidth={1.5} />
           <h2>{!snapshot ? '正在连接宿主 Mac…' : !snapshot.available ? '需要安装 tmux' : id ? '这个终端已结束' : 'Mac 的命令行，在 binOS 中使用'}</h2>
           {snapshot &&
             (snapshot.available ? (

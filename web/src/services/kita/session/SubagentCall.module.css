@@ -1,14 +1,16 @@
+/* 交给子 agent 的任务说明：和代码块一样的圆角块 */
 .prompt {
   max-height: 240px;
   margin: 0;
-  padding: var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
   overflow: auto;
-  border-radius: var(--radius-card);
-  background: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  background: var(--color-background-secondary);
+  box-shadow: inset 0 0 0 0.5px var(--color-border);
+  color: var(--color-label-secondary);
   font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
+  font-size: var(--font-size-footnote);
+  line-height: var(--line-height-footnote);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: var(--color-text-secondary);
 }

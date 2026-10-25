@@ -19,8 +19,8 @@ export function TurnChanges({ thread, files }: { thread: string; files: FileChan
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <FileDiff size={14} strokeWidth={1.75} />
-        <span>改动了 {files.length} 个文件</span>
+        <FileDiff strokeWidth={1.75} className={styles.headerIcon} aria-hidden />
+        <span className={styles.headerTitle}>改动了 {files.length} 个文件</span>
         <Counts added={added} removed={removed} />
       </div>
       <ul className={styles.files}>
@@ -37,7 +37,7 @@ function FileRow({ thread, file }: { thread: string; file: FileChange }) {
   return (
     <li data-open={open || undefined}>
       <button type="button" className={styles.row} onClick={() => setOpen(!open)} aria-expanded={open} title={file.path}>
-        <ChevronRight size={13} strokeWidth={2} className={styles.chevron} />
+        <ChevronRight strokeWidth={2.25} className={styles.chevron} aria-hidden />
         <span className={styles.name}>{file.path.split('/').at(-1)}</span>
         <span className={styles.dir}>{directory(file.path)}</span>
         {file.op && <span className={styles.kind}>{opText[file.op]}</span>}
@@ -45,8 +45,8 @@ function FileRow({ thread, file }: { thread: string; file: FileChange }) {
       </button>
       {open && (
         <div className={styles.body}>
-          {file.calls.map(({ call, result }) => (
-            <ToolBody key={call.id} thread={thread} call={call} result={result} />
+          {file.calls.map(({ call, index, result }) => (
+            <ToolBody key={call.id} thread={thread} index={index} call={call} result={result} />
           ))}
         </div>
       )}

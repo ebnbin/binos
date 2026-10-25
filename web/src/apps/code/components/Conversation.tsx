@@ -6,6 +6,7 @@ import { ArrowDown, Folder } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Transcript } from '../../../services/kita/session/Transcript.tsx'
+import { useFollowBottom } from '../../../services/kita/session/useFollowBottom.ts'
 import { useKitaSession } from '../../../services/kita/session/useKitaSession.ts'
 import { Alert } from '../../../ui/Alert.tsx'
 import { BrandMark } from '../../../ui/BrandMark.tsx'
@@ -45,7 +46,7 @@ export function Conversation({
   scrollRef: RefObject<HTMLDivElement | null>
   onCreated: (id: number, thread: string) => void
 }) {
-  const { items, live } = useKitaSession(thread)
+  const { items, offset, session: head, live, loadOlder } = useKitaSession(thread)
   const running = live !== null
   // 下一轮用的模型和思考程度，没选过就沿用这个 session 最近一轮的
   const [picked, setPicked] = useState<Choice>()
@@ -60,8 +61,16 @@ export function Conversation({
   const [notice, setNotice] = useState('')
   const stick = useRef(targetItem === undefined)
   const located = useRef(false)
+  useFollowBottom(scrollRef, stick)
   // 往上翻看时，下方出现回到底部的按钮
   const [awayFromBottom, setAwayFromBottom] = useState(false)
+
+  // 要定位的条目在已读到的之前时，一直补读到它
+  useEffect(() => {
+    if (targetItem !== undefined && !located.current && head && targetItem < offset) {
+      loadOlder(targetItem)
+    }
+  }, [targetItem, head, offset, loadOlder])
 
   useLayoutEffect(() => {
     const el = scrollRef.current
@@ -141,10 +150,10 @@ export function Conversation({
           <div className={styles.column}>
             {sessionId === null ? (
               <div className={styles.empty}>
-                <BrandMark size={36} />
+                <BrandMark size={48} />
                 <h1>开始新对话</h1>
                 <div className={styles.projectChoice}>
-                  <Folder size={16} aria-hidden="true" />
+                  <Folder size={16} strokeWidth={1.75} aria-hidden="true" />
                   <Select
                     label="对话所属项目"
                     value={project}
@@ -154,14 +163,16 @@ export function Conversation({
                 </div>
               </div>
             ) : (
-              thread && <Transcript thread={thread} items={items} live={live} />
+              thread && (
+                <Transcript thread={thread} agent={head?.agent} items={items} offset={offset} live={live} scrollRef={scrollRef} loadOlder={loadOlder} />
+              )
             )}
             {notice && <Alert>{notice}</Alert>}
           </div>
         </div>
         {awayFromBottom && (
           <button type="button" className={styles.toBottom} onClick={scrollToBottom} aria-label="回到底部" title="回到底部">
-            <ArrowDown size={16} strokeWidth={2} />
+            <ArrowDown size={18} strokeWidth={1.75} />
           </button>
         )}
       </div>

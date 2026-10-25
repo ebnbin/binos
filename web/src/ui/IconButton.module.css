@@ -1,24 +1,3 @@
 .button {
-  display: grid;
-  place-items: center;
-  width: var(--size-control-lg);
-  height: var(--size-control-lg);
-  flex: none;
-  border-radius: var(--radius-control);
-  color: var(--color-text-secondary);
-  transition: background-color var(--duration-fast);
-}
-
-@media (hover: hover) {
-  .button:hover:not(:disabled) {
-    background: var(--color-hover);
-  }
-}
-
-.button:active:not(:disabled) {
-  background: var(--color-hover);
-}
-
-.button:disabled {
-  opacity: var(--opacity-disabled);
+  composes: icon from './controls.module.css';
 }

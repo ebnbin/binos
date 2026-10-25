@@ -5,6 +5,7 @@ import {
   CircleAlert,
   CircleStop,
   Clock,
+  FolderPlus,
   Gauge,
   GitPullRequest,
   Hourglass,
@@ -62,11 +63,12 @@ export function SessionList({
       </header>
       <AuthBanner />
       <button type="button" className={styles.newButton} onClick={() => onNavigate('/new')}>
-        <SquarePen size={16} strokeWidth={1.75} />
-        新对话
+        <SquarePen size={16} strokeWidth={1.75} className={styles.icon} />
+        <span className={styles.title}>新对话</span>
       </button>
       <button type="button" className={styles.projectButton} disabled={saving} onClick={() => { setCreating(!creating); setConnecting(undefined); setMode('existing'); setName(''); setRepository(''); setError('') }}>
-        创建项目
+        <FolderPlus size={16} strokeWidth={1.75} className={styles.icon} />
+        <span className={styles.title}>创建项目</span>
       </button>
       {creating && (
         <form
@@ -89,6 +91,7 @@ export function SessionList({
           }}
         >
           <input
+            className={styles.field}
             autoFocus
             disabled={saving || !!connecting}
             aria-label="项目名称"
@@ -105,20 +108,21 @@ export function SessionList({
             options={[{ value: 'existing', label: '关联已有仓库' }, { value: 'new', label: '创建私有 GitHub 仓库' }]}
           />
           <input
+            className={styles.field}
             aria-label="GitHub 仓库"
             placeholder="owner/repository"
             value={repository}
             disabled={saving}
             onChange={(event) => setRepository(event.target.value)}
           />
-          <button type="submit" disabled={!name.trim() || !repository.trim() || saving}>
+          <button type="submit" className={styles.submit} disabled={!name.trim() || !repository.trim() || saving}>
             {saving ? '准备仓库中…' : connecting ? '关联' : '创建'}
           </button>
           {error && <p role="alert">{error}</p>}
         </form>
       )}
       <label className={styles.search}>
-        <Search size={14} strokeWidth={1.75} />
+        <Search size={14} strokeWidth={2} />
         <input
           type="search"
           value={query}
@@ -133,7 +137,7 @@ export function SessionList({
         />
         {query && (
           <button type="button" className={styles.clear} onClick={() => setQuery('')} aria-label="清除搜索">
-            <X size={13} strokeWidth={2} />
+            <X size={10} strokeWidth={3} />
           </button>
         )}
       </label>
@@ -142,7 +146,7 @@ export function SessionList({
           {([['builds', 'binOS 构建', Hammer], ['devices', '设备', Smartphone]] as const).map(([name, label, Icon]) => (
             <li key={name}>
               <button type="button" className={styles.item} aria-current={currentTool === name ? 'page' : undefined} onClick={() => onNavigate(`/${name}`)}>
-                <span className={styles.line}><Icon size={16} strokeWidth={1.75} /><span className={styles.title}>{label}</span></span>
+                <span className={styles.line}><Icon size={16} strokeWidth={1.75} className={styles.icon} /><span className={styles.title}>{label}</span></span>
               </button>
             </li>
           ))}
@@ -163,12 +167,12 @@ export function SessionList({
           projects.map((project) => (
             <section key={project.id}>
               <div className={styles.projectHeader}>
-                <span>
+                <span className={styles.projectName}>
                   {project.name}
                   {project.repository && <a className={styles.repository} href={`https://github.com/${project.repository}`} target="_blank" rel="noreferrer">{project.repository}</a>}
                 </span>
                 {project.id !== 'binos' && !project.repository && (
-                  <button type="button" disabled={saving} onClick={() => {
+                  <button type="button" className={styles.headerLink} disabled={saving} onClick={() => {
                     setMode('existing')
                     setConnecting(project.id)
                     setName(project.name)
@@ -177,8 +181,8 @@ export function SessionList({
                     setCreating(true)
                   }}>关联仓库</button>
                 )}
-                <button type="button" aria-label={`在 ${project.name} 中新建对话`} onClick={() => onNavigate(`/new?project=${project.id}`)}>
-                  <SquarePen size={14} />
+                <button type="button" className={styles.headerIcon} aria-label={`在 ${project.name} 中新建对话`} onClick={() => onNavigate(`/new?project=${project.id}`)}>
+                  <SquarePen size={14} strokeWidth={2} />
                 </button>
               </div>
               <Sections
@@ -276,7 +280,7 @@ function Sections({
             onClick={() => setShowArchived(!showArchived)}
             aria-expanded={showArchived}
           >
-            <ChevronRight size={13} strokeWidth={2} className={styles.toggleChevron} />
+            <ChevronRight size={12} strokeWidth={2.5} className={styles.toggleChevron} />
             已归档 {archived.length}
           </button>
           {(showArchived || searching) && items(archived)}
@@ -326,7 +330,7 @@ function SessionItem({
       {!renaming && (
         <SessionActions session={session} onRename={() => setRenaming(true)} open={menuOpen} onOpenChange={setMenuOpen}>
           <button type="button" className={styles.more} aria-label="更多操作" aria-expanded={menuOpen}>
-            <MoreHorizontal size={15} strokeWidth={1.75} />
+            <MoreHorizontal size={16} strokeWidth={2} />
           </button>
         </SessionActions>
       )}

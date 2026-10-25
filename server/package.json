@@ -14,6 +14,8 @@
     "./services/kita/drivers/codex/api": "./src/services/kita/drivers/codex/api.ts",
     "./apps/code/api": "./src/apps/code/api.ts",
     "./apps/code/types": "./src/apps/code/types.ts",
+    "./apps/kita/api": "./src/apps/kita/api.ts",
+    "./apps/kita/types": "./src/apps/kita/types.ts",
     "./apps/music/api": "./src/apps/music/api.ts",
     "./apps/music/types": "./src/apps/music/types.ts",
     "./apps/system/types": "./src/apps/system/types.ts",

@@ -1,5 +1,5 @@
 import { drivers } from './drivers/index.js'
-import { createKitaSession, getKitaSession, onKitaSessionEvent, startSessions } from './sessions.js'
+import { createKitaSession, deleteKitaSession, getKitaSession, onKitaSessionEvent, ownedSessions, startSessions } from './sessions.js'
 import type { KitaSessionOptions } from './sessions.js'
 import type { KitaSessionEvent } from './types.js'
 import type { AgentId } from './types.js'
@@ -14,6 +14,8 @@ export function forApp(owner: string) {
   return {
     createSession: (options: Omit<KitaSessionOptions, 'owner'>) => createKitaSession({ ...options, owner }),
     getSession: (id: string) => getKitaSession(id, owner),
+    listSessions: () => ownedSessions(owner),
+    deleteSession: (id: string) => deleteKitaSession(id, owner),
     onEvent: (listener: (id: string, event: KitaSessionEvent) => void) => onKitaSessionEvent(owner, listener),
   }
 }
