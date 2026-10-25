@@ -1,8 +1,9 @@
 import * as Select from '@radix-ui/react-select'
 import { Popover } from '../../../ui/Popover.tsx'
 import { ArrowUp, Check, ChevronDown, Clock, Settings2, ListPlus, Paperclip, X, Zap } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
-import type { ClipboardEvent, DragEvent, KeyboardEvent } from 'react'
+import type { ClipboardEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react'
 import type { QueuedMessage, SessionSummary } from '@binos/server/apps/code/types'
 import { agents } from '@binos/server/services/kita/types'
 import { PendingAttachments } from '../../../services/kita/session/Attachments.tsx'
@@ -340,45 +341,131 @@ export function Composer({
                 <span className={styles.stopIcon} />
               </button>
             ) : (
-              <>
-                {running && (
-                  <>
-                    <button
-                      type="button"
-                      className={styles.interrupt}
-                      onClick={() => void send('interrupt')}
-                      aria-label="打断并发送"
-                      title="打断正在做的事，马上处理这句话"
-                    >
-                      <Zap size={13} strokeWidth={2} />
-                      打断
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.interrupt}
-                      onClick={() => void send('queue')}
-                      aria-label="排队"
-                      title={enterSends ? `排队：这一轮答完再发（${queueShortcut}）` : '排队：这一轮答完再发'}
-                    >
-                      <ListPlus size={13} strokeWidth={2} />
-                      排队
-                    </button>
-                  </>
-                )}
-                <button
-                  type="submit"
-                  className={styles.action}
-                  disabled={!canSend}
-                  aria-label={running ? '插话' : '发送'}
-                  title={running ? '插话：agent 在下一步看到' : '发送'}
-                >
-                  <ArrowUp size={16} strokeWidth={2.5} />
-                </button>
-              </>
+              <SendButton running={running} disabled={!canSend} onSend={(mode) => void send(mode)} />
             )}
           </div>
         </div>
       </form>
     </div>
+  )
+}
+
+const holdDelay = 350
+
+type HeldMode = Extract<SendMode, 'queue' | 'interrupt'>
+
+const heldModes: { mode: HeldMode; icon: LucideIcon; label: string; title: string }[] = [
+  { mode: 'queue', icon: ListPlus, label: '排队', title: enterSends ? `这一轮答完再发（${queueShortcut}）` : '这一轮答完再发' },
+  { mode: 'interrupt', icon: Zap, label: '打断', title: '打断正在做的事，马上处理这句话' },
+]
+
+const modeAt = (x: number, y: number) => (document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-held-mode]')?.dataset.heldMode as HeldMode | undefined)
+
+// 发送按钮。正在回答时点按是插话；长按或右键在上方浮出排队和打断：手指不松开滑到一项上松手就执行，滑到别处松手取消，
+// 没滑动就松手时菜单留着，可以再点
+function SendButton({ running, disabled, onSend }: { running: boolean; disabled: boolean; onSend: (mode: SendMode) => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [active, setActive] = useState<HeldMode>()
+  const wrapRef = useRef<HTMLSpanElement>(null)
+  const timer = useRef<number>(undefined)
+  // 这次按下已经打开了菜单，松手后的 click 不再发送
+  const held = useRef(false)
+  const start = useRef({ x: 0, y: 0, moved: false })
+  const open = menuOpen && running && !disabled
+
+  function close() {
+    setMenuOpen(false)
+    setActive(undefined)
+  }
+
+  function choose(mode: HeldMode) {
+    close()
+    onSend(mode)
+  }
+
+  // 点菜单和按钮以外的地方、按 Esc 时收起
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      if (!wrapRef.current?.contains(event.target as Node)) close()
+    }
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  function onPointerDown(event: PointerEvent<HTMLButtonElement>) {
+    held.current = false
+    if (!running || disabled || event.button !== 0) return
+    // 鼠标移出按钮后也继续收到移动和松开
+    event.currentTarget.setPointerCapture(event.pointerId)
+    start.current = { x: event.clientX, y: event.clientY, moved: false }
+    timer.current = window.setTimeout(() => {
+      held.current = true
+      setMenuOpen(true)
+      navigator.vibrate?.(10)
+    }, holdDelay)
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLButtonElement>) {
+    if (!held.current) return
+    if (Math.hypot(event.clientX - start.current.x, event.clientY - start.current.y) > 8) start.current.moved = true
+    setActive(modeAt(event.clientX, event.clientY))
+  }
+
+  function onPointerUp(event: PointerEvent<HTMLButtonElement>) {
+    window.clearTimeout(timer.current)
+    if (!held.current) return
+    const mode = modeAt(event.clientX, event.clientY)
+    if (mode) choose(mode)
+    else if (start.current.moved) close()
+  }
+
+  return (
+    <span ref={wrapRef} className={styles.send}>
+      {open && (
+        <span className={styles.heldMenu} role="menu" aria-label="发送方式">
+          {heldModes.map(({ mode, icon: Icon, label, title }) => (
+            <button key={mode} type="button" role="menuitem" data-held-mode={mode} data-active={active === mode || undefined} title={title} onClick={() => choose(mode)}>
+              <Icon size={16} strokeWidth={2} />
+              {label}
+            </button>
+          ))}
+        </span>
+      )}
+      <button
+        type="submit"
+        className={styles.action}
+        disabled={disabled}
+        aria-label={running ? '插话' : '发送'}
+        aria-haspopup={running ? 'menu' : undefined}
+        aria-expanded={running ? open : undefined}
+        title={running ? '插话：agent 在下一步看到；长按可以排队或打断' : '发送'}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => window.clearTimeout(timer.current)}
+        onClick={(event) => {
+          if (held.current) {
+            event.preventDefault()
+            held.current = false
+          }
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault()
+          if (running && !disabled) setMenuOpen(true)
+        }}
+      >
+        <ArrowUp size={16} strokeWidth={2.5} />
+      </button>
+    </span>
   )
 }
