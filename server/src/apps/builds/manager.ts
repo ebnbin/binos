@@ -1,18 +1,38 @@
 import { execFile, spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { previewsDir } from '../../paths.js'
+import { closeFinishedPreviews } from '../../preview-instances.js'
 import { isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { automatic, mock, repository, resultsDir, statePath, version, workDir } from './config.js'
-import type { Build, Request, Settings, Snapshot, Target } from './types.js'
+import { targetArtifacts, targetScripts, targets } from './types.js'
+import type { Artifact, Build, Request, Settings, Snapshot, Target } from './types.js'
 const exec = promisify(execFile)
 const now = () => new Date().toISOString()
 const git = async (...args: string[]) => (await exec('git', args, { cwd: repository, timeout: 120_000, maxBuffer: 4 << 20 })).stdout.trim()
 const read = <T>(file: string): T | undefined => { try { return JSON.parse(readFileSync(file, 'utf8')) as T } catch { return undefined } }
 type State = { mode: string; builds: Build[]; settings: Settings; sequence: number }
+const day = 86_400_000
+// 只保留目标声明的产物并补上类型；旧版本 runner 写的结果没有类型，也可能带着已不算产物的文件
+const declared = (target: Target, artifacts: { name: string }[]): Artifact[] =>
+  artifacts.flatMap((a) => { const spec = targetArtifacts[target].find((s) => s.name === a.name); return spec ? [{ ...a, ...spec } as Artifact] : [] })
+// 构建删了只能重编，老提交重编的结果未必相同，所以只删用不上的：main 最近 5 个提交、开着的 PR 最新提交的构建一直保留，
+// 其余结束满 3 天才删。openPrs 未知时所有 PR 都当作开着。
+export function expired(builds: Build[], openPrs: { has(pr: number): boolean } | undefined, at: number) {
+  const keep = new Set<string>()
+  const main: string[] = []
+  const prs = new Map<number, string>()
+  for (const b of [...builds].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    if (b.trigger === 'main' && !main.includes(b.commit) && main.length < 5) main.push(b.commit)
+    if (b.trigger === 'pr' && b.pr && !prs.has(b.pr) && (!openPrs || openPrs.has(b.pr))) prs.set(b.pr, b.commit)
+  }
+  for (const b of builds) if ((b.trigger === 'main' && main.includes(b.commit)) || (b.trigger === 'pr' && prs.get(b.pr!) === b.commit)) keep.add(b.id)
+  return builds.filter((b) => !['queued', 'running'].includes(b.status) && !keep.has(b.id) && at - Date.parse(b.endedAt ?? b.createdAt) >= 3 * day)
+}
 export class Manager {
   private state: State
   private polling = false
@@ -20,25 +40,32 @@ export class Manager {
   private active?: string
   private pollError?: string
   private checkedAt?: string
+  private openPrs?: Map<number, string>
   constructor() {
     mkdirSync(resultsDir, { recursive: true }); mkdirSync(workDir, { recursive: true })
     const stored = read<State>(statePath)
     if (existsSync(statePath) && !stored) throw new Error('构建登记簿损坏，已停止以保留原数据')
     if (stored && stored.mode !== (mock ? 'mock' : 'real')) throw new Error('构建数据目录不能混用真实和模拟模式')
-    this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic, adhoc: automatic }, sequence: 0 }
+    this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic }, sequence: 0 }
+    // iOS 原先分成模拟器编译和 Ad Hoc 两个目标：Ad Hoc 的记录归入 ios，没有产物的模拟器编译记录删除
+    const legacy = (b: Build) => (b.target as string) === 'ios-simulator' && b.status !== 'running'
+    for (const b of this.state.builds.filter(legacy)) rmSync(path.join(resultsDir, b.id), { recursive: true, force: true, maxRetries: 3 })
+    this.state.builds = this.state.builds.filter((b) => !legacy(b))
+    for (const b of this.state.builds) { if (!targets.includes(b.target)) b.target = 'ios'; b.artifacts = declared(b.target, b.artifacts) }
+    this.state.settings = { automatic: this.state.settings.automatic }
     this.active = this.state.builds.find((b) => b.status === 'running')?.id
     this.save()
   }
   private save() { writeFileSync(statePath + '.tmp', JSON.stringify(this.state, null, 2)); renameSync(statePath + '.tmp', statePath) }
-  snapshot(): Snapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }) } }
+  snapshot(): Snapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }), ...(this.openPrs && { prs: [...this.openPrs].map(([number, title]) => ({ number, title })) }) } }
   busy() { return this.ticking || this.polling || Boolean(this.active) }
   private enqueue(commit: string, targets: Target[], trigger: Build['trigger'], pr?: number, force = false) {
     for (const target of targets) {
-      if (!force && this.state.builds.some((b) => b.commit === commit && b.target === target && b.status !== 'cancelled' && b.status !== 'interrupted')) continue
+      // 自动构建只看是否有过记录：取消和中断的构建不会被下一次检查重新排上，需手动重试。
+      if (!force && this.state.builds.some((b) => b.commit === commit && b.target === target)) continue
       if (this.state.builds.some((b) => b.commit === commit && b.target === target && ['running', 'queued'].includes(b.status))) continue
-      if (trigger !== 'manual') for (const b of this.state.builds) {
-        if (b.status === 'queued' && b.trigger === trigger && b.pr === pr && b.target === target && b.commit !== commit) { b.status = 'cancelled'; b.error = '已有更新提交'; b.endedAt = now() }
-      }
+      // 未开始的旧任务直接移出队列，来源回到该提交时仍会自动构建。
+      if (trigger !== 'manual') this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === trigger && b.pr === pr && b.target === target && b.commit !== commit))
       this.state.builds.push({ id: randomUUID(), commit, target, trigger, ...(pr && { pr }), status: 'queued', createdAt: now(), artifacts: [] })
     }
     this.save()
@@ -48,24 +75,25 @@ export class Manager {
       case 'status': return this.snapshot()
       case 'handoff': if (this.ticking || this.polling) throw new Error('构建服务正在处理请求，请稍后更新'); return { ok: true }
       case 'stop': if (this.busy()) throw new Error('构建服务正忙，请等待或取消构建'); return { ok: true }
-      case 'settings': this.state.settings = { automatic: request.automatic, adhoc: request.adhoc }; this.save(); return this.snapshot()
+      case 'settings': this.state.settings = { automatic: request.automatic }; this.save(); return this.snapshot()
       case 'poll': await this.poll(); return this.snapshot()
       case 'enqueue': {
         let commit: string
+        const pr = request.ref.startsWith('pr/') ? Number(request.ref.slice(3)) : undefined
         if (mock) commit = /^[a-f0-9]{40}$/.test(request.ref) ? request.ref : '0'.repeat(40)
         else {
-          if (request.ref === 'main') await git('fetch', 'origin', 'main')
-          else if (request.ref.startsWith('pr/')) {
-            const line = await git('ls-remote', 'origin', `refs/pull/${request.ref.slice(3)}/head`)
-            const sha = line.split(/\s/)[0]
-            if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error('找不到 PR 提交')
-            await git('fetch', 'origin', sha)
-            commit = sha
-            this.enqueue(commit, request.targets, 'manual', undefined, true); return this.snapshot()
-          } else await git('cat-file', '-e', `${request.ref}^{commit}`).catch(() => git('fetch', 'origin', request.ref))
-          commit = await git('rev-parse', '--verify', `${request.ref === 'main' ? 'origin/main' : request.ref}^{commit}`)
+          if (pr) {
+            commit = (await git('ls-remote', 'origin', `refs/pull/${pr}/head`)).split(/\s/)[0]
+            if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error('找不到 PR 提交')
+            await git('fetch', 'origin', commit)
+          } else {
+            if (request.ref === 'main') await git('fetch', 'origin', 'main')
+            else await git('cat-file', '-e', `${request.ref}^{commit}`).catch(() => git('fetch', 'origin', request.ref))
+            commit = await git('rev-parse', '--verify', `${request.ref === 'main' ? 'origin/main' : request.ref}^{commit}`)
+          }
         }
-        this.enqueue(commit, request.targets, 'manual', undefined, true); return this.snapshot()
+        if (!pr && request.targets.includes('web')) throw new Error('web 只构建 PR 的提交，请用 pr/编号')
+        this.enqueue(commit, request.targets, 'manual', pr, true); return this.snapshot()
       }
       case 'retry': {
         const b = this.find(request.id)
@@ -92,15 +120,27 @@ export class Manager {
       if (mock) { this.checkedAt = now(); return }
       await git('fetch', '--prune', 'origin')
       const commit = await git('rev-parse', 'origin/main')
-      const selected: Target[] = ['android', 'ios-simulator', ...(this.state.settings.adhoc ? ['ios-adhoc' as const] : [])]
-      // 只编含移动端脚本的提交，避免旧分支持续产生无意义的失败。
-      const supported = async (sha: string) => git('cat-file', '-e', `${sha}:scripts/mobile-build.sh`).then(() => true, () => false)
-      if (await supported(commit)) this.enqueue(commit, selected, 'main')
-      const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
-      for (const pr of JSON.parse(stdout) as { number: number; headRefOid: string; isCrossRepository: boolean }[]) {
+      // 只编提交里有构建脚本的目标，避免旧分支持续产生无意义的失败。
+      const supported = async (sha: string, candidates: Target[]) => {
+        const found: Target[] = []
+        for (const t of candidates) if (await git('cat-file', '-e', `${sha}:${targetScripts[t]}`).then(() => true, () => false)) found.push(t)
+        return found
+      }
+      const main = await supported(commit, targets.filter((t) => t !== 'web'))
+      if (main.length) this.enqueue(commit, main, 'main')
+      const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
+      const prs = JSON.parse(stdout) as { number: number; title: string; headRefOid: string; isCrossRepository: boolean }[]
+      // 已关闭或合并的 PR 不再构建尚未开始的任务。
+      this.openPrs = new Map(prs.map((pr) => [pr.number, pr.title]))
+      this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !this.openPrs!.has(b.pr!)))
+      this.save()
+      // 列表不完整时不清理，免得误删还开着的 PR 的预览
+      if (prs.length < 100) await closeFinishedPreviews(previewsDir, new Set(this.openPrs.keys()), console.log).catch((e: unknown) => console.error('清理预览出错', e))
+      for (const pr of prs) {
         if (pr.isCrossRepository) continue
         await git('fetch', 'origin', `refs/pull/${pr.number}/head`)
-        if (await supported(pr.headRefOid)) this.enqueue(pr.headRefOid, selected, 'pr', pr.number)
+        const found = await supported(pr.headRefOid, [...targets])
+        if (found.length) this.enqueue(pr.headRefOid, found, 'pr', pr.number)
       }
       this.pollError = undefined; this.checkedAt = now()
     } catch (e) { this.pollError = e instanceof Error ? e.message : String(e) }
@@ -110,11 +150,12 @@ export class Manager {
     if (this.ticking) return
     this.ticking = true
     try {
+      await this.prune()
       if (this.active) {
         const b = this.find(this.active)
         const result = read<Pick<Build, 'status' | 'endedAt' | 'error' | 'artifacts'>>(path.join(resultsDir, b.id, 'result.json'))
         const identity = read<ProcessIdentity>(path.join(resultsDir, b.id, 'runner.json'))
-        if (result) { Object.assign(b, result); this.save() }
+        if (result) { Object.assign(b, result, { artifacts: declared(b.target, result.artifacts) }); this.save() }
         else if (identity && isRunning(identity)) return
         else if (Date.now() - Date.parse(b.startedAt!) < 10_000) return
         else {
@@ -139,7 +180,7 @@ export class Manager {
         }
         const log = openSync(path.join(result, 'build.log'), 'a', 0o600)
         try {
-          const child = spawn(process.execPath, [...process.execArgv, path.join(import.meta.dirname, `runner${path.extname(import.meta.filename)}`), source, output, path.join(result, 'result.json'), b.target, String(this.state.sequence), mock ? 'mock' : 'real'], { detached: true, stdio: ['ignore', log, log], env: process.env })
+          const child = spawn(process.execPath, [...process.execArgv, path.join(import.meta.dirname, `runner${path.extname(import.meta.filename)}`), source, output, path.join(result, 'result.json'), b.target, String(this.state.sequence), mock ? 'mock' : 'real', String(b.pr ?? '')], { detached: true, stdio: ['ignore', log, log], env: process.env })
           child.on('error', (error) => { b.error = error.message; b.status = 'failed'; b.endedAt = now(); this.save() })
           child.unref()
         } finally { closeSync(log) }
@@ -147,13 +188,12 @@ export class Manager {
         b.status = 'failed'; b.error = e instanceof Error ? e.message : String(e); b.endedAt = now(); this.save()
         writeFileSync(path.join(result, 'result.json'), JSON.stringify({ status: b.status, error: b.error, endedAt: b.endedAt, artifacts: [] }))
       }
-      await this.prune()
     } finally { this.ticking = false }
   }
   private async prune() {
-    // 保留最近 50 次终态构建；删除不会触及正在排队或运行的记录。
-    const finished = this.state.builds.filter((b) => !['queued', 'running'].includes(b.status))
-    for (const b of finished.slice(0, Math.max(0, finished.length - 50))) {
+    const old = expired(this.state.builds, this.openPrs, Date.now())
+    if (!old.length) return
+    for (const b of old) {
       await rm(path.join(resultsDir, b.id), { recursive: true, force: true, maxRetries: 3 })
       this.state.builds = this.state.builds.filter((item) => item.id !== b.id)
     }

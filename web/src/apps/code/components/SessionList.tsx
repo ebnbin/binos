@@ -22,6 +22,7 @@ import { createProject, searchContent } from '../api.ts'
 import { onChange } from '../../../events.ts'
 import { formatQuota } from '../format.ts'
 import { formatClock, formatTime } from '../../../ui/time.ts'
+import { buildsSummary, useBuilds } from '../../builds/useBuilds.ts'
 import { AuthBanner } from './AuthBanner.tsx'
 import { Quota } from './Quota.tsx'
 import { RenameInput, SessionActions } from './SessionMenu.tsx'
@@ -55,6 +56,8 @@ export function SessionList({
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const search = useSearch(query.trim())
+  const builds = useBuilds().data
+  const summary = builds && buildsSummary(builds.builds)
   return (
     <div className={styles.pane}>
       <header className={styles.brand}>
@@ -146,7 +149,7 @@ export function SessionList({
           {([['builds', 'binOS 构建', Hammer], ['devices', '设备', Smartphone]] as const).map(([name, label, Icon]) => (
             <li key={name}>
               <button type="button" className={styles.item} aria-current={currentTool === name ? 'page' : undefined} onClick={() => onNavigate(`/${name}`)}>
-                <span className={styles.line}><Icon size={16} strokeWidth={1.75} className={styles.icon} /><span className={styles.title}>{label}</span></span>
+                <span className={styles.line}><Icon size={16} strokeWidth={1.75} className={styles.icon} /><span className={styles.title}>{label}</span>{name === 'builds' && summary && <span className={styles.buildSummary} data-state={summary.state}>{summary.text}</span>}</span>
               </button>
             </li>
           ))}

@@ -1,6 +1,6 @@
 import path from 'node:path'
 
-// 由 scripts/preview.ts 写入，正式版据此把 PR 子域名的请求转给预览实例
+// 由 Web 目标的构建（scripts/previews.ts）写入，正式版据此把 PR 子域名的请求转给预览实例
 export type PreviewInfo = {
   port: number
   commit: string

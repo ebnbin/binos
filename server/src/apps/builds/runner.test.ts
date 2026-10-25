@@ -15,7 +15,7 @@ afterAll(() => rmSync(root, { recursive: true, force: true }))
 it('脚本退出为零但缺少预期产物时拒绝成功', async () => {
   writeFileSync(path.join(source, 'scripts/mobile-build.sh'), 'echo hello\n')
   await exec(process.execPath, args)
-  expect(JSON.parse(readFileSync(result, 'utf8'))).toMatchObject({ status: 'failed', artifacts: [], error: '构建没有生成预期产物' })
+  expect(JSON.parse(readFileSync(result, 'utf8'))).toMatchObject({ status: 'failed', artifacts: [], error: '构建没有生成 binos-android-debug.apk' })
   expect(readFileSync(path.join(root, 'build.log'), 'utf8')).toContain('hello')
 })
 it('取消会结束构建子进程组并保存终态', async () => {
