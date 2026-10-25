@@ -6,6 +6,10 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0A2586D23088D1100064DB67 /* SwiftTerm in Frameworks */ = {isa = PBXBuildFile; productRef = 0A2586D13088D1100064DB67 /* SwiftTerm */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0A2586B63088D1020064DB67 /* binOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = binOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -22,6 +26,7 @@
 		0A2586B33088D1020064DB67 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				0A2586D23088D1100064DB67 /* SwiftTerm in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -60,6 +65,9 @@
 				0A2586B83088D1020064DB67 /* binOS */,
 			);
 			name = binOS;
+			packageProductDependencies = (
+				0A2586D13088D1100064DB67 /* SwiftTerm */,
+			);
 			productName = binOS;
 			productReference = 0A2586B63088D1020064DB67 /* binOS.app */;
 			productType = "com.apple.product-type.application";
@@ -80,14 +88,17 @@
 				};
 			};
 			buildConfigurationList = 0A2586B13088D1020064DB67 /* Build configuration list for PBXProject "binOS" */;
-			developmentRegion = en;
+			developmentRegion = "zh-Hans";
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 0A2586AD3088D1020064DB67;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0A2586D03088D1100064DB67 /* XCRemoteSwiftPackageReference "SwiftTerm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0A2586B73088D1020064DB67 /* Products */;
 			projectDirPath = "";
@@ -246,6 +257,10 @@
 				DEVELOPMENT_TEAM = 283WQYV2L9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = binOS;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "选择照片作为对话附件";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "在日历里显示这台设备的日程";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -278,6 +293,10 @@
 				DEVELOPMENT_TEAM = 283WQYV2L9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = binOS;
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "选择照片作为对话附件";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "在日历里显示这台设备的日程";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -320,6 +339,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0A2586D03088D1100064DB67 /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			requirement = {
+				kind = revision;
+				revision = 8840e3596739adfe9599c0e7fff89f4fa88bedcf;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0A2586D13088D1100064DB67 /* SwiftTerm */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0A2586D03088D1100064DB67 /* XCRemoteSwiftPackageReference "SwiftTerm" */;
+			productName = SwiftTerm;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0A2586AE3088D1020064DB67 /* Project object */;
 	validationLevel = 1;
