@@ -20,6 +20,7 @@ struct ExternalApp: Codable, Hashable, Identifiable {
     var symbol: String { Self.symbols[icon] ?? "macwindow" }
 }
 
+// 编辑时整份写回服务端，所以不宽松解码：丢掉解不开的项再写回会删掉它们
 struct AppRegistry: Codable {
     var external: [ExternalApp]
 }

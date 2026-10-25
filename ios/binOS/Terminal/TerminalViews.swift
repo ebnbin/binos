@@ -3,17 +3,17 @@ import SwiftUI
 
 struct TerminalSession: Decodable, Hashable, Identifiable {
     let id: String
-    let created: Double
-    let cwd: String
-    let command: String
+    @Default<Defaults.Zero> var created: Double
+    @Default<Defaults.Empty> var cwd: String
+    @Default<Defaults.Empty> var command: String
 }
 
 enum TerminalAPI {
     static let base = "/api/apps/terminal"
 
     struct List: Decodable {
-        let available: Bool
-        let sessions: [TerminalSession]
+        @Default<Defaults.False> var available: Bool
+        @Lossy var sessions: [TerminalSession]
     }
 
     static func list() async throws -> List {

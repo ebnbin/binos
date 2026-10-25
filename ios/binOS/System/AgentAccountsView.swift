@@ -2,26 +2,26 @@ import SwiftUI
 
 struct AgentAccount: Decodable, Hashable {
     struct Detail: Decodable, Hashable {
-        let label: String
-        let value: String
+        @Default<Defaults.Empty> var label: String
+        @Default<Defaults.Empty> var value: String
         let note: String?
     }
 
     struct Token: Decodable, Hashable {
         let expiresAt: String?
         let refreshedAt: String?
-        let refreshable: Bool
+        @Default<Defaults.False> var refreshable: Bool
     }
 
     let agent: String
     let version: String?
-    let loggedIn: Bool
+    @Default<Defaults.False> var loggedIn: Bool
     let email: String?
     let plan: String?
     let token: Token?
-    let details: [Detail]
-    let configDir: String
-    let running: Int
+    @Lossy var details: [Detail]
+    @Default<Defaults.Empty> var configDir: String
+    @Default<Defaults.ZeroInt> var running: Int
 }
 
 // agent 的账号、登录、额度；可以就地重新登录
@@ -107,7 +107,7 @@ struct AgentAccountsView: View {
     }
 
     private func load() async {
-        struct Response: Decodable { let accounts: [AgentAccount] }
+        struct Response: Decodable { @Lossy var accounts: [AgentAccount] }
         if let response: Response = try? await API.shared.get("/api/kita/accounts") { accounts = response.accounts }
     }
 }

@@ -17,6 +17,10 @@ final class EventHub {
     // 连接过但已经断开了：刚启动还没连上时不算
     private(set) var everConnected = false
     private(set) var serverVersion: String?
+    // 服务端的接口标识，旧服务端没有
+    private(set) var serverProtocol: String?
+    // 服务端的接口和这个版本的 app 不一样：可能有部分内容显示不对，不影响使用
+    var protocolMismatch: Bool { serverProtocol.map { $0 != BinOSProtocol.protocolID } ?? false }
 
     private(set) var sessions = 0
     private(set) var projects = 0
@@ -24,6 +28,7 @@ final class EventHub {
     private(set) var agent = 0
     private(set) var music = 0
     private(set) var devices = 0
+    private(set) var builds = 0
     private(set) var kita = 0
 
     private var stream: EventStream?
@@ -48,6 +53,7 @@ final class EventHub {
     // 换了服务器或者重新登录后
     func restart() {
         serverVersion = nil
+        serverProtocol = nil
         everConnected = false
         start()
     }
@@ -63,15 +69,21 @@ final class EventHub {
         agent += 1
         music += 1
         devices += 1
+        builds += 1
         kita += 1
         Task { await readVersion() }
     }
 
-    private struct Health: Decodable { let version: String }
+    private struct Health: Decodable {
+        let version: String
+        let `protocol`: String?
+    }
 
+    // 每次连上都重读：服务端上线新版本后会变
     private func readVersion() async {
         guard let health: Health = try? await API.shared.get("/api/health") else { return }
         serverVersion = health.version
+        serverProtocol = health.protocol
     }
 
     private func received(_ message: SSEMessage) {
@@ -83,6 +95,7 @@ final class EventHub {
         case "agent": agent += 1
         case "music": music += 1
         case "devices": devices += 1
+        case "builds": builds += 1
         case "kita": kita += 1
         default: break
         }

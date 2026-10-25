@@ -444,6 +444,7 @@ final class MusicPlayer {
             if duration <= 0 || [.idle, .loading, .error].contains(status) { failure = "现在不能跳转" } else { seek(to: ms / 1000) }
         case .volume(let value): volume = min(max(value, 0), 1)
         case .setRepeat(let mode): repeatMode = mode
+        case .unknown: failure = "这个版本的 app 不支持这个命令"
         }
         await report(result: .init(id: command.id, error: failure))
     }

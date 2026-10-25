@@ -45,9 +45,9 @@ final class CodeStore {
         projects.first { $0.id == id }?.name ?? (id == "binos" ? "binOS" : id)
     }
 
-    private struct SessionsResponse: Decodable { let sessions: [SessionSummary] }
-    private struct ProjectsResponse: Decodable { let projects: [Project] }
-    private struct CatalogsResponse: Decodable { let agents: [AgentCatalog] }
+    private struct SessionsResponse: Decodable { @Lossy var sessions: [SessionSummary] }
+    private struct ProjectsResponse: Decodable { @Lossy var projects: [Project] }
+    private struct CatalogsResponse: Decodable { @Lossy var agents: [AgentCatalog] }
 }
 
 // Code app 的写操作

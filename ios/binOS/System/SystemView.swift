@@ -2,30 +2,30 @@ import SwiftUI
 
 struct MonitorStatus: Decodable {
     struct Volume: Decodable, Hashable {
-        let filesystem: String
+        @Default<Defaults.Empty> var filesystem: String
         let mount: String
-        let total: Double
-        let available: Double
-        let used: Double
+        @Default<Defaults.Zero> var total: Double
+        @Default<Defaults.Zero> var available: Double
+        @Default<Defaults.Zero> var used: Double
     }
 
     struct Snapshot: Decodable {
         struct Host: Decodable {
-            let name: String
-            let model: String
-            let chip: String
-            let os: String
-            let uptime: Double
-            let cores: Int
+            @Default<Defaults.Empty> var name: String
+            @Default<Defaults.Empty> var model: String
+            @Default<Defaults.Empty> var chip: String
+            @Default<Defaults.Empty> var os: String
+            @Default<Defaults.Zero> var uptime: Double
+            @Default<Defaults.ZeroInt> var cores: Int
         }
 
         struct CPU: Decodable { let percent: Double? }
 
         struct Memory: Decodable {
-            let total: Double
-            let free: Double
+            @Default<Defaults.Zero> var total: Double
+            @Default<Defaults.Zero> var free: Double
             let cached: Double?
-            let pressure: String
+            @Default<Defaults.Empty> var pressure: String
         }
 
         struct Network: Decodable {
@@ -34,30 +34,30 @@ struct MonitorStatus: Decodable {
         }
 
         struct Power: Decodable {
-            let source: String
+            @Default<Defaults.Empty> var source: String
             let battery: Double?
         }
 
         struct Runtime: Decodable {
-            let version: String
-            let uptime: Double
-            let memory: Double
-            let test: Bool
+            @Default<Defaults.Empty> var version: String
+            @Default<Defaults.Zero> var uptime: Double
+            @Default<Defaults.Zero> var memory: Double
+            @Default<Defaults.False> var test: Bool
         }
 
-        let at: Double
+        @Default<Defaults.Zero> var at: Double
         let host: Host
         let cpu: CPU
         let memory: Memory
-        let volumes: [Volume]
+        @Lossy var volumes: [Volume]
         let network: Network
         let power: Power
         let runtime: Runtime
-        let unavailable: [String]
+        @Lossy var unavailable: [String]
     }
 
     let snapshot: Snapshot?
-    let collecting: Bool
+    @Default<Defaults.False> var collecting: Bool
     let collectionError: String?
 }
 

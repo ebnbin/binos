@@ -22,7 +22,12 @@ struct RootView: View {
             }
         }
         .modifier(FilePresenterModifier())
-        .overlay(alignment: .top) { ConnectionBanner() }
+        .overlay(alignment: .top) {
+            VStack(spacing: 8) {
+                ConnectionBanner()
+                ProtocolBanner()
+            }
+        }
         .fullScreenCover(isPresented: $api.needsLogin) {
             LoginView(server: api.server) { hub.restart() }
         }
@@ -70,6 +75,33 @@ struct RootView: View {
             MiniPlayer { router.tab = .music }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+    }
+}
+
+// 服务端的接口和这个版本的 app 不一样时提示更新，可以关掉；服务端再换版本时重新提示
+struct ProtocolBanner: View {
+    private let hub = EventHub.shared
+    @State private var dismissed: String?
+
+    var body: some View {
+        Group {
+            if hub.protocolMismatch, let current = hub.serverProtocol, dismissed != current {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.app")
+                    Text("服务端已更新，这个版本的 app 可能有部分内容显示不正确，请更新 app")
+                    Button("关闭", systemImage: "xmark") { dismissed = current }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.plain)
+                }
+                .font(.footnote)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .glassEffect()
+                .padding(.horizontal)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.snappy, value: hub.protocolMismatch)
     }
 }
 

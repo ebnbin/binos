@@ -232,10 +232,10 @@ private struct RemoteBrowserView: View {
 @Observable
 final class RemoteBrowserConnection {
     struct State: Decodable, Equatable {
-        var url = ""
-        var title = ""
-        var canBack = false
-        var canForward = false
+        @Default<Defaults.Empty> var url = ""
+        @Default<Defaults.Empty> var title = ""
+        @Default<Defaults.False> var canBack = false
+        @Default<Defaults.False> var canForward = false
     }
 
     private(set) var image: UIImage?

@@ -6,12 +6,12 @@ import Observation
 // 喜多 app 里的一段对话。temporary：临时对话，不带喜多的身份，也读写不了记忆
 struct KitaConversation: Decodable, Hashable, Identifiable {
     let id: String
-    let title: String
-    let temporary: Bool
+    @Default<Defaults.Empty> var title: String
+    @Default<Defaults.False> var temporary: Bool
     let agent: String
-    let state: String
-    let createdAt: String
-    let updatedAt: String
+    @Default<Defaults.Empty> var state: String
+    @Default<Defaults.Empty> var createdAt: String
+    @Default<Defaults.Empty> var updatedAt: String
     let outcome: String?
 
     var updated: Date { Date(iso: updatedAt) ?? .distantPast }
@@ -19,48 +19,48 @@ struct KitaConversation: Decodable, Hashable, Identifiable {
 
 struct KitaPhoto: Decodable, Hashable {
     let file: String
-    let addedAt: String
+    @Default<Defaults.Empty> var addedAt: String
 }
 
 struct KitaProfile: Decodable, Hashable {
-    let description: String
-    let photos: [KitaPhoto]
+    @Default<Defaults.Empty> var description: String
+    @Lossy var photos: [KitaPhoto]
     let avatar: String?
 }
 
 // 谁写的：用户在页面上，或者某个 app 的 session 里的 agent
 struct MemorySource: Decodable, Hashable {
-    let type: String
+    @Default<Defaults.Empty> var type: String
     let owner: String?
     let session: String?
 }
 
 struct Memory: Decodable, Hashable, Identifiable {
     struct Version: Decodable, Hashable {
-        let text: String
-        let kind: String
-        let time: String
+        @Default<Defaults.Empty> var text: String
+        @Default<Defaults.Empty> var kind: String
+        @Default<Defaults.Empty> var time: String
         let source: MemorySource
     }
 
     let id: String
-    let text: String
+    @Default<Defaults.Empty> var text: String
     // stated：用户说过或确认过的；inferred：agent 推测的，用户确认前不能当作事实
-    let kind: String
-    let scope: String
+    @Default<Defaults.Empty> var kind: String
+    @Default<Defaults.Empty> var scope: String
     let source: MemorySource
-    let createdAt: String
-    let updatedAt: String
+    @Default<Defaults.Empty> var createdAt: String
+    @Default<Defaults.Empty> var updatedAt: String
     // 改动前的各个版本，从旧到新
-    let history: [Version]
+    @Lossy var history: [Version]
 }
 
 // 正在回答的 session，不在回答的不在里面
 struct KitaActivity: Decodable, Hashable {
     let session: String
-    let owner: String
-    let state: String
-    let since: String
+    @Default<Defaults.Empty> var owner: String
+    @Default<Defaults.Empty> var state: String
+    @Default<Defaults.Empty> var since: String
 }
 
 // 喜多 app 用到的全部数据，有变化时重新读取；Code 的对话开始、结束时 activity 也会变
@@ -81,10 +81,10 @@ final class KitaStore {
     func refresh() async {
         latest += 1
         let request = latest
-        struct Conversations: Decodable { let conversations: [KitaConversation] }
+        struct Conversations: Decodable { @Lossy var conversations: [KitaConversation] }
         struct Profile: Decodable { let profile: KitaProfile }
-        struct Memories: Decodable { let memories: [Memory] }
-        struct Activity: Decodable { let activity: [KitaActivity] }
+        struct Memories: Decodable { @Lossy var memories: [Memory] }
+        struct Activity: Decodable { @Lossy var activity: [KitaActivity] }
         do {
             let conversations: Conversations = try await API.shared.get("/api/apps/kita/conversations")
             let profile: Profile = try await API.shared.get("/api/kita/profile")
@@ -100,7 +100,7 @@ final class KitaStore {
             if request == latest, !(error is CancellationError) { failed = true }
         }
         if catalogs.isEmpty {
-            struct Catalogs: Decodable { let agents: [AgentCatalog] }
+            struct Catalogs: Decodable { @Lossy var agents: [AgentCatalog] }
             if let response: Catalogs = try? await API.shared.get("/api/kita/agents") { catalogs = response.agents }
         }
     }

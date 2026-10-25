@@ -521,6 +521,7 @@ private struct RemotePlayerRow: View {
         case .paused: "已暂停"
         case .ended: "已放完"
         case .error: "出错"
+        case .unknown: "未知"
         }
     }
 }

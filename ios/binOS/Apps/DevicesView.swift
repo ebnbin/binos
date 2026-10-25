@@ -3,62 +3,62 @@ import SwiftUI
 struct DevicesSnapshot: Decodable {
     struct Device: Decodable, Hashable, Identifiable {
         let id: String
-        let platform: String
-        let name: String
-        let target: String
+        @Default<Defaults.Empty> var platform: String
+        @Default<Defaults.Empty> var name: String
+        @Default<Defaults.Empty> var target: String
         let system: String?
-        let status: String
+        @Default<Defaults.Empty> var status: String
         let error: String?
     }
 
     struct Lease: Decodable, Hashable, Identifiable {
-        let requestId: String
+        @Default<Defaults.Empty> var requestId: String
         let claimed: Bool?
         let id: String
-        let owner: String
-        let reason: String
-        let platforms: [String]
-        let devices: [String]
-        let createdAt: Double
+        @Default<Defaults.Empty> var owner: String
+        @Default<Defaults.Empty> var reason: String
+        @Lossy var platforms: [String]
+        @Lossy var devices: [String]
+        @Default<Defaults.Zero> var createdAt: Double
     }
 
     struct Waiting: Decodable, Hashable, Identifiable {
         let id: String
-        let owner: String
-        let reason: String
-        let platforms: [String]
-        let phase: String
+        @Default<Defaults.Empty> var owner: String
+        @Default<Defaults.Empty> var reason: String
+        @Lossy var platforms: [String]
+        @Default<Defaults.Empty> var phase: String
         let error: String?
     }
 
     struct Event: Decodable, Hashable {
-        let time: Double
-        let text: String
+        @Default<Defaults.Zero> var time: Double
+        @Default<Defaults.Empty> var text: String
     }
 
     // 系统里已有的模拟器，只读展示，不参与分配
     struct Observed: Decodable, Hashable {
-        let platform: String
-        let name: String
-        let target: String
-        let state: String
+        @Default<Defaults.Empty> var platform: String
+        @Default<Defaults.Empty> var name: String
+        @Default<Defaults.Empty> var target: String
+        @Default<Defaults.Empty> var state: String
     }
 
     struct Owner: Decodable, Hashable {
         let session: Int
-        let title: String
+        @Default<Defaults.Empty> var title: String
     }
 
-    let devices: [Device]
-    let leases: [Lease]
-    let queue: [Waiting]
-    let events: [Event]
-    let capacity: Int
-    let mode: String
-    let startedAt: Double
-    let observed: [Observed]
-    let discoveryErrors: [String]
-    let owners: [String: Owner]
+    @Lossy var devices: [Device]
+    @Lossy var leases: [Lease]
+    @Lossy var queue: [Waiting]
+    @Lossy var events: [Event]
+    @Default<Defaults.ZeroInt> var capacity: Int
+    @Default<Defaults.Empty> var mode: String
+    @Default<Defaults.Zero> var startedAt: Double
+    @Lossy var observed: [Observed]
+    @Lossy var discoveryErrors: [String]
+    @LossyDictionary var owners: [String: Owner]
 }
 
 // 设备：开发验证用的模拟器池，可以手动申请、归还、看截图

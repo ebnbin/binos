@@ -10,34 +10,34 @@ struct TrackRef: Codable, Hashable {
 struct Track: Codable, Hashable, Identifiable {
     struct Album: Codable, Hashable {
         let id: String?
-        let title: String
+        @Default<Defaults.Empty> var title: String
     }
 
     let ref: TrackRef
-    let title: String
-    let artists: [String]
+    @Default<Defaults.Empty> var title: String
+    @Lossy var artists: [String]
     let album: Album?
     let artworkUrl: String?
     let durationMs: Double?
-    let externalUrl: String
+    @Default<Defaults.Empty> var externalUrl: String
 
     var id: TrackRef { ref }
     var artistText: String { artists.joined(separator: "、") }
 }
 
 struct CatalogPage: Decodable {
-    let tracks: [Track]
+    @Lossy var tracks: [Track] = []
     let nextPage: String?
     let warning: String?
 }
 
 struct QueueSnapshot: Decodable {
     let revision: Int
-    let tracks: [Track]
+    @Lossy var tracks: [Track]
 }
 
 struct Capability: Decodable, Hashable {
-    let state: String
+    @Default<Defaults.Empty> var state: String
     let reason: String?
 }
 
@@ -48,7 +48,7 @@ struct ProviderInfo: Decodable, Hashable, Identifiable {
     }
 
     struct Input: Decodable, Hashable {
-        let references: [Reference]
+        @Lossy var references: [Reference]
     }
 
     struct Field: Decodable, Hashable, Identifiable {
@@ -58,22 +58,22 @@ struct ProviderInfo: Decodable, Hashable, Identifiable {
         }
 
         let id: String
-        let label: String
-        let description: String
-        let secret: Bool
-        let configured: Bool
-        let links: [Link]?
+        @Default<Defaults.Empty> var label: String
+        @Default<Defaults.Empty> var description: String
+        @Default<Defaults.False> var secret: Bool
+        @Default<Defaults.False> var configured: Bool
+        @Lossy var links: [Link]
     }
 
     struct Configuration: Decodable, Hashable {
-        let fields: [Field]
+        @Lossy var fields: [Field]
     }
 
     let id: String
-    let name: String
-    let description: String
+    @Default<Defaults.Empty> var name: String
+    @Default<Defaults.Empty> var description: String
     let input: Input
-    let capabilities: [String: Capability]
+    @LossyDictionary var capabilities: [String: Capability]
     let configuration: Configuration
 
     func available(_ capability: String) -> Bool { capabilities[capability]?.state == "available" }
@@ -97,28 +97,34 @@ struct PlaybackSource: Decodable {
 }
 
 struct Lyrics: Decodable {
-    let text: String
+    @Default<Defaults.Empty> var text: String
     let attribution: String?
 }
 
-enum PlaybackStatus: String, Codable {
+enum PlaybackStatus: String, Codable, LenientEnum {
     case idle, loading, playing, paused, ended, error
+    // 别的播放器报来的、这个版本不认识的状态
+    case unknown
+
+    static var fallback: Self { .unknown }
 }
 
-enum RepeatMode: String, Codable, CaseIterable {
+enum RepeatMode: String, Codable, LenientEnum {
     case off, all, one
+
+    static var fallback: Self { .off }
 }
 
 struct PlayerState: Codable, Hashable {
     struct Controls: Codable, Hashable {
-        let seek: Bool
-        let volume: Bool
+        @Default<Defaults.False> var seek: Bool = false
+        @Default<Defaults.False> var volume: Bool = false
     }
 
     let track: TrackRef?
     let status: PlaybackStatus
-    let positionMs: Double
-    let durationMs: Double
+    @Default<Defaults.Zero> var positionMs: Double = 0
+    @Default<Defaults.Zero> var durationMs: Double = 0
     let volume: Double
     let `repeat`: RepeatMode
     let controls: Controls
@@ -142,8 +148,8 @@ struct PlayerState: Codable, Hashable {
 
 struct PlayerSnapshot: Decodable, Hashable, Identifiable {
     let id: String
-    let label: String
-    let updatedAt: Double
+    @Default<Defaults.Empty> var label: String
+    @Default<Defaults.Zero> var updatedAt: Double
     let state: PlayerState?
 }
 
@@ -154,6 +160,8 @@ enum PlayerCommand: Codable, Hashable {
     case seek(Double)
     case volume(Double)
     case setRepeat(RepeatMode)
+    // 这个版本不认识的命令：回报失败，不执行
+    case unknown(String)
 
     private enum Keys: String, CodingKey { case type, ref, positionMs, volume, `repeat` }
 
@@ -168,7 +176,8 @@ enum PlayerCommand: Codable, Hashable {
         case "select": self = .select(try c.decode(TrackRef.self, forKey: .ref))
         case "seek": self = .seek(try c.decode(Double.self, forKey: .positionMs))
         case "volume": self = .volume(try c.decode(Double.self, forKey: .volume))
-        default: self = .setRepeat(try c.decode(RepeatMode.self, forKey: .repeat))
+        case "repeat": self = .setRepeat(try c.decode(RepeatMode.self, forKey: .repeat))
+        case let type: self = .unknown(type)
         }
     }
 
@@ -192,15 +201,17 @@ enum PlayerCommand: Codable, Hashable {
         case .setRepeat(let mode):
             try c.encode("repeat", forKey: .type)
             try c.encode(mode, forKey: .repeat)
+        case .unknown(let type):
+            try c.encode(type, forKey: .type)
         }
     }
 }
 
 struct CommandResult: Decodable {
     let id: String
-    let playerId: String
+    @Default<Defaults.Empty> var playerId: String
     let command: PlayerCommand
-    let status: String
+    @Default<Defaults.Empty> var status: String
 }
 
 enum MusicAPI {
@@ -208,7 +219,7 @@ enum MusicAPI {
     static let base = "/api/apps/music"
 
     static func providers() async throws -> [ProviderInfo] {
-        struct Response: Decodable { let providers: [ProviderInfo] }
+        struct Response: Decodable { @Lossy var providers: [ProviderInfo] }
         let response: Response = try await api.get("\(base)/providers")
         return response.providers
     }
@@ -248,7 +259,7 @@ enum MusicAPI {
     }
 
     static func players() async throws -> [PlayerSnapshot] {
-        struct Response: Decodable { let players: [PlayerSnapshot] }
+        struct Response: Decodable { @Lossy var players: [PlayerSnapshot] }
         let response: Response = try await api.get("\(base)/players")
         return response.players
     }

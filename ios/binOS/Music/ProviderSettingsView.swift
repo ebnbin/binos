@@ -58,7 +58,7 @@ struct ProviderSettingsView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(field.description)
-                ForEach(field.links ?? [], id: \.url) { link in
+                ForEach(field.links, id: \.url) { link in
                     if let url = URL(string: link.url) { Link(link.label, destination: url) }
                 }
             }

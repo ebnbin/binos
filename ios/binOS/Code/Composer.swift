@@ -230,10 +230,10 @@ private struct QueueList: View {
             ForEach(queue) { item in
                 HStack(spacing: 8) {
                     Image(systemName: "clock").foregroundStyle(.secondary)
-                    Text(item.text.isEmpty ? item.attachments?.first?.name ?? "" : item.text)
+                    Text(item.text.isEmpty ? item.attachments.first?.name ?? "" : item.text)
                         .lineLimit(1)
-                    if let count = item.attachments?.count, count > 0 {
-                        Label("\(count)", systemImage: "paperclip").foregroundStyle(.secondary)
+                    if !item.attachments.isEmpty {
+                        Label("\(item.attachments.count)", systemImage: "paperclip").foregroundStyle(.secondary)
                     }
                     Spacer()
                     if !running {

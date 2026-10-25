@@ -3,15 +3,15 @@ import Foundation
 // 与 server/src/services/kita/types.ts、server/src/apps/code/types.ts 对应
 
 struct ContextUsage: Codable, Hashable {
-    let tokens: Int
-    let window: Int
+    @Default<Defaults.ZeroInt> var tokens: Int
+    @Default<Defaults.ZeroInt> var window: Int
 }
 
 struct Tokens: Codable, Hashable {
-    let input: Int
-    let output: Int
-    let cacheRead: Int
-    let cacheWrite: Int
+    @Default<Defaults.ZeroInt> var input: Int
+    @Default<Defaults.ZeroInt> var output: Int
+    @Default<Defaults.ZeroInt> var cacheRead: Int
+    @Default<Defaults.ZeroInt> var cacheWrite: Int
     var total: Int { input + output + cacheRead + cacheWrite }
 }
 
@@ -143,13 +143,14 @@ enum Entry: Decodable, Hashable {
         let parent = try? c.decode(String.self, forKey: .parent)
         let clipped = (try? c.decode(Bool.self, forKey: .clipped)) ?? false
         func string(_ key: Keys) -> String { (try? c.decode(String.self, forKey: key)) ?? "" }
-        switch try c.decode(String.self, forKey: .type) {
+        // 没有类型的也占一条，后面条目的序号才对得上
+        switch (try? c.decode(String.self, forKey: .type)) ?? "" {
         case "session":
             self = .session(agent: string(.agent), time: time)
         case "input":
             self = .input(InputEntry(
                 time: time, mode: string(.mode), text: string(.text),
-                attachments: (try? c.decode([Attachment].self, forKey: .attachments)) ?? [],
+                attachments: (try? c.decode(Lossy<Attachment>.self, forKey: .attachments))?.wrappedValue ?? [],
                 model: try? c.decode(String.self, forKey: .model), effort: try? c.decode(String.self, forKey: .effort)))
         case "thinking":
             self = .thinking(time: time, text: string(.text), durationMs: try? c.decode(Double.self, forKey: .durationMs), parent: parent)
@@ -164,7 +165,7 @@ enum Entry: Decodable, Hashable {
             self = .toolResult(ToolResultEntry(
                 time: time, callId: string(.callId), status: string(.status), output: try? c.decode(String.self, forKey: .output),
                 truncated: (try? c.decode(Bool.self, forKey: .truncated)) ?? false,
-                images: (try? c.decode([String].self, forKey: .images)) ?? [], parent: parent, clipped: clipped))
+                images: (try? c.decode(Lossy<String>.self, forKey: .images))?.wrappedValue ?? [], parent: parent, clipped: clipped))
         case "compact":
             self = .compact(time: time, trigger: string(.trigger), preTokens: try? c.decode(Int.self, forKey: .preTokens), postTokens: try? c.decode(Int.self, forKey: .postTokens), parent: parent)
         case "turn_end":
@@ -216,7 +217,7 @@ nonisolated enum LiveStatus: Decodable, Hashable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
-        switch try c.decode(String.self, forKey: .type) {
+        switch try? c.decode(String.self, forKey: .type) {
         case "requesting": self = .requesting
         case "thinking": self = .thinking
         case "compacting": self = .compacting
@@ -234,6 +235,17 @@ nonisolated struct Live: Decodable, Hashable {
     var status: LiveStatus?
     var tasks: [String: TaskProgress]
     var files: [String: String]
+
+    private enum Keys: String, CodingKey { case thinking, text, status, tasks, files }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        thinking = (try? c.decode(String.self, forKey: .thinking)) ?? ""
+        text = (try? c.decode(String.self, forKey: .text)) ?? ""
+        status = try? c.decode(LiveStatus.self, forKey: .status)
+        tasks = try c.decode(LossyDictionary<TaskProgress>.self, forKey: .tasks).wrappedValue
+        files = try c.decode(LossyDictionary<String>.self, forKey: .files).wrappedValue
+    }
 }
 
 // 发给页面的一条事件：seq 是到它为止的条数
@@ -278,7 +290,7 @@ enum KitaSessionEvent: Decodable {
 
 struct Project: Decodable, Hashable, Identifiable {
     let id: String
-    let name: String
+    @Default<Defaults.Empty> var name: String
     let repository: String?
     let defaultBranch: String?
 }
@@ -290,9 +302,9 @@ struct Upload: Codable, Hashable {
 
 struct QueuedMessage: Decodable, Hashable, Identifiable {
     let id: String
-    let time: String
-    let text: String
-    let attachments: [Upload]?
+    @Default<Defaults.Empty> var time: String
+    @Default<Defaults.Empty> var text: String
+    @Lossy var attachments: [Upload]
     let model: String?
     let effort: String?
 }
@@ -309,42 +321,42 @@ struct SessionSummary: Decodable, Hashable, Identifiable {
     let project: String
     let id: Int
     let kitaSession: String
-    let title: String
-    let updatedAt: String
-    let running: Bool
-    let waiting: Bool
-    let unread: Bool
+    @Default<Defaults.Empty> var title: String
+    @Default<Defaults.Empty> var updatedAt: String
+    @Default<Defaults.False> var running: Bool
+    @Default<Defaults.False> var waiting: Bool
+    @Default<Defaults.False> var unread: Bool
     let outcome: String?
-    let pinned: Bool
-    let archived: Bool
+    @Default<Defaults.False> var pinned: Bool
+    @Default<Defaults.False> var archived: Bool
     let context: ContextUsage?
     let agent: String
     let model: String?
     let effort: String?
-    let turns: Int
+    @Default<Defaults.ZeroInt> var turns: Int
     let tokens: Tokens?
-    let priced: Bool
+    @Default<Defaults.False> var priced: Bool
     let quota: Double?
-    let prs: [PullRequest]
-    let queue: [QueuedMessage]
+    @Lossy var prs: [PullRequest]
+    @Lossy var queue: [QueuedMessage]
 
     var updated: Date { Date(iso: updatedAt) ?? .distantPast }
 }
 
 struct SearchResult: Decodable, Hashable {
     let id: Int
-    let title: String
-    let archived: Bool
+    @Default<Defaults.Empty> var title: String
+    @Default<Defaults.False> var archived: Bool
     let item: Int?
-    let kind: String
-    let before: String
-    let match: String
-    let after: String
+    @Default<Defaults.Empty> var kind: String
+    @Default<Defaults.Empty> var before: String
+    @Default<Defaults.Empty> var match: String
+    @Default<Defaults.Empty> var after: String
 }
 
 struct SearchResponse: Decodable {
-    let results: [SearchResult]
-    let total: Int
+    @Lossy var results: [SearchResult]
+    @Default<Defaults.ZeroInt> var total: Int
 }
 
 struct CodeUsage: Decodable, Hashable {
@@ -354,30 +366,30 @@ struct CodeUsage: Decodable, Hashable {
 
 struct AgentModel: Decodable, Hashable, Identifiable {
     let id: String
-    let name: String
-    let efforts: [String]
+    @Default<Defaults.Empty> var name: String
+    @Lossy var efforts: [String]
     let isDefault: Bool?
 }
 
 struct AgentCatalog: Decodable, Hashable {
     let agent: String
-    let available: Bool
-    let models: [AgentModel]
-    let efforts: [String]
+    @Default<Defaults.False> var available: Bool
+    @Lossy var models: [AgentModel]
+    @Lossy var efforts: [String]
 }
 
 struct QuotaWindow: Decodable, Hashable {
     let id: String
-    let minutes: Int
+    @Default<Defaults.ZeroInt> var minutes: Int
     let label: String?
-    let utilization: Double
-    let resetsAt: Double
+    @Default<Defaults.Zero> var utilization: Double
+    @Default<Defaults.Zero> var resetsAt: Double
 }
 
 struct Limits: Decodable, Hashable {
-    let limited: Bool
-    let windows: [QuotaWindow]
-    let updatedAt: String
+    @Default<Defaults.False> var limited: Bool
+    @Lossy var windows: [QuotaWindow]
+    @Default<Defaults.Empty> var updatedAt: String
 }
 
 struct ClaudeAuth: Decodable, Hashable {
@@ -385,13 +397,13 @@ struct ClaudeAuth: Decodable, Hashable {
         let expiresAt: String?
         let broken: Bool?
     }
-    let mode: String
+    @Default<Defaults.Empty> var mode: String
     let login: Expiry?
     let backup: Expiry?
 }
 
 struct CodexAuth: Decodable, Hashable {
-    let loggedIn: Bool
+    @Default<Defaults.False> var loggedIn: Bool
     let broken: Bool?
 }
 
@@ -401,7 +413,7 @@ struct AgentAuths: Decodable, Hashable {
 }
 
 struct AgentStatus: Decodable, Hashable {
-    let limits: [String: Limits]
+    @LossyDictionary var limits: [String: Limits]
     let auth: AgentAuths
 }
 

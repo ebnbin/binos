@@ -16,6 +16,9 @@ struct SettingsView: View {
                 if let version = hub.serverVersion {
                     LabeledContent("版本", value: String(version.prefix(7)))
                 }
+                if let serverProtocol = hub.serverProtocol {
+                    LabeledContent("接口", value: hub.protocolMismatch ? "\(serverProtocol)（app 是 \(BinOSProtocol.protocolID)）" : serverProtocol)
+                }
             } header: {
                 Text(api.server.name)
             }

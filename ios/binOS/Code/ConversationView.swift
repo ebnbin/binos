@@ -133,6 +133,12 @@ struct ConversationView: View {
                                 if let preview = pr.preview, let url = URL(string: preview) {
                                     Link(destination: url) { Label("预览 #\(pr.number)", systemImage: "safari") }
                                 }
+                                // 构建服务只编 binOS 自己的仓库；显示这个 PR 最新提交的构建结果
+                                if session.project == "binos", pr.state == nil || pr.state == "open", let state = BuildsStore.shared.prState(pr.number) {
+                                    Button { AppRouter.shared.code = .builds(ref: "pr/\(pr.number)") } label: {
+                                        Label("#\(pr.number) \(state.label)", systemImage: state == .failed ? "xmark.octagon" : state == .running ? "hammer" : "checkmark.seal")
+                                    }
+                                }
                             }
                         }
                     }

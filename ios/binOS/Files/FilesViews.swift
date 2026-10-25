@@ -2,20 +2,20 @@ import PhotosUI
 import SwiftUI
 
 struct FileEntry: Decodable, Hashable, Identifiable {
-    let name: String
+    @Default<Defaults.Empty> var name: String
     let path: String
-    let directory: Bool
-    let symlink: Bool
-    let size: Double
-    let modified: Double
+    @Default<Defaults.False> var directory: Bool
+    @Default<Defaults.False> var symlink: Bool
+    @Default<Defaults.Zero> var size: Double
+    @Default<Defaults.Zero> var modified: Double
     var id: String { path }
 }
 
 struct FileListing: Decodable {
     let path: String
-    let parent: String
-    let home: String
-    let entries: [FileEntry]
+    @Default<Defaults.Empty> var parent: String
+    @Default<Defaults.Empty> var home: String
+    @Lossy var entries: [FileEntry]
 }
 
 enum FilesAPI {

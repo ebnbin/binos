@@ -10,7 +10,7 @@ enum MoreRoute: Hashable {
 }
 
 // 整个 app 的导航状态，深链接 binos://… 也走这里：
-// binos://code/<id>、binos://code/new、binos://terminal/<会话 id>、binos://music/now、binos://files?path=…、binos://more/<页面>、binos://more/browser?url=…、
+// binos://code/<id>、binos://code/new、binos://code/builds?ref=…、binos://terminal/<会话 id>、binos://music/now、binos://files?path=…、binos://more/<页面>、binos://more/browser?url=…、
 // binos://kita、binos://kita/c/<id>、binos://kita/temporary、binos://kita/memories、binos://kita/profile
 @Observable
 final class AppRouter {
@@ -39,7 +39,7 @@ final class AppRouter {
             } else if let id = parts.first.flatMap(Int.init) {
                 code = .session(id, item: query.first { $0.name == "item" }?.value.flatMap(Int.init))
             } else if parts.first == "builds" {
-                code = .builds
+                code = .builds(ref: query.first { $0.name == "ref" }?.value ?? "main")
             } else if parts.first == "devices" {
                 code = .devices
             } else {

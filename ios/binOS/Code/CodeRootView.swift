@@ -3,7 +3,8 @@ import SwiftUI
 enum CodeRoute: Hashable {
     case session(Int, item: Int? = nil)
     case new(project: String)
-    case builds
+    // ref：构建页预填的构建来源
+    case builds(ref: String = "main")
     case devices
 }
 
@@ -28,8 +29,9 @@ struct CodeRootView: View {
                         router.code = .session(id)
                     }
                     .id(router.code)
-                case .builds:
-                    BuildsView()
+                case .builds(let ref):
+                    BuildsView(ref: ref)
+                        .id(ref)
                 case .devices:
                     DevicesView()
                 case nil:
@@ -39,6 +41,7 @@ struct CodeRootView: View {
         }
         .task(id: hub.sessions + hub.projects) { await store.refreshSessions() }
         .task(id: hub.agent) { await store.refreshAgents() }
+        .task(id: hub.builds) { await BuildsStore.shared.refresh() }
     }
 }
 
@@ -51,6 +54,7 @@ struct SessionListView: View {
     @State private var creatingProject = false
     @State private var renaming: SessionSummary?
     @State private var title = ""
+    private let builds = BuildsStore.shared
 
     var body: some View {
         List(selection: $route) {
@@ -85,7 +89,10 @@ struct SessionListView: View {
                 Button("创建项目", systemImage: "folder.badge.plus") { creatingProject = true }
             }
             ToolbarItem(placement: .secondaryAction) {
-                Button("构建", systemImage: "hammer") { route = .builds }
+                Button { route = .builds() } label: {
+                    Label("构建", systemImage: "hammer")
+                    if let summary = builds.summary { Text(summary.text) }
+                }
             }
             ToolbarItem(placement: .secondaryAction) {
                 Button("设备", systemImage: "iphone") { route = .devices }
