@@ -6,6 +6,7 @@ import styles from './builds.module.css'
 import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
 const targetLabels: Record<Target, string> = { web: 'Web', android: 'Android', ios: 'iOS' }
 const statusLabels = { queued: '排队中', running: '构建中', success: '成功', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
+const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 type Group = { key: string; kind: 'main' | 'pr' | 'manual'; pr?: number; commits: Build[][] }
 // 按来源分组：main、每个 PR（包括手动指定 pr/编号 的）、其余手动构建；组内按提交分，最新的在前
 function groupBuilds(builds: Build[]) {
@@ -59,15 +60,22 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   function card(b: Build) {
     return <article className={styles.build} key={b.id}>
       <div className={styles.buildTitle}><strong>{targetLabels[b.target]}</strong><span className={styles.badge} data-status={b.status}>{statusLabels[b.status]}</span><span className={styles.spacer} /><code title={b.commit}>{b.commit.slice(0, 7)}</code>{b.trigger === 'manual' && b.pr && <span className={styles.trigger}>手动</span>}</div>
-      <small className={styles.meta}>{new Date(b.createdAt).toLocaleString()}{b.startedAt && ` · 用时 ${Math.max(0, Math.round(((b.endedAt ? Date.parse(b.endedAt) : clock) - Date.parse(b.startedAt)) / 1000))} 秒`}</small>
+      <small className={styles.meta}>{[
+        new Date(b.createdAt).toLocaleString(),
+        b.startedAt && `用时 ${Math.max(0, Math.round(((b.endedAt ? Date.parse(b.endedAt) : clock) - Date.parse(b.startedAt)) / 1000))} 秒`,
+        ...b.artifacts.map((a) => a.kind === 'link' ? new URL(a.url).host : `${a.name} · ${formatSize(a.size)}`),
+      ].filter(Boolean).join(' · ')}</small>
       {b.error && <p className={styles.error}>{b.error}</p>}
-      <div className={styles.actions}><button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>{['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act({ action: 'cancel', id: b.id })}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act({ action: 'retry', id: b.id })}>重新构建</button>}</div>
-      {b.artifacts.map((a) => a.kind === 'link' ? live.has(b.id) && <div className={styles.actions} key={a.name}>
-        <a className={styles.artifact} href={a.url} target="_blank" rel="noreferrer">网页预览 · {new URL(a.url).host} ↗</a>
-      </div> : <div className={styles.actions} key={a.name}>
-        <a className={styles.artifact} href={`${base}/${b.id}/artifacts/${encodeURIComponent(a.name)}`} download title={`SHA-256: ${a.sha256}`}>{a.platform === 'ios' ? 'iOS 安装包' : 'Android 安装包'} · {a.name} · {(a.size / 1024 / 1024).toFixed(1)} MB ↓</a>
-        {a.platform === 'ios' && data?.mode === 'real' && <><button className={styles.tinted} disabled={busy} onClick={() => void install(b.id)}>在 iPhone / iPad 上安装</button><small className={styles.meta}>仅限描述文件内已注册的设备，安装链接有效期 24 小时</small></>}
-      </div>)}
+      {/* 产物按钮跟在操作后面：Android 下载安装包，iOS 无线安装（下载的 IPA 在设备上装不上），Web 打开预览 */}
+      <div className={styles.actions}>
+        <button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>
+        {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act({ action: 'cancel', id: b.id })}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act({ action: 'retry', id: b.id })}>重新构建</button>}
+        {b.artifacts.map((a) => a.kind === 'link'
+          ? live.has(b.id) && <a className={styles.tinted} key={a.name} href={a.url} target="_blank" rel="noreferrer">打开预览 ↗</a>
+          : a.platform === 'android'
+            ? <a className={styles.tinted} key={a.name} href={`${base}/${b.id}/artifacts/${encodeURIComponent(a.name)}`} download title={`SHA-256: ${a.sha256}`}>下载</a>
+            : data?.mode === 'real' && <button className={styles.tinted} key={a.name} disabled={busy} onClick={() => void install(b.id)} title="仅限描述文件内已注册的设备，安装链接有效期 24 小时">安装</button>)}
+      </div>
     </article>
   }
   async function act(body: unknown) { setBusy(true); try { update(await request(body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
