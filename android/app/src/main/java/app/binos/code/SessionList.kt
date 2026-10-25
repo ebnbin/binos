@@ -165,7 +165,7 @@ fun CodeHomeScreen() {
                 }
                 when {
                     query.isNotBlank() -> item(key = "results") {
-                        SearchResultsView(query.trim()) { id, item -> nav.navigate(SessionRoute(id, item ?: -1)) }
+                        SearchResultsView(query.trim()) { id, seq -> nav.navigate(SessionRoute(id, seq ?: -1)) }
                     }
                     sessions == null || projects == null -> item(key = "loading") {
                         Box(Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
@@ -406,7 +406,7 @@ private fun SearchResultsView(query: String, onOpen: (Int, Int?) -> Unit) {
                 )
                 matches.forEach { match ->
                     ListItem(
-                        modifier = Modifier.combinedClickable(onClick = { onOpen(id, match.item) }),
+                        modifier = Modifier.combinedClickable(onClick = { onOpen(id, match.seq) }),
                         colors = ListItemDefaults.colors(containerColor = androidx.compose.ui.graphics.Color.Transparent),
                         leadingContent = {
                             Icon(

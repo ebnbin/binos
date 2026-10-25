@@ -81,6 +81,7 @@ import app.binos.code.Transcript
 import app.binos.code.agentName
 import app.binos.code.defaultAgent
 import app.binos.code.isImage
+import app.binos.more.AppsStore
 import app.binos.code.parseTime
 import app.binos.shell.FilePreviewRoute
 import app.binos.shell.KitaChatRoute
@@ -118,7 +119,8 @@ fun KitaScreen() {
     val memories by KitaStore.memories.collectAsStateWithLifecycle()
     val activity by KitaStore.activity.collectAsStateWithLifecycle()
     val failed by KitaStore.failed.collectAsStateWithLifecycle()
-    val status = kitaStatus(activity)
+    val apps by AppsStore.apps.collectAsStateWithLifecycle()
+    val status = kitaStatus(activity, apps)
     var deleting by remember { mutableStateOf<Conversation?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -335,7 +337,7 @@ fun KitaChatScreen(routeId: String?, temporary: Boolean) {
                     }
                     notice?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
                 }
-                !state.loaded && state.items.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                !state.loaded && state.events.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else -> Transcript(state, notice, stickRequests, null) { url, name -> if (isImage(name)) viewing = url to name else nav.navigate(FilePreviewRoute(url, name)) }
             }
         }

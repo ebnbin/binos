@@ -53,6 +53,7 @@ data class SessionSummary(
     val context: ContextSize? = null,
     val agent: String = "claude",
     val model: String? = null,
+    val modelName: String? = null,
     val effort: String? = null,
     val turns: Int = 0,
     val tokens: Tokens? = null,
@@ -66,7 +67,7 @@ data class SessionSummary(
 data class CodeUsage(val resetsAt: Long, val week: Double? = null)
 
 @Serializable
-data class SearchMatch(val id: Int, val title: String = "", val archived: Boolean = false, val item: Int? = null, val kind: String = "", val before: String = "", val match: String, val after: String = "")
+data class SearchMatch(val id: Int, val title: String = "", val archived: Boolean = false, val seq: Int? = null, val kind: String = "", val before: String = "", val match: String, val after: String = "")
 
 @Serializable
 data class SearchResults(@Serializable(LossyList::class) val results: List<SearchMatch> = emptyList(), val total: Int = 0)
@@ -95,8 +96,16 @@ data class CodexAuth(val loggedIn: Boolean = false, val broken: Boolean = false)
 @Serializable
 data class AgentAuths(val claude: ClaudeAuth? = null, val codex: CodexAuth? = null)
 
+// 登录要用户处理的事：reason 见 server/src/services/kita/types.ts 的 AgentAttention，usable 是现在还能回答
 @Serializable
-data class AgentStatus(@Serializable(LossyMap::class) val limits: Map<String, Limits> = emptyMap(), val auth: AgentAuths = AgentAuths())
+data class AgentAttention(val reason: String, val usable: Boolean = false, val expiresAt: String? = null)
+
+@Serializable
+data class AgentStatus(
+    @Serializable(LossyMap::class) val limits: Map<String, Limits> = emptyMap(),
+    val auth: AgentAuths = AgentAuths(),
+    @Serializable(LossyMap::class) val attention: Map<String, AgentAttention> = emptyMap(),
+)
 
 @Serializable
 data class AccountDetail(val label: String, val value: String = "", val note: String? = null)
@@ -125,14 +134,6 @@ fun agentName(agent: String) = agentNames[agent] ?: agent
 private val effortNames = mapOf("minimal" to "最低", "low" to "低", "medium" to "中", "high" to "高", "xhigh" to "很高", "max" to "最高", "ultra" to "极高")
 
 fun effortName(effort: String) = effortNames[effort] ?: effort
-
-// claude-opus-5-5 → Opus 5.5；其他 agent 的模型原样显示
-fun modelName(agent: String?, model: String): String {
-    if (agent != null && agent != "claude") return model
-    val match = Regex("^claude-([a-z]+)-(\\d+)(?:-(\\d+))?").find(model) ?: return model
-    val (family, major, minor) = match.destructured
-    return "${family.replaceFirstChar { it.uppercase() }} ${if (minor.isNotEmpty()) "$major.$minor" else major}"
-}
 
 // ---- thread 的条目 ----
 
@@ -165,8 +166,9 @@ sealed interface ToolDetail {
     @Serializable @SerialName("read")
     data class Read(val path: String) : ToolDetail
 
+    // lines：增删了多少行
     @Serializable @SerialName("edit")
-    data class Edit(val path: String, val change: FileChange? = null) : ToolDetail
+    data class Edit(val path: String, val change: FileChange? = null, val lines: LineCount? = null) : ToolDetail
 
     @Serializable @SerialName("search")
     data class Search(val pattern: String, val target: String = "content") : ToolDetail
@@ -180,11 +182,13 @@ sealed interface ToolDetail {
     @Serializable @SerialName("image_view")
     data class ImageView(val path: String) : ToolDetail
 
+    // operation：归类后的操作
     @Serializable @SerialName("browser")
-    data class Browser(val action: String, val target: String? = null) : ToolDetail
+    data class Browser(val action: String, val target: String? = null, val operation: String? = null) : ToolDetail
 
+    // target：参数里第一个文字参数
     @Serializable @SerialName("mcp")
-    data class Mcp(val server: String, val tool: String) : ToolDetail
+    data class Mcp(val server: String, val tool: String, val target: String? = null) : ToolDetail
 
     @Serializable @SerialName("subagent")
     data class Subagent(val description: String, val prompt: String? = null, val type: String? = null) : ToolDetail
@@ -199,8 +203,14 @@ sealed interface ToolDetail {
     data object Todo : ToolDetail
 
     @Serializable @SerialName("other")
-    data object Other : ToolDetail
+    data class Other(val target: String? = null) : ToolDetail
 }
+
+@Serializable
+data class LineCount(val added: Int = 0, val removed: Int = 0)
+
+@Serializable
+data class WebLink(val title: String, val url: String)
 
 @Serializable
 @JsonClassDiscriminator("type")
@@ -238,13 +248,15 @@ sealed interface Entry {
         override val time: String,
         val id: String,
         val name: String,
-        val tool: ToolDetail = ToolDetail.Other,
+        val tool: ToolDetail = ToolDetail.Other(),
         val input: JsonElement? = null,
         val background: Boolean = false,
         val clipped: Boolean = false,
         override val parent: String? = null,
     ) : Entry
 
+    // startLine：读文件的结果认得出行号时，output 是去掉行号的内容，这是第一行的行号；
+    // links：网页搜索的结果认得出搜到的网页时，output 是剩下的总结
     @Serializable @SerialName("tool_result")
     data class ToolResult(
         override val time: String,
@@ -254,6 +266,8 @@ sealed interface Entry {
         val truncated: Boolean = false,
         val images: List<String> = emptyList(),
         val clipped: Boolean = false,
+        val startLine: Int? = null,
+        @Serializable(LossyList::class) val links: List<WebLink> = emptyList(),
         override val parent: String? = null,
     ) : Entry
 
@@ -267,11 +281,12 @@ sealed interface Entry {
         val outcome: String? = null,
         val error: String? = null,
         val model: String? = null,
+        val modelName: String? = null,
         val outputTokens: Long? = null,
         val context: ContextSize? = null,
     ) : Entry
 
-    // 不认识的条目占住位置，条目的序号和后端一致
+    // 不认识的条目
     @Serializable @SerialName("unknown")
     data class Unknown(override val time: String = "") : Entry
 }

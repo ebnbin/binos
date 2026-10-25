@@ -135,7 +135,7 @@ fun MainScreen() {
                     modifier = Modifier.weight(1f).then(if (banner == null) Modifier else Modifier.consumeWindowInsets(WindowInsets.statusBars)),
                 ) {
                     composable<CodeRoute> { CodeHomeScreen() }
-                    composable<SessionRoute> { ConversationScreen(it.toRoute<SessionRoute>().id, null, it.toRoute<SessionRoute>().item.takeIf { item -> item >= 0 }) }
+                    composable<SessionRoute> { ConversationScreen(it.toRoute<SessionRoute>().id, null, it.toRoute<SessionRoute>().seq.takeIf { seq -> seq >= 0 }) }
                     composable<NewSessionRoute> { ConversationScreen(null, it.toRoute<NewSessionRoute>().project.ifEmpty { null }, null) }
                     composable<KitaRoute> { KitaScreen() }
                     composable<KitaChatRoute> { it.toRoute<KitaChatRoute>().let { route -> KitaChatScreen(route.id.ifEmpty { null }, route.temporary) } }

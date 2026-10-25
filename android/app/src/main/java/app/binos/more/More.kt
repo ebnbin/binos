@@ -90,7 +90,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -122,6 +121,9 @@ import app.binos.shell.LocalNav
 import app.binos.shell.SettingsRoute
 import app.binos.shell.SystemRoute
 import app.binos.shell.WebAppRoute
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -139,7 +141,44 @@ import java.util.UUID
 data class ExternalApp(val id: String, val name: String = "", val icon: String = "", val url: String)
 
 @Serializable
-data class AppRegistry(@Serializable(LossyList::class) val external: List<ExternalApp> = emptyList())
+data class BuiltinApp(val id: String, val name: String = "")
+
+// 全部 app：内置的和注册表里的外部 app
+@Serializable
+data class Apps(@Serializable(LossyList::class) val builtin: List<BuiltinApp> = emptyList(), @Serializable(LossyList::class) val external: List<ExternalApp> = emptyList())
+
+// 全部 app 的清单，随 apps 通知（以及重新连上）重新读取
+object AppsStore {
+    private val _apps = MutableStateFlow<Apps?>(null)
+    val apps: StateFlow<Apps?> = _apps.asStateFlow()
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    init {
+        app.scope.launch { app.events.of("apps").collect { refresh() } }
+        refresh()
+    }
+
+    fun refresh() {
+        app.scope.launch { runCatching { app.api.get<Apps>("/api/apps") }.onSuccess { _apps.value = it; _error.value = null }.onFailure { _error.value = it.message } }
+    }
+
+    // 外部 app 的注册表整份替换：先显示新的，失败时换回原来的
+    suspend fun saveExternal(external: List<ExternalApp>) {
+        val previous = _apps.value
+        _apps.value = (previous ?: Apps()).copy(external = external)
+        try {
+            app.api.putJson("/api/apps", buildJsonObject { put("external", json.encodeToJsonElement(external)) })
+            _error.value = null
+        } catch (error: Exception) {
+            _apps.value = previous
+            throw error
+        }
+    }
+}
+
+// activity、记忆的范围和来源里是 app 的 id，按内置 app 的清单显示名称
+fun appName(apps: Apps?, id: String): String = apps?.builtin?.find { it.id == id }?.name ?: id
 
 private data class Entry(val label: String, val icon: ImageVector, val route: Any)
 
@@ -159,11 +198,7 @@ private val builtins = listOf(
 @Composable
 fun MoreScreen() {
     val nav = LocalNav.current
-    var registry by remember { mutableStateOf<AppRegistry?>(null) }
-    LaunchedEffect(Unit) {
-        app.events.of("apps").collect { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it } }
-    }
-    LaunchedEffect(Unit) { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it } }
+    val registry by AppsStore.apps.collectAsStateWithLifecycle()
     val builds = rememberBuilds().snapshot?.let { buildsSummary(it.builds) }
     Scaffold(topBar = { TopAppBar(title = { Text("更多") }) }) { padding ->
         LazyVerticalGrid(
@@ -209,26 +244,19 @@ fun BackBar(title: String, actions: @Composable () -> Unit = {}) {
 @Composable
 fun ExternalAppsScreen() {
     val nav = LocalNav.current
-    var registry by remember { mutableStateOf<AppRegistry?>(null) }
+    val registry by AppsStore.apps.collectAsStateWithLifecycle()
+    val loadError by AppsStore.error.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<ExternalApp?>(null) }
     var removing by remember { mutableStateOf<ExternalApp?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    val error = saveError ?: loadError
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        app.events.of("apps").collect { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it }.onFailure { error = it.message } }
-    }
-    LaunchedEffect(Unit) { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it }.onFailure { error = it.message } }
 
     fun save(apps: List<ExternalApp>) {
-        val previous = registry
-        registry = AppRegistry(apps)
         scope.launch {
-            runCatching { app.api.putJson("/api/apps", buildJsonObject { put("external", json.encodeToJsonElement(apps)) }) }
-                .onSuccess { error = null }
-                .onFailure {
-                    error = "保存失败：${it.message}"
-                    registry = previous
-                }
+            runCatching { AppsStore.saveExternal(apps) }
+                .onSuccess { saveError = null }
+                .onFailure { saveError = "保存失败：${it.message}" }
         }
     }
 

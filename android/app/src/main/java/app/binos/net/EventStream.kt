@@ -44,7 +44,7 @@ fun Api.eventStream(url: () -> String): Flow<StreamSignal> = flow {
                 throw AuthRequired()
             }
             response.use {
-                if (!response.isSuccessful) throw ApiException(response.code, "连接失败（${response.code}）")
+                if (!response.isSuccessful) throw apiError(response.code, response.body.string())
                 emit(StreamSignal.Open)
                 val source = response.body.source()
                 val cancelRead = currentCoroutineContext().job.invokeOnCompletion { call.cancel() }

@@ -2,6 +2,7 @@ package app.binos.code
 
 import android.widget.Toast
 import app.binos.app
+import app.binos.net.ApiException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +29,11 @@ object CodeStore {
     init {
         app.scope.launch {
             app.events.of("session", "project", "agent").collect { event ->
-                if (event == null || event.type != "agent") refresh()
+                val session = event?.id?.takeIf { event.type == "session" }
+                when {
+                    session != null -> refreshSession(session)
+                    event == null || event.type != "agent" -> refresh()
+                }
                 if (event == null || event.type == "agent") refreshStatus()
                 if (event == null && _catalogs.value.isEmpty()) refreshCatalogs()
             }
@@ -52,6 +57,20 @@ object CodeStore {
         }
     }
 
+    // 只更新有变化的这一条
+    private fun refreshSession(id: Int) {
+        app.scope.launch {
+            runCatching { api.session(id) }
+                .onSuccess { put(it) }
+                .onFailure { if (it is ApiException && it.status == 404) _sessions.value = _sessions.value?.filter { session -> session.id != id } }
+        }
+    }
+
+    private fun put(session: SessionSummary) {
+        val list = _sessions.value ?: return
+        _sessions.value = if (list.any { it.id == session.id }) list.map { if (it.id == session.id) session else it } else listOf(session) + list
+    }
+
     private fun refreshStatus() {
         app.scope.launch { runCatching { api.status() }.onSuccess { _status.value = it } }
     }
@@ -66,7 +85,7 @@ object CodeStore {
     fun edit(id: Int, title: String? = null, pinned: Boolean? = null, archived: Boolean? = null) {
         app.scope.launch {
             runCatching { api.edit(id, title, pinned, archived) }
-                .onSuccess { refresh() }
+                .onSuccess { put(it) }
                 .onFailure { Toast.makeText(app, "保存失败：${it.message ?: "请重试"}", Toast.LENGTH_SHORT).show() }
         }
     }

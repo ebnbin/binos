@@ -51,9 +51,9 @@ private const val olderMargin = 8
 private class TurnBlocks(val previousTime: String?, val blocks: List<Block>)
 
 // thread 的内容：倒序排列的列表，新内容出现在底部；往上翻看时不打扰，滚到顶部附近时补读更早的轮。
-// 只有最后一轮随推送和计时重新整理。stickRequests 每加一次回到底部；targetItem 是要定位的条目在整个 thread 里的位置
+// 只有最后一轮随推送和计时重新整理。stickRequests 每加一次回到底部；targetSeq 是要定位的条目的 seq
 @Composable
-fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetItem: Int?, onOpenFile: (String, String) -> Unit) {
+fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetSeq: Int?, onOpenFile: (String, String) -> Unit) {
     val live = state.live
     val running = live != null
     val now = rememberNow(running)
@@ -61,7 +61,7 @@ fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetIt
     val cache = remember(state) { IdentityHashMap<Turn, TurnBlocks>() }
     val blocks = remember(turns, running) {
         turns.flatMapIndexed { i, turn ->
-            val previousTime = turns.getOrNull(i - 1)?.main?.lastOrNull()?.item?.time
+            val previousTime = turns.getOrNull(i - 1)?.main?.lastOrNull()?.entry?.time
             if (i == turns.lastIndex && running) {
                 cache.remove(turn)
                 buildBlocks(turn.main, turn, true, previousTime)
@@ -71,16 +71,16 @@ fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetIt
             }
         }
     }
-    val context = TranscriptContext(state.thread, state.session?.agent, live, now, onOpenFile)
+    val context = TranscriptContext(state.thread, live, now, onOpenFile)
     val current = turns.lastOrNull()
-    val runningTool = current?.main?.lastOrNull { (item) -> item is Entry.ToolCall && current.results[item] == null }?.item as? Entry.ToolCall
-    val turnStart = (current?.first as? Entry.Input)?.takeIf { it.mode == "start" }?.time
+    val runningTool = current?.main?.lastOrNull { it.entry is Entry.ToolCall && current.results[it.itemId ?: ""] == null }?.entry as? Entry.ToolCall
+    val turnStart = (current?.first?.entry as? Entry.Input)?.takeIf { it.mode == "start" }?.time
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val reversed = remember(blocks) { blocks.asReversed() }
     val awayFromBottom by remember { derivedStateOf { listState.firstVisibleItemIndex > 1 } }
     // 在底部时新内容到来会跟着滚到底；往上翻看时不打扰。倒序列表按条目保持位置，新条目插在前面时要手动滚回去
-    var stick by remember { mutableStateOf(targetItem == null) }
+    var stick by remember { mutableStateOf(targetSeq == null) }
     LaunchedEffect(listState) {
         snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
             if (!scrolling) stick = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 120
@@ -96,23 +96,23 @@ fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetIt
     fun nearTop(): Boolean {
         val info = listState.layoutInfo
         val last = info.visibleItemsInfo.lastOrNull()?.index ?: return false
-        return state.offset > 0 && info.totalItemsCount > blockCount && last >= info.totalItemsCount - olderMargin
+        return state.hasOlder && info.totalItemsCount > blockCount && last >= info.totalItemsCount - olderMargin
     }
     LaunchedEffect(listState, state) {
         snapshotFlow { nearTop() }.distinctUntilChanged().collect { if (it) state.loadOlder(scope) }
     }
-    LaunchedEffect(state.offset) { if (nearTop()) state.loadOlder(scope) }
+    LaunchedEffect(state.firstSeq) { if (nearTop()) state.loadOlder(scope) }
 
     // 从搜索结果跳过来时，先补读到那一条，再滚过去并短暂高亮。倒序列表里条目前面还有提示和回答中的临时内容
-    var located by remember { mutableStateOf(targetItem == null) }
+    var located by remember { mutableStateOf(targetSeq == null) }
     var highlight by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(blocks, state.loaded) {
-        if (located || targetItem == null || !state.loaded) return@LaunchedEffect
-        if (targetItem < state.offset) {
-            state.loadOlder(scope, targetItem)
+        if (located || targetSeq == null || !state.loaded) return@LaunchedEffect
+        if (targetSeq < state.firstSeq) {
+            state.loadOlder(scope, targetSeq)
             return@LaunchedEffect
         }
-        val position = reversed.indexOfFirst { it is Block.Input && it.index == targetItem || it is Block.Text && it.key == targetItem.toString() }
+        val position = reversed.indexOfFirst { it is Block.Input && it.seq == targetSeq || it is Block.Text && it.key == targetSeq.toString() }
         if (position >= 0) {
             val leading = listOfNotNull(notice, live, live?.text?.takeIf { it.isNotBlank() }, live?.thinking?.takeIf { it.isNotEmpty() }).size
             listState.scrollToItem(position + leading, -listState.layoutInfo.viewportSize.height / 3)
@@ -158,7 +158,7 @@ fun Transcript(state: ThreadState, notice: String?, stickRequests: Int, targetIt
                 }
             }
             items(reversed, key = { it.key }) { block -> BlockView(block, context, block === blocks.lastOrNull(), highlighted = block.key == highlight) }
-            if (state.offset > 0) {
+            if (state.hasOlder) {
                 item(key = "older") {
                     Text(
                         "正在读取更早的消息",

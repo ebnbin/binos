@@ -1,7 +1,6 @@
 package app.binos.code
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import app.binos.app
@@ -26,25 +25,24 @@ import kotlinx.serialization.json.jsonObject
 // 打开时先读最后至少这么多条，往上翻时每次再读这么多
 private const val pageSize = 300
 
-// 事件的 seq 是到它为止的条数，也就是它的位置加一
-private data class PageEvent(val seq: Int, val entry: Entry)
+// 对话里的一条事件：seq 是在对话里的位置，从 1 开始；turnId 是所属的一轮，第一条 session 条目没有；
+// itemId 是所属的条目，一次工具调用和它的结果相同；parentId 是子 agent 的条目所属的那次调用的 itemId
+class PageEvent(val seq: Int, val turnId: String?, val itemId: String?, val parentId: String?, val entry: Entry)
 
-// 解不开的条目也占住它的序号
-private fun parsePageEvent(element: JsonElement): PageEvent? = (element as? JsonObject)?.let { event ->
+// 解不开的条目按不认识的显示，不影响其他条目
+fun parsePageEvent(element: JsonElement): PageEvent? = (element as? JsonObject)?.let { event ->
     val seq = (event["seq"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return null
-    PageEvent(seq, event["data"]?.let(::parseEntry) ?: Entry.Unknown())
+    PageEvent(seq, event.string("turnId"), event.string("itemId"), event.string("parentId"), event["data"]?.let(::parseEntry) ?: Entry.Unknown())
 }
 
-// thread 的内容：items 是从 offset 开始的连续条目，offset 大于 0 时前面还有更早的，由 loadOlder 往前补读；
-// turns 随条目增量更新，没变的轮沿用原来的对象。在主线程上修改，界面直接读取
+// thread 的内容：events 是 seq 连续的一段，第一条的 seq 大于 1 时前面还有更早的，由 loadOlder 往前补读；
+// turns 随事件增量更新，没变的轮沿用原来的对象。在主线程上修改，界面直接读取
 class ThreadState(val thread: String) {
-    var items by mutableStateOf<List<Entry>>(emptyList())
-        private set
-    var offset by mutableIntStateOf(0)
+    var events by mutableStateOf<List<PageEvent>>(emptyList())
         private set
     var turns by mutableStateOf<List<Turn>>(emptyList())
         private set
-    // 第一条条目；只读最后几轮时由 window 给出
+    // 第一条条目，由 window 给出
     var session by mutableStateOf<Entry.Session?>(null)
         private set
     var live by mutableStateOf<Live?>(null)
@@ -54,20 +52,21 @@ class ThreadState(val thread: String) {
     var loadingOlder by mutableStateOf(false)
         private set
 
-    // 已收到的条数；还没收到过时为 null，连接时只要最后几轮
-    private var count: Int? = null
+    val firstSeq: Int get() = events.firstOrNull()?.seq ?: 1
+    val hasOlder: Boolean get() = firstSeq > 1
 
-    private fun replace(items: List<Entry>, offset: Int) {
-        this.items = items
-        this.offset = offset
-        turns = splitTurns(items, turns, offset)
-        if (offset == 0) (items.firstOrNull() as? Entry.Session)?.let { session = it }
+    // 收到的最后一条的 seq；还没收到过 window 时为 null，连接时只要最后几轮
+    private var last: Int? = null
+
+    private fun replace(events: List<PageEvent>) {
+        this.events = events
+        turns = splitTurns(events, turns)
     }
 
-    // 断开后自动重连：从已收到的位置接着补发
+    // 断开后自动重连：从收到的最后一条接着补发
     suspend fun follow() {
         app.api.eventStream {
-            val known = count
+            val known = last
             app.api.url("/api/kita/sessions/${encode(thread)}/stream?" + if (known != null) "from=$known" else "tail=$pageSize").toString()
         }.collect(::apply)
     }
@@ -77,14 +76,14 @@ class ThreadState(val thread: String) {
         if (signal !is StreamSignal.Message) return
         val event = runCatching { json.parseToJsonElement(signal.message.data) }.getOrNull() as? JsonObject ?: return
         when (event.string("type")) {
-            // 从这里开始补发，之前收到的都不要了
+            // 重新给出最后几轮，之前收到的都不要了
             "window" -> {
-                val from = (event["from"] as? JsonPrimitive)?.content?.toIntOrNull() ?: return
-                count = from
+                val events = (event["events"] as? JsonArray).orEmpty().mapNotNull(::parsePageEvent)
+                last = events.lastOrNull()?.seq ?: 0
                 session = event["session"]?.let { parseEntry(it) as? Entry.Session }
                 live = null
                 turns = emptyList()
-                replace(emptyList(), from)
+                replace(events)
             }
             "event" -> event["event"]?.let(::parsePageEvent)?.let { append(listOf(it)) }
             "events" -> append((event["events"] as? JsonArray).orEmpty().mapNotNull(::parsePageEvent))
@@ -93,30 +92,28 @@ class ThreadState(val thread: String) {
         }
     }
 
-    // 只接紧接着已收到位置、序号连续的那一段
+    // 只接紧接着收到的最后一条、seq 连续的那一段
     private fun append(events: List<PageEvent>) {
-        val known = count ?: return
-        val entries = events.dropWhile { it.seq <= known }.withIndex().takeWhile { (index, event) -> event.seq == known + 1 + index }.map { it.value.entry }
-        if (entries.isEmpty()) return
-        count = known + entries.size
-        replace(items + entries, offset)
-        for (entry in entries) live = live?.let { applyEntry(it, entry) }
+        val known = last ?: return
+        val added = events.dropWhile { it.seq <= known }.withIndex().takeWhile { (index, event) -> event.seq == known + 1 + index }.map { it.value }
+        if (added.isEmpty()) return
+        last = added.last().seq
+        replace(this.events + added)
+        for (item in added) live = live?.let { applyEntry(it, item.entry) }
     }
 
-    // 往前补读一段；给出 until 时一直读到包含这个位置。这期间重新补发过、位置对不上时不接
+    // 往前补读一段；给出 until 时一直读到包含这个 seq。这期间重新给出过最后几轮、位置对不上时不接
     fun loadOlder(scope: CoroutineScope, until: Int? = null) {
-        val end = offset
-        if (end == 0 || loadingOlder) return
+        val first = firstSeq
+        if (first <= 1 || loadingOlder) return
         loadingOlder = true
         scope.launch {
             try {
-                val limit = maxOf(pageSize, end - (until ?: end))
-                val events = app.api.getJson("/api/kita/sessions/${encode(thread)}/events?before=$end&limit=$limit")
+                val limit = maxOf(pageSize, first - (until ?: first))
+                val older = app.api.getJson("/api/kita/sessions/${encode(thread)}/events?before=$first&limit=$limit")
                     .jsonObject["events"]?.jsonArray.orEmpty().mapNotNull(::parsePageEvent)
-                val contiguous = events.withIndex().all { (index, event) -> event.seq == events.first().seq + index }
-                if (events.isNotEmpty() && contiguous && events.last().seq == end && offset == end) {
-                    replace(events.map { it.entry } + items, events.first().seq - 1)
-                }
+                val contiguous = older.withIndex().all { (index, event) -> event.seq == older.first().seq + index }
+                if (older.isNotEmpty() && contiguous && older.last().seq == first - 1 && firstSeq == first) replace(older + events)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -139,13 +136,13 @@ object ThreadCache {
 }
 
 @Serializable
-private data class FullCall(val call: JsonElement, val result: JsonElement? = null)
+private data class CallDetail(val call: JsonElement, val result: JsonElement? = null)
 
-// index 处的工具调用和它的结果，完整的；读不到时返回 null
-suspend fun readFullCall(thread: String, index: Int): Pair<Entry.ToolCall, Entry.ToolResult?>? = runCatching {
-    val value = json.decodeFromJsonElement<FullCall>(app.api.getJson("/api/kita/sessions/${encode(thread)}/calls/$index"))
-    val call = parseEntry(value.call) as? Entry.ToolCall ?: return null
-    call to value.result?.let { parseEntry(it) as? Entry.ToolResult }
+// seq 处的工具调用和它的结果，完整的；读不到时返回 null
+suspend fun readFullCall(thread: String, seq: Int): Pair<Entry.ToolCall, Entry.ToolResult?>? = runCatching {
+    val value = json.decodeFromJsonElement<CallDetail>(app.api.getJson("/api/kita/sessions/${encode(thread)}/calls/$seq"))
+    val call = parsePageEvent(value.call)?.entry as? Entry.ToolCall ?: return null
+    call to value.result?.let { parsePageEvent(it)?.entry as? Entry.ToolResult }
 }.getOrElse { if (it is CancellationException) throw it else null }
 
 private fun JsonObject.string(key: String): String? = (get(key) as? JsonPrimitive)?.takeIf { it.isString }?.content

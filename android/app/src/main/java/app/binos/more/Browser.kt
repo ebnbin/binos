@@ -2,6 +2,12 @@
 
 package app.binos.more
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.AssistChip
+import androidx.compose.runtime.mutableIntStateOf
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
@@ -257,14 +263,15 @@ class RemoteBrowser {
 
     fun text(value: String) = send(buildJsonObject { put("type", "text"); put("text", value) })
 
-    fun key(key: String) {
+    // code 是物理键位（KeyA、Digit1、ArrowLeft……），modifiers 是按着的修饰键（见 modifierKeys）
+    fun key(key: String, code: String = key, modifiers: Int = 0) {
         listOf("down", "up").forEach { action ->
             send(buildJsonObject {
                 put("type", "key")
                 put("action", action)
                 put("key", key)
-                put("code", key)
-                put("modifiers", 0)
+                put("code", code)
+                put("modifiers", modifiers)
             })
         }
     }
@@ -328,7 +335,11 @@ fun BrowserScreen(url: String) {
                 WebPage(embedded, Modifier.fillMaxSize(), onState = { _, current -> address = current })
                 return@Column
             }
-            if (typing) TypingBar(browser)
+            if (typing) {
+                var modifiers by remember { mutableIntStateOf(0) }
+                KeyBar(browser, modifiers) { modifiers = it }
+                TypingBar(browser, modifiers) { modifiers = 0 }
+            }
             Box(
                 Modifier.fillMaxSize().background(Color(0xFF202124))
                     .onSizeChanged { size ->
@@ -390,15 +401,53 @@ private fun toPage(position: androidx.compose.ui.geometry.Offset, view: IntSize,
     return (position.x - left) / scale to position.y / scale
 }
 
-// 往远程页面里打字：文字整段插入，回车和退格按键发送
+// 修饰键和 CDP 的 modifiers 位
+private val modifierKeys = listOf("Ctrl" to 2, "Alt" to 1, "Shift" to 8, "⌘" to 4)
+
+// 键盘上没有的键：方向键、翻页、F1–F12 等
+private val specialKeys = listOf(
+    "Esc" to "Escape", "Tab" to "Tab", "←" to "ArrowLeft", "↑" to "ArrowUp", "↓" to "ArrowDown", "→" to "ArrowRight",
+    "Home" to "Home", "End" to "End", "PgUp" to "PageUp", "PgDn" to "PageDown", "Del" to "Delete",
+) + (1..12).map { "F$it" to "F$it" }
+
+// 按键栏：先点修饰键再按键（或者在下面打一个字）是组合键，按完一次修饰键就松开
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TypingBar(browser: RemoteBrowser) {
+private fun KeyBar(browser: RemoteBrowser, modifiers: Int, onModifiers: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        modifierKeys.forEach { (label, bit) ->
+            FilterChip(modifiers and bit != 0, onClick = { onModifiers(modifiers xor bit) }, label = { Text(label) })
+        }
+        specialKeys.forEach { (label, key) ->
+            AssistChip(onClick = {
+                browser.key(key, key, modifiers)
+                onModifiers(0)
+            }, label = { Text(label) })
+        }
+    }
+}
+
+// 字符对应的物理键位，组合键（Ctrl+C 之类）要用
+private fun codeOf(char: Char): String = when {
+    char in 'a'..'z' || char in 'A'..'Z' -> "Key${char.uppercaseChar()}"
+    char in '0'..'9' -> "Digit$char"
+    else -> ""
+}
+
+// 往远程页面里打字：文字整段插入，回车和退格按键发送；按着修饰键时打的字作为组合键发送
+@Composable
+private fun TypingBar(browser: RemoteBrowser, modifiers: Int, onCombined: () -> Unit) {
     var value by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     TextField(
         value = value,
         onValueChange = { next ->
             when {
+                modifiers != 0 && next.length > value.length && next.startsWith(value) -> {
+                    next.substring(value.length).forEach { browser.key(it.toString(), codeOf(it), modifiers) }
+                    onCombined()
+                    return@TextField
+                }
                 next.length > value.length && next.startsWith(value) -> browser.text(next.substring(value.length))
                 next.length < value.length && value.startsWith(next) -> repeat(value.length - next.length) { browser.key("Backspace") }
                 else -> browser.text(next)
@@ -408,7 +457,8 @@ private fun TypingBar(browser: RemoteBrowser) {
         placeholder = { Text("在页面的输入框里打字") },
         singleLine = true,
         keyboardActions = KeyboardActions(onDone = {
-            browser.key("Enter")
+            browser.key("Enter", "Enter", modifiers)
+            onCombined()
             value = ""
         }),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

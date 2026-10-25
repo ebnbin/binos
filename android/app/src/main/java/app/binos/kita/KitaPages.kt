@@ -61,6 +61,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.binos.code.parseTime
+import app.binos.more.AppsStore
+import app.binos.more.appName
 import app.binos.shell.KitaChatRoute
 import app.binos.shell.LocalNav
 import app.binos.ui.formatDivider
@@ -126,6 +128,7 @@ private fun kindName(kind: String) = if (kind == "inferred") "推测" else "已�
 
 @Composable
 private fun MemoryItem(memory: Memory, conversations: List<Conversation>?, onError: (String) -> Unit) {
+    val apps by AppsStore.apps.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var editing by rememberSaveable(memory.id) { mutableStateOf<String?>(null) }
     var history by rememberSaveable(memory.id) { mutableStateOf(false) }
@@ -152,7 +155,7 @@ private fun MemoryItem(memory: Memory, conversations: List<Conversation>?, onErr
                 Column(Modifier.weight(1f)) {
                     SourceText(memory.source, conversations)
                     Text(
-                        listOfNotNull(formatDivider(parseTime(memory.updatedAt)), memory.scope.takeIf { it != "personal" }).joinToString(" · "),
+                        listOfNotNull(formatDivider(parseTime(memory.updatedAt)), memory.scope.takeIf { it != "personal" }?.let { appName(apps, it) }).joinToString(" · "),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -220,7 +223,8 @@ private fun SourceText(source: MemorySource, conversations: List<Conversation>?)
             modifier = Modifier.clickable { nav.navigate(KitaChatRoute(conversation.id)) },
         )
     } else {
-        Text(appNames[source.owner] ?: source.owner ?: "", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val apps by AppsStore.apps.collectAsStateWithLifecycle()
+        Text(source.owner?.let { appName(apps, it) } ?: "", style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

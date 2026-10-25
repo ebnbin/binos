@@ -88,7 +88,8 @@ import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -101,7 +102,7 @@ private data class TerminalList(val available: Boolean = true, @Serializable(Los
 
 private const val base = "/api/apps/terminal"
 
-// 终端会话（tmux）列表，每 5 秒刷新
+// 终端会话（tmux）列表，会话新建或结束时后端发 terminal 通知
 @Composable
 fun TerminalHomeScreen() {
     val nav = LocalNav.current
@@ -116,9 +117,8 @@ fun TerminalHomeScreen() {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(refresh) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
+            app.events.of("terminal").onStart { emit(null) }.collectLatest {
                 runCatching { app.api.get<TerminalList>(base) }.onSuccess { list = it; error = null }.onFailure { error = it.message }
-                delay(5000)
             }
         }
     }
@@ -186,7 +186,7 @@ fun TerminalHomeScreen() {
                 TextButton(onClick = {
                     deleting = null
                     scope.launch {
-                        runCatching { app.api.deleteJson("$base/sessions/${encode(session.id)}") }.onFailure { error = it.message }
+                        runCatching { app.api.delete("$base/sessions/${encode(session.id)}") }.onFailure { error = it.message }
                         refresh++
                     }
                 }) { Text("关闭") }

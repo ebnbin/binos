@@ -199,7 +199,7 @@ fun Composer(model: ConversationModel, session: SessionSummary?, running: Boolea
                 }
                 Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { modelSheet = true }, enabled = !running) {
-                        Text(selectedModel?.name ?: choice.model ?: agentName(choice.agent), maxLines = 1)
+                        Text(selectedModel?.name ?: session?.modelName?.takeIf { choice.model == session.model } ?: choice.model ?: agentName(choice.agent), maxLines = 1)
                     }
                     Box {
                         TextButton(onClick = { effortMenu = true }, enabled = !running) {

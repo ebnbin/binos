@@ -75,7 +75,6 @@ import kotlinx.serialization.json.JsonElement
 // 显示 transcript 用到的上下文：thread 用来拼文件地址，now 是计时用的当前时间
 class TranscriptContext(
     val thread: String,
-    val agent: String?,
     val live: Live?,
     val now: Long,
     val onOpenFile: (url: String, name: String) -> Unit,
@@ -299,7 +298,7 @@ private fun StatusIndicator(state: CallState, now: Long) {
 private fun ToolCallView(state: CallState, context: TranscriptContext) {
     var open by rememberSaveable(state.call.id) { mutableStateOf(false) }
     val label = toolLabel(state.call)
-    val changes = lineChanges(state.call)
+    val changes = (state.call.tool as? ToolDetail.Edit)?.lines
     Column(Modifier.animateContentSize()) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).clickable { open = !open }.padding(vertical = 6.dp),
@@ -356,9 +355,9 @@ private fun Color.luminance() = 0.2126f * red + 0.7152f * green + 0.0722f * blue
 @Composable
 private fun rememberFullCall(thread: String, state: CallState): Pair<Entry.ToolCall, Entry.ToolResult?> {
     val clipped = state.call.clipped || state.result?.clipped == true
-    var full by remember(thread, state.index) { mutableStateOf<Triple<Entry.ToolResult?, Entry.ToolCall, Entry.ToolResult?>?>(null) }
-    LaunchedEffect(thread, state.index, clipped, state.result) {
-        if (clipped) readFullCall(thread, state.index)?.let { (call, result) -> full = Triple(state.result, call, result) }
+    var full by remember(thread, state.seq) { mutableStateOf<Triple<Entry.ToolResult?, Entry.ToolCall, Entry.ToolResult?>?>(null) }
+    LaunchedEffect(thread, state.seq, clipped, state.result) {
+        if (clipped) readFullCall(thread, state.seq)?.let { (call, result) -> full = Triple(state.result, call, result) }
     }
     return full?.takeIf { it.first === state.result }?.let { it.second to it.third } ?: (state.call to state.result)
 }
@@ -373,7 +372,9 @@ private fun ToolBody(state: CallState, context: TranscriptContext) {
     } else {
         when (val tool = call.tool) {
             is ToolDetail.Command -> TerminalOutput(tool.command, result)
-            is ToolDetail.Read -> result?.output?.let { FileContent(tool.path, it) }
+            is ToolDetail.Read -> result?.output?.let { output ->
+                result.startLine?.let { CodeBlock(output, lang = languageOf(tool.path), startLine = it, maxHeight = 420) } ?: CodeBlock(output, maxHeight = 420)
+            }
             is ToolDetail.Edit -> when (val change = tool.change) {
                 is FileChange.Write -> CodeBlock(change.content.removeSuffix("\n"), lang = languageOf(tool.path), startLine = 1, maxHeight = 420)
                 is FileChange.Replace -> {
@@ -387,7 +388,7 @@ private fun ToolBody(state: CallState, context: TranscriptContext) {
                 }
                 FileChange.Other, null -> Raw(call, result)
             }
-            is ToolDetail.WebSearch -> result?.output?.let { WebSearchResults(it, context) }
+            is ToolDetail.WebSearch -> result?.let { WebSearchResults(it, context) }
             is ToolDetail.WebFetch -> {
                 tool.prompt?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                 result?.output?.let { Markdown(it, style = MaterialTheme.typography.bodyMedium) }
@@ -465,17 +466,6 @@ private fun TerminalOutput(command: String, result: Entry.ToolResult?) {
     }
 }
 
-// 读文件的输出每行是「行号\t内容」：拆出行号，对不上这个格式就原样显示
-@Composable
-private fun FileContent(path: String, output: String) {
-    val parsed = remember(output) {
-        val pattern = Regex("^\\s*(\\d+)(?:\\t(.*))?$")
-        val lines = output.split('\n').map { pattern.matchEntire(it) }
-        if (lines.any { it == null }) null else lines.first()!!.groupValues[1].toInt() to lines.joinToString("\n") { it!!.groupValues[2] }
-    }
-    if (parsed == null) CodeBlock(output, maxHeight = 420) else CodeBlock(parsed.second, lang = languageOf(path), startLine = parsed.first, maxHeight = 420)
-}
-
 @Composable
 fun DiffView(lines: List<DiffLine>) {
     val added = addedColor()
@@ -506,28 +496,17 @@ fun DiffView(lines: List<DiffLine>) {
     }
 }
 
-// 搜索网页的输出：一行「Links: [JSON]」列出搜到的网页，后面是总结
+// 搜索网页的结果：搜到的网页，以及总结
 @Composable
-private fun WebSearchResults(output: String, context: TranscriptContext) {
-    val match = remember(output) { Regex("^Links: (\\[.*])$", RegexOption.MULTILINE).find(output) }
-    val links = remember(match) {
-        runCatching {
-            Json.parseToJsonElement(match!!.groupValues[1]).let { it as kotlinx.serialization.json.JsonArray }.mapNotNull { item ->
-                val obj = item as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
-                val url = (obj["url"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: return@mapNotNull null
-                ((obj["title"] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: url) to url
-            }
-        }.getOrDefault(emptyList())
-    }
+private fun WebSearchResults(result: Entry.ToolResult, context: TranscriptContext) {
     val uriHandler = LocalUriHandler.current
-    links.forEach { (title, url) ->
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { uriHandler.openUri(url) }.padding(vertical = 4.dp)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(url.toHttpHost(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    result.links.forEach { link ->
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).clickable { uriHandler.openUri(link.url) }.padding(vertical = 4.dp)) {
+            Text(link.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(link.url.toHttpHost(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
-    val summary = if (match != null) output.substring(match.range.last + 1).trim() else output
-    if (summary.isNotEmpty()) Markdown(summary, style = MaterialTheme.typography.bodyMedium, resolve = context.resolver(emptyMap()))
+    result.output?.takeIf { it.isNotBlank() }?.let { Markdown(it.trim(), style = MaterialTheme.typography.bodyMedium, resolve = context.resolver(emptyMap())) }
 }
 
 private fun String.toHttpHost() = runCatching { java.net.URI(this).host }.getOrNull() ?: this
@@ -538,7 +517,7 @@ private fun SubagentView(state: CallState, turn: Turn, context: TranscriptContex
     var open by rememberSaveable(state.call.id) { mutableStateOf(false) }
     val tool = state.call.tool as ToolDetail.Subagent
     val progress = context.live?.tasks?.get(state.call.id)
-    val children = turn.children[state.call]
+    val children = turn.children[state.itemId]
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).animateContentSize(),
@@ -609,7 +588,7 @@ private fun TurnEndView(block: Block.TurnEnd, context: TranscriptContext) {
                     "用时 ${formatDuration(item.durationMs)}",
                     item.outputTokens?.let { "输出 ${formatTokens(it)} token" },
                     item.context?.let { "上下文 ${(it.tokens * 100 / maxOf(it.window, 1))}%" },
-                    item.model?.let { modelName(context.agent, it) },
+                    item.modelName ?: item.model,
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

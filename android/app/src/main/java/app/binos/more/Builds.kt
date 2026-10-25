@@ -58,6 +58,9 @@ import app.binos.app
 import app.binos.code.encode
 import app.binos.code.parseTime
 import app.binos.net.LossyList
+import app.binos.net.StreamSignal
+import app.binos.net.eventStream
+import app.binos.net.json
 import app.binos.shell.BuildLogRoute
 import app.binos.shell.LocalNav
 import app.binos.ui.codeStyle
@@ -67,7 +70,7 @@ import app.binos.ui.formatDuration
 import app.binos.ui.formatFull
 import app.binos.ui.rememberNow
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
@@ -78,7 +81,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import okhttp3.Request
 
 // 和 server/src/apps/builds/types.ts 对应。产物在服务端是 install 和 link 的联合类型，这里合成一个类
 
@@ -239,17 +241,18 @@ fun BuildsScreen(initialRef: String = "main") {
     var expanded by rememberSaveable { mutableStateOf(setOf<String>()) }
     val scope = rememberCoroutineScope()
     val now = rememberNow(active = data?.builds.orEmpty().any { it.status == "running" }, intervalMs = 1000)
-    fun act(body: JsonElement) {
+    // 操作都返回最新的快照
+    fun act(operation: suspend () -> JsonElement) {
         busy = true
         scope.launch {
-            runCatching { app.api.send("POST", base, body, BuildsSnapshot.serializer()) }.onSuccess { builds.update(it) }.onFailure { builds.error = it.message }
+            runCatching { json.decodeFromJsonElement(BuildsSnapshot.serializer(), operation()) }.onSuccess { builds.update(it) }.onFailure { builds.error = it.message }
             busy = false
         }
     }
     Scaffold(
         topBar = {
             BackBar("构建") {
-                IconButton(onClick = { act(buildJsonObject { put("action", "poll") }) }, enabled = !busy) { Icon(Icons.Outlined.Sync, "检查更新") }
+                IconButton(onClick = { act { app.api.postJson("$base/poll") } }, enabled = !busy) { Icon(Icons.Outlined.Sync, "检查更新") }
             }
         },
     ) { padding ->
@@ -261,7 +264,7 @@ fun BuildsScreen(initialRef: String = "main") {
                 item {
                     Column {
                         ListItem(headlineContent = { Text("自动构建 main 和 PR") }, trailingContent = {
-                            Switch(snapshot.settings.automatic, enabled = !busy, onCheckedChange = { act(buildJsonObject { put("action", "settings"); put("automatic", it) }) })
+                            Switch(snapshot.settings.automatic, enabled = !busy, onCheckedChange = { act { app.api.putJson("$base/settings", buildJsonObject { put("automatic", it) }) } })
                         })
                         snapshot.checkedAt?.let { Text("上次检查：${formatFull(parseTime(it))}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp)) }
                     }
@@ -280,11 +283,12 @@ fun BuildsScreen(initialRef: String = "main") {
                         if ("web" in targets) Text("Web 只构建 PR 的提交，来源请写 pr/编号", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Button(
                             onClick = {
-                                act(buildJsonObject {
-                                    put("action", "enqueue")
-                                    put("ref", ref.trim())
-                                    putJsonArray("targets") { targetLabels.keys.filter { it in targets }.forEach { add(it) } }
-                                })
+                                act {
+                                    app.api.postJson(base, buildJsonObject {
+                                        put("ref", ref.trim())
+                                        putJsonArray("targets") { targetLabels.keys.filter { it in targets }.forEach { add(it) } }
+                                    })
+                                }
                             },
                             enabled = !busy && data != null && ref.isNotBlank() && targets.isNotEmpty(),
                         ) { Text("开始构建") }
@@ -339,7 +343,7 @@ fun BuildsScreen(initialRef: String = "main") {
 }
 
 @Composable
-private fun BuildCard(build: Build, preview: Boolean, busy: Boolean, now: Long, act: (JsonElement) -> Unit) {
+private fun BuildCard(build: Build, preview: Boolean, busy: Boolean, now: Long, act: (suspend () -> JsonElement) -> Unit) {
     val nav = LocalNav.current
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -376,9 +380,9 @@ private fun BuildCard(build: Build, preview: Boolean, busy: Boolean, now: Long, 
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.Center) {
                 TextButton(onClick = { nav.navigate(BuildLogRoute(build.id)) }) { Text("查看日志") }
                 if (live(build.status)) {
-                    TextButton(onClick = { act(buildJsonObject { put("action", "cancel"); put("id", build.id) }) }, enabled = !busy) { Text("取消") }
+                    TextButton(onClick = { act { app.api.postJson("$base/${encode(build.id)}/cancel") } }, enabled = !busy) { Text("取消") }
                 } else {
-                    TextButton(onClick = { act(buildJsonObject { put("action", "retry"); put("id", build.id) }) }, enabled = !busy) { Text("重新构建") }
+                    TextButton(onClick = { act { app.api.postJson("$base/${encode(build.id)}/retry") } }, enabled = !busy) { Text("重新构建") }
                 }
                 // Web 打开预览；Android 下载 APK，下载完在通知栏里点开安装；iOS 的 IPA 装不到这台设备上，只显示信息
                 build.artifacts.forEach { artifact ->
@@ -400,25 +404,36 @@ private fun BuildCard(build: Build, preview: Boolean, busy: Boolean, now: Long, 
     }
 }
 
-// 构建日志的末尾；没编完时每 2 秒刷新，编完再读最后一次。新内容出现时滚到底部
+@Serializable
+private data class BuildLogMessage(val type: String, val offset: Long = 0, val text: String = "")
+
+// 构建日志的末尾，随日志流接着显示新写的部分，断线后从读到的位置接着读；构建结束、读完了流就结束。新内容出现时滚到底部
 @Composable
 fun BuildLogScreen(id: String) {
     val context = LocalContext.current
     val builds = rememberBuilds()
     val build = builds.snapshot?.builds?.find { it.id == id }
-    // 还没读到构建列表时先按没编完处理
-    val following = build == null || live(build.status)
     var text by remember { mutableStateOf("读取日志…") }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(id, following) {
+    LaunchedEffect(id) {
+        // 读到的字节位置，断线重连时从这里接着读
+        var position: String? = null
+        var received = false
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                runCatching { app.api.text(Request.Builder().url(app.api.url("$base/${encode(id)}/log")).build()) }
-                    .onSuccess { text = it }
-                    .onFailure { if (it is CancellationException) throw it else text = it.message ?: "日志读取失败" }
-                if (!following) break
-                delay(2000)
+            app.api.eventStream {
+                app.api.url("$base/${encode(id)}/log/stream").newBuilder().apply { position?.let { addQueryParameter("from", it) } }.build().toString()
+            }.transformWhile { signal ->
+                val message = (signal as? StreamSignal.Message)?.message?.takeIf { it.event == null }
+                    ?.let { runCatching { json.decodeFromString<BuildLogMessage>(it.data) }.getOrNull() to it.id }
+                if (message != null) emit(message)
+                message?.first?.type != "end"
+            }.collect { (message, sseId) ->
+                if (message?.type != "log") return@collect
+                text = (if (received) text else if (message.offset > 0) "[仅显示日志末尾]\n" else "") + message.text
+                received = true
+                sseId?.let { position = it }
             }
+            if (!received) text = "还没有日志"
         }
     }
     val lines = remember(text) { text.lines() }
@@ -427,7 +442,7 @@ fun BuildLogScreen(id: String) {
     Scaffold(
         topBar = {
             BackBar(build?.let { "${targetLabels[it.target] ?: it.target} · ${it.commit.take(7)}" } ?: "构建日志") {
-                IconButton(onClick = { download(context, app.api.url("$base/${encode(id)}/log?download=1").toString(), "build-$id.log") }) { Icon(Icons.Outlined.Download, "下载完整日志") }
+                IconButton(onClick = { download(context, app.api.url("$base/${encode(id)}/log").toString(), "build-$id.log") }) { Icon(Icons.Outlined.Download, "下载完整日志") }
             }
         },
     ) { padding ->

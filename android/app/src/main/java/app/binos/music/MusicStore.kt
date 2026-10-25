@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.util.UUID
@@ -66,6 +67,10 @@ data class SettingField(val id: String, val label: String = "", val description:
 data class ProviderConfiguration(@Serializable(LossyList::class) val fields: List<SettingField> = emptyList())
 
 @Serializable
+data class StreamSource(val provider: String)
+
+// stream：这个来源的曲目能直接取音频流时，用哪个来源的音频流
+@Serializable
 data class ProviderInfo(
     val id: String,
     val name: String = "",
@@ -73,6 +78,7 @@ data class ProviderInfo(
     val input: ProviderInput = ProviderInput(),
     @Serializable(LossyMap::class) val capabilities: Map<String, Capability> = emptyMap(),
     val configuration: ProviderConfiguration = ProviderConfiguration(),
+    val stream: StreamSource? = null,
 ) {
     fun available(operation: String) = capabilities[operation]?.state == "available"
 
@@ -153,23 +159,24 @@ object MusicStore {
 
     private fun accept(next: QueueSnapshot) {
         if (next.revision >= snapshot.revision) snapshot = next
-        var tracks = snapshot.tracks
-        for (mutation in pending) {
-            val operation = mutation.operation
-            when (operation["type"]?.jsonPrimitive?.content) {
-                "clear" -> tracks = emptyList()
-                "remove" -> {
-                    val ref = json.decodeFromJsonElement<TrackRef>(operation["ref"]!!)
-                    tracks = tracks.filter { it.ref != ref }
-                }
-                else -> if (operation["type"]?.jsonPrimitive?.content == "add" || snapshot.revision == 0) {
-                    val keys = tracks.mapTo(HashSet()) { it.key }
-                    val added = json.decodeFromJsonElement<List<Track>>(operation["tracks"]!!).filter { keys.add(it.key) }
-                    tracks = (tracks + added).take(maxQueue)
-                }
-            }
+        _queue.value = pending.fold(snapshot.tracks) { tracks, mutation -> applyOperation(tracks, mutation.operation, snapshot.revision == 0) }
+    }
+
+    // 和 server/src/apps/music/queue-operation.ts 一致；fresh 是队列还没有被改过，只有这时 initialize 才生效
+    private fun applyOperation(tracks: List<Track>, operation: JsonObject, fresh: Boolean): List<Track> = when (val type = operation["type"]?.jsonPrimitive?.content) {
+        "clear" -> emptyList()
+        "remove" -> json.decodeFromJsonElement<TrackRef>(operation["ref"]!!).let { ref -> tracks.filter { it.ref != ref } }
+        "move" -> {
+            val ref = json.decodeFromJsonElement<TrackRef>(operation["ref"]!!)
+            val from = tracks.indexOfFirst { it.ref == ref }
+            if (from < 0) tracks else tracks.toMutableList().apply { add(operation["index"]!!.jsonPrimitive.int.coerceIn(0, size - 1), removeAt(from)) }
         }
-        _queue.value = tracks
+        "add", "initialize" -> if (type == "initialize" && !fresh) tracks else {
+            val keys = tracks.mapTo(HashSet()) { it.key }
+            val added = json.decodeFromJsonElement<List<Track>>(operation["tracks"]!!).filter { keys.add(it.key) }
+            (tracks + added).take(maxQueue)
+        }
+        else -> tracks
     }
 
     private fun failed() {
@@ -221,19 +228,28 @@ object MusicStore {
         put("ref", json.encodeToJsonElement(track.ref))
     })
 
+    // 把这首移到第 index 首
+    fun move(track: Track, index: Int) = enqueue(buildJsonObject {
+        put("type", "move")
+        put("ref", json.encodeToJsonElement(track.ref))
+        put("index", index)
+    })
+
     fun clear() = enqueue(buildJsonObject { put("type", "clear") })
 
     suspend fun catalog(provider: String, operation: String, query: String, page: String? = null): CatalogPage =
         app.api.get("$base/providers/${encode(provider)}/$operation?q=${encode(query)}" + (page?.let { "&page=${encode(it)}" } ?: ""))
 
-    // 改连接设置：值为空字符串表示移除这一项
-    suspend fun configure(provider: String, values: Map<String, String>) {
-        val updated = json.decodeFromJsonElement<ProviderInfo>(app.api.putJson("$base/providers/${encode(provider)}/settings", buildJsonObject { values.forEach { (key, value) -> put(key, value) } }))
+    // 改连接设置：值为 null 表示移除这一项
+    suspend fun configure(provider: String, values: Map<String, String?>) {
+        val updated = json.decodeFromJsonElement<ProviderInfo>(app.api.patchJson("$base/providers/${encode(provider)}/settings", buildJsonObject { values.forEach { (key, value) -> put(key, value) } }))
         _providers.value = _providers.value.map { if (it.id == updated.id) updated else it }
     }
 
     suspend fun lyrics(track: Track): Lyrics = app.api.get("$base/providers/${encode(track.ref.provider)}/lyrics?q=${encode(track.ref.id)}")
 
-    // 后端代理的纯音频流；两个来源的 id 都是 YouTube 的视频 id，官方来源只能嵌入播放，原生播放时同样走这条音频流
-    fun streamUrl(track: Track): String = app.api.url("$base/providers/youtube-music/stream?id=${encode(track.ref.id)}").toString()
+    // 后端代理的纯音频流，用曲目来源指定的那个来源的；来源不能直接取音频流（或者还没读到来源）时为 null
+    fun streamUrl(track: Track): String? = _providers.value.find { it.id == track.ref.provider }?.stream?.provider?.let {
+        app.api.url("$base/providers/${encode(it)}/stream?id=${encode(track.ref.id)}").toString()
+    }
 }

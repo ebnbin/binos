@@ -2,6 +2,13 @@
 
 package app.binos.files
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.verticalScroll
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.decodeFromJsonElement
+import app.binos.net.json
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -22,6 +29,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Audiotrack
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Code
@@ -109,14 +119,30 @@ private const val base = "/api/apps/files"
 
 fun fileUrl(path: String): String = app.api.url("$base/download?path=${encode(path)}").toString()
 
-private suspend fun operation(action: String, path: String, name: String? = null, destination: String? = null) {
-    app.api.postJson("$base/operation", buildJsonObject {
-        put("action", action)
+@Serializable
+data class FileError(val code: String = "", val message: String = "")
+
+// 批量操作逐项的结果，顺序和请求里的一样；没做成的带着原因
+@Serializable
+data class FileResult(val path: String, val error: FileError? = null)
+
+@Serializable
+private data class FileResults(@Serializable(LossyList::class) val results: List<FileResult> = emptyList())
+
+// 在 path 目录里新建文件夹 name（directories），或者把 path 改名为 name（rename）
+private suspend fun nameOperation(action: String, path: String, name: String) {
+    app.api.postJson("$base/$action", buildJsonObject {
         put("path", path)
-        name?.let { put("name", it) }
-        destination?.let { put("destination", it) }
+        put("name", name)
     })
 }
+
+// copy、move 到 destination 目录里，同名的不覆盖；trash 移到废纸篓
+private suspend fun batchOperation(action: String, paths: List<String>, destination: String? = null): List<FileResult> =
+    json.decodeFromJsonElement<FileResults>(app.api.postJson("$base/$action", buildJsonObject {
+        putJsonArray("paths") { paths.forEach { add(it) } }
+        destination?.let { put("destination", it) }
+    })).results
 
 // 预览用的文件类型，和 web/src/services/preview/kind.ts 一致
 fun fileKind(name: String): String {
@@ -149,8 +175,10 @@ private enum class Sort(val label: String) { Name("名称"), Modified("修改时
 private var showHidden by mutableStateOf(false)
 private var sortBy by mutableStateOf(Sort.Name)
 
-// 剪贴板：复制或移动的源文件，到目标目录里粘贴
-private var clipboard by mutableStateOf<Pair<String, FileEntry>?>(null)
+// 剪贴板：复制（copy）或移动（move）的源文件，到目标目录里粘贴
+private var clipboard by mutableStateOf<Pair<String, List<FileEntry>>?>(null)
+
+private val actionNames = mapOf("copy" to "复制", "move" to "移动", "trash" to "移到废纸篓")
 
 @Composable
 fun FilesScreen(path: String?) {
@@ -163,7 +191,11 @@ fun FilesScreen(path: String?) {
     var search by rememberSaveable { mutableStateOf("") }
     var searching by rememberSaveable { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
-    var dialog by remember { mutableStateOf<Pair<String, FileEntry?>?>(null) }
+    var dialog by remember { mutableStateOf<Pair<String, List<FileEntry>>?>(null) }
+    // 多选的文件，按路径
+    var selected by remember(path) { mutableStateOf(setOf<String>()) }
+    // 批量操作里没做成的：做的是什么、一共几项、失败的那几项
+    var failures by remember { mutableStateOf<Triple<String, Int, List<FileResult>>?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -182,15 +214,39 @@ fun FilesScreen(path: String?) {
         }
     }
 
+    // 逐项的结果：全部做成时提示一下，有没做成的列出原因
+    fun batch(action: String, entries: List<FileEntry>, destination: String? = null) {
+        selected = emptySet()
+        scope.launch {
+            runCatching { batchOperation(action, entries.map { it.path }, destination) }
+                .onSuccess { results ->
+                    val failed = results.filter { it.error != null }
+                    if (failed.isEmpty()) snackbar.showSnackbar("已${actionNames[action]} ${results.size} 项") else failures = Triple(action, results.size, failed)
+                }
+                .onFailure { snackbar.showSnackbar(it.message ?: "操作失败") }
+            revision++
+        }
+    }
+
     val upload = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         val dir = listing?.path ?: return@rememberLauncherForActivityResult
         uris.forEach { uri -> act("已上传") { uploadFile(context, uri, dir) } }
     }
 
     val current = listing
+    val chosen = current?.entries.orEmpty().filter { it.path in selected }
     Scaffold(
         topBar = {
-            TopAppBar(
+            if (chosen.isNotEmpty()) TopAppBar(
+                title = { Text("已选 ${chosen.size} 项") },
+                navigationIcon = { IconButton(onClick = { selected = emptySet() }) { Icon(Icons.Outlined.Close, "取消选择") } },
+                actions = {
+                    IconButton(onClick = { selected = current?.entries.orEmpty().filter { showHidden || !it.name.startsWith(".") }.mapTo(HashSet()) { it.path } }) { Icon(Icons.Outlined.SelectAll, "全选") }
+                    IconButton(onClick = { clipboard = "copy" to chosen; selected = emptySet() }) { Icon(Icons.Outlined.ContentCopy, "复制到…") }
+                    IconButton(onClick = { clipboard = "move" to chosen; selected = emptySet() }) { Icon(Icons.Outlined.DriveFileMove, "移动到…") }
+                    IconButton(onClick = { dialog = "trash" to chosen }) { Icon(Icons.Outlined.Delete, "移到废纸篓") }
+                },
+            ) else TopAppBar(
                 title = {
                     if (searching) {
                         OutlinedTextField(search, { search = it }, placeholder = { Text("在这个目录里筛选") }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -208,7 +264,7 @@ fun FilesScreen(path: String?) {
                         DropdownMenu(menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(text = { Text("新建文件夹") }, leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) }, onClick = {
                                 menu = false
-                                dialog = "mkdir" to null
+                                dialog = "mkdir" to emptyList()
                             })
                             DropdownMenuItem(text = { Text(if (showHidden) "不显示隐藏文件" else "显示隐藏文件") }, leadingIcon = { Icon(if (showHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) }, onClick = {
                                 menu = false
@@ -246,14 +302,20 @@ fun FilesScreen(path: String?) {
                 current == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 else -> LazyColumn(Modifier.fillMaxSize()) {
                     item(key = "crumbs") { Breadcrumbs(current.path) { nav.navigate(FolderRoute(it)) } }
-                    clipboard?.let { (action, entry) ->
+                    clipboard?.let { (action, entries) ->
                         item(key = "clipboard") {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("${if (action == "copy") "复制" else "移动"} ${entry.name}", Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    "${actionNames[action]} " + (entries.singleOrNull()?.name ?: "${entries.size} 项"),
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                                 TextButton(onClick = { clipboard = null }) { Text("取消") }
                                 TextButton(onClick = {
                                     clipboard = null
-                                    act(if (action == "copy") "已复制" else "已移动") { operation(action, entry.path, destination = current.path) }
+                                    batch(action, entries, current.path)
                                 }) { Text("粘贴到这里") }
                             }
                         }
@@ -271,14 +333,24 @@ fun FilesScreen(path: String?) {
                         )
                     if (entries.isEmpty()) item(key = "empty") { Text("空文件夹", Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     items(entries, key = { it.path }) { entry ->
+                        val toggle = { selected = if (entry.path in selected) selected - entry.path else selected + entry.path }
                         EntryRow(
                             entry,
-                            onOpen = { if (entry.directory) nav.navigate(FolderRoute(entry.path)) else nav.navigate(FilePreviewRoute(fileUrl(entry.path), entry.name)) },
+                            selected = entry.path in selected,
+                            // 选着文件时点按也是选
+                            onOpen = {
+                                when {
+                                    selected.isNotEmpty() -> toggle()
+                                    entry.directory -> nav.navigate(FolderRoute(entry.path))
+                                    else -> nav.navigate(FilePreviewRoute(fileUrl(entry.path), entry.name))
+                                }
+                            },
+                            onSelect = toggle,
                             onAction = { action ->
                                 when (action) {
-                                    "rename" -> dialog = "rename" to entry
-                                    "trash" -> dialog = "trash" to entry
-                                    "copy", "move" -> clipboard = action to entry
+                                    "rename" -> dialog = "rename" to listOf(entry)
+                                    "trash" -> dialog = "trash" to listOf(entry)
+                                    "copy", "move" -> clipboard = action to listOf(entry)
                                     "download" -> download(context, fileUrl(entry.path) + "&name=${encode(entry.name)}", entry.name)
                                     "link" -> {
                                         context.getSystemService(android.content.ClipboardManager::class.java)
@@ -294,30 +366,42 @@ fun FilesScreen(path: String?) {
         }
     }
 
-    dialog?.let { (action, entry) ->
+    dialog?.let { (action, entries) ->
         when (action) {
             "trash" -> AlertDialog(
                 onDismissRequest = { dialog = null },
-                title = { Text("移到废纸篓？") },
-                text = { Text(entry!!.name) },
+                title = { Text(if (entries.size > 1) "把 ${entries.size} 项移到废纸篓？" else "移到废纸篓？") },
+                text = { Text(entries.joinToString("\n") { it.name }, maxLines = 8, overflow = TextOverflow.Ellipsis) },
                 confirmButton = {
                     TextButton(onClick = {
                         dialog = null
-                        act("已移到废纸篓") { operation("trash", entry!!.path) }
+                        batch("trash", entries)
                     }) { Text("移到废纸篓") }
                 },
                 dismissButton = { TextButton(onClick = { dialog = null }) { Text("取消") } },
             )
             else -> NameDialog(
                 title = if (action == "mkdir") "新建文件夹" else "重命名",
-                initial = entry?.name ?: "",
+                initial = entries.firstOrNull()?.name ?: "",
                 onDismiss = { dialog = null },
             ) { name ->
                 dialog = null
-                if (action == "mkdir") act("已新建") { operation("mkdir", current!!.path, name = name) }
-                else act("已重命名") { operation("rename", entry!!.path, name = name) }
+                if (action == "mkdir") act("已新建") { nameOperation("directories", current!!.path, name) }
+                else act("已重命名") { nameOperation("rename", entries.single().path, name) }
             }
         }
+    }
+    failures?.let { (action, total, failed) ->
+        AlertDialog(
+            onDismissRequest = { failures = null },
+            title = { Text("${total - failed.size} 项已${actionNames[action]}，${failed.size} 项没有成功") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    failed.forEach { Text("${it.path.substringAfterLast('/')}：${it.error?.message}", style = MaterialTheme.typography.bodyMedium) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { failures = null }) { Text("好") } },
+        )
     }
 }
 
@@ -333,14 +417,18 @@ private fun Breadcrumbs(path: String, onOpen: (String) -> Unit) {
     }
 }
 
+// 长按选中，之后点按多选
 @Composable
-private fun EntryRow(entry: FileEntry, onOpen: () -> Unit, onAction: (String) -> Unit) {
+private fun EntryRow(entry: FileEntry, selected: Boolean, onOpen: () -> Unit, onSelect: () -> Unit, onAction: (String) -> Unit) {
     var menu by remember { mutableStateOf(false) }
     Box {
         ListItem(
-            modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = { menu = true }),
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            leadingContent = { Icon(iconOf(entry), null, tint = if (entry.directory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant) },
+            modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = onSelect),
+            colors = ListItemDefaults.colors(containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent),
+            leadingContent = {
+                if (selected) Icon(Icons.Outlined.CheckCircle, "已选", tint = MaterialTheme.colorScheme.primary)
+                else Icon(iconOf(entry), null, tint = if (entry.directory) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+            },
             headlineContent = { Text(entry.name + if (entry.symlink) " ↗" else "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = { Text(listOfNotNull(formatTime(entry.modified.toLong()), formatBytes(entry.size).takeIf { !entry.directory }).joinToString(" · ")) },
             trailingContent = { IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "操作") } },

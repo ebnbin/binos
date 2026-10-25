@@ -10,7 +10,7 @@ import kotlinx.serialization.Serializable
 @Serializable data object MoreRoute
 
 // Code
-@Serializable data class SessionRoute(val id: Int, val item: Int = -1)
+@Serializable data class SessionRoute(val id: Int, val seq: Int = -1)
 @Serializable data class NewSessionRoute(val project: String = "")
 
 // 喜多：id 为空是新对话，temporary 只对新对话有意义

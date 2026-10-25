@@ -3,9 +3,10 @@ package app.binos.kita
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.webkit.MimeTypeMap
 import app.binos.app
 import app.binos.code.encode
+import app.binos.more.Apps
+import app.binos.more.appName
 import app.binos.net.ApiException
 import app.binos.net.LossyList
 import app.binos.net.json
@@ -85,10 +86,6 @@ private data class Memories(@Serializable(LossyList::class) val memories: List<M
 private data class Activities(@Serializable(LossyList::class) val activity: List<Activity> = emptyList())
 
 const val maxPhotoBytes = 20L * 1024 * 1024
-private val photoTypes = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "avif")
-
-// 内置 app 的名字，喜多的状态和记忆的来源用到
-val appNames = mapOf("code" to "Code", "kita" to "喜多", "music" to "音乐", "terminal" to "终端", "files" to "文件", "system" to "系统")
 
 private const val appBase = "/api/apps/kita"
 private const val identityBase = "/api/kita"
@@ -110,7 +107,8 @@ object KitaStore {
     private var refreshing: Job? = null
 
     init {
-        app.scope.launch { app.events.of("kita", "session").collect { refresh() } }
+        // Code 的 session 有变化时只有正在回答的 session 可能变了
+        app.scope.launch { app.events.of("kita", "session").collect { if (it?.type == "session") refreshActivity() else refresh() } }
         refresh()
     }
 
@@ -136,18 +134,22 @@ object KitaStore {
         }
     }
 
+    private fun refreshActivity() {
+        app.scope.launch { runCatching { api.get<Activities>("$identityBase/activity").activity }.onSuccess { _activity.value = it } }
+    }
+
     fun photoUrl(file: String): String = api.url("$identityBase/profile/photos/${encode(file)}").toString()
 
     // ---- 对话 ----
 
     // 新对话返回它的 id
     suspend fun start(text: String, temporary: Boolean, agent: String): String =
-        unavailable { api.postJson("$appBase/conversations", buildJsonObject { put("text", text); put("temporary", temporary); put("agent", agent) }) }
+        api.postJson("$appBase/conversations", buildJsonObject { put("text", text); put("temporary", temporary); put("agent", agent) })
             .jsonObject["id"]!!.jsonPrimitive.content.also { refresh() }
 
     // 正在回答时交给 agent，它在下一步看到
     suspend fun send(id: String, text: String) {
-        unavailable { api.postJson("$appBase/conversations/${encode(id)}/messages", buildJsonObject { put("text", text) }) }
+        api.postJson("$appBase/conversations/${encode(id)}/messages", buildJsonObject { put("text", text) })
     }
 
     suspend fun stop(id: String) {
@@ -156,34 +158,21 @@ object KitaStore {
 
     // 只能删没在回答的
     suspend fun delete(id: String) {
-        try {
-            api.postJson("$appBase/conversations/${encode(id)}/delete")
-        } catch (error: ApiException) {
-            throw if (error.status == 409) ApiException(409, "正在回答，停下后才能删除") else error
-        }
-    }
-
-    private suspend fun <T> unavailable(block: suspend () -> T): T = try {
-        block()
-    } catch (error: ApiException) {
-        throw if (error.status == 503) ApiException(503, "消息没能发出，稍后再试") else error
+        api.delete("$appBase/conversations/${encode(id)}")
     }
 
     // ---- 描述和照片 ----
 
     suspend fun saveDescription(description: String) {
-        api.postJson("$identityBase/profile/description", buildJsonObject { put("description", description) })
+        api.putJson("$identityBase/profile/description", buildJsonObject { put("description", description) })
     }
 
-    // 后端按文件名的扩展名判断格式；相册给的名字没有扩展名时按类型补上
+    // 请求体就是照片本身，后端按内容认格式
     suspend fun uploadPhoto(resolver: ContentResolver, uri: Uri) {
-        val (displayName, size) = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) (cursor.getString(0) ?: "photo") to cursor.getLong(1) else null
-        } ?: ("photo" to -1L)
-        val extension = displayName.substringAfterLast('.', "").lowercase()
-        val name = if (extension in photoTypes) displayName
-        else MimeTypeMap.getSingleton().getExtensionFromMimeType(resolver.getType(uri))?.let { "$displayName.$it" } ?: displayName
-        if (size > maxPhotoBytes) throw ApiException(413, "$name 太大，照片最大 ${maxPhotoBytes / 1024 / 1024} MB")
+        val (name, size) = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) (cursor.getString(0) ?: "照片") to cursor.getLong(1) else null
+        } ?: ("照片" to -1L)
+        if (size > maxPhotoBytes) throw ApiException(413, "too-large", "$name 太大，照片最大 ${maxPhotoBytes / 1024 / 1024} MB")
         val body = object : RequestBody() {
             override fun contentType(): MediaType = octetType
             override fun contentLength(): Long = size
@@ -192,18 +181,18 @@ object KitaStore {
             }
         }
         try {
-            api.upload("$identityBase/profile/photos", body, mapOf("X-File-Name" to encode(name)))
+            api.upload("$identityBase/profile/photos", body)
         } catch (error: ApiException) {
-            throw if (error.status == 400) error else ApiException(error.status, "上传 $name 失败（${error.status}）")
+            throw ApiException(error.status, error.code, "上传 $name 失败：${error.message}")
         }
     }
 
     suspend fun removePhoto(file: String) {
-        api.postJson("$identityBase/profile/photos/${encode(file)}/delete")
+        api.delete("$identityBase/profile/photos/${encode(file)}")
     }
 
     suspend fun setAvatar(file: String) {
-        api.postJson("$identityBase/profile/photos/${encode(file)}/avatar")
+        api.putJson("$identityBase/profile/avatar", buildJsonObject { put("file", file) })
     }
 
     // ---- 记忆 ----
@@ -217,33 +206,29 @@ object KitaStore {
         }).jsonObject["memory"]!!)
 
     suspend fun updateMemory(id: String, text: String? = null, kind: String? = null) {
-        api.postJson("$identityBase/memories/${encode(id)}", buildJsonObject {
+        api.patchJson("$identityBase/memories/${encode(id)}", buildJsonObject {
             text?.let { put("text", it) }
             kind?.let { put("kind", it) }
         })
     }
 
     suspend fun removeMemory(id: String) {
-        api.postJson("$identityBase/memories/${encode(id)}/delete", JsonObject(emptyMap()))
+        api.delete("$identityBase/memories/${encode(id)}")
     }
 
     // 恢复上一个版本，这个版本不再保留
     suspend fun revertMemory(id: String) {
-        try {
-            api.postJson("$identityBase/memories/${encode(id)}/revert", JsonObject(emptyMap()))
-        } catch (error: ApiException) {
-            throw if (error.status == 409) ApiException(409, "没有可以恢复的版本") else error
-        }
+        api.postJson("$identityBase/memories/${encode(id)}/revert", JsonObject(emptyMap()))
     }
 }
 
 // 喜多现在在做什么，按各个 app 里真实在回答的 session 说
 data class KitaStatus(val busy: Boolean, val label: String)
 
-fun kitaStatus(activity: List<Activity>): KitaStatus {
+fun kitaStatus(activity: List<Activity>, apps: Apps?): KitaStatus {
     if (activity.isEmpty()) return KitaStatus(false, "空闲")
     val parts = activity.groupingBy { it.owner }.eachCount().map { (owner, count) ->
-        val name = appNames[owner] ?: owner
+        val name = appName(apps, owner)
         if (count > 1) "$name（$count）" else name
     }
     return KitaStatus(true, "回答中：${parts.joinToString("、")}")

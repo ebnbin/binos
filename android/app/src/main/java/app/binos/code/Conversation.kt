@@ -139,7 +139,9 @@ class ConversationModel(val sessionId: Int?, initialProject: String?) : ViewMode
     fun withdraw(item: String) {
         val id = sessionId ?: return
         viewModelScope.launch {
-            CodeStore.api.withdraw(id, item)?.let { text -> updateInput(if (input.isNotBlank()) "${input.trimEnd()}\n$text" else text) }
+            runCatching { CodeStore.api.withdraw(id, item) }
+                .onSuccess { text -> updateInput(if (input.isNotBlank()) "${input.trimEnd()}\n$text" else text) }
+                .onFailure { notice = it.message }
         }
     }
 
@@ -150,7 +152,7 @@ class ConversationModel(val sessionId: Int?, initialProject: String?) : ViewMode
 }
 
 @Composable
-fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
+fun ConversationScreen(sessionId: Int?, project: String?, targetSeq: Int?) {
     val nav = LocalNav.current
     val context = LocalContext.current
     val model: ConversationModel = viewModel(key = "conversation-${sessionId ?: "new"}") { ConversationModel(sessionId, project) }
@@ -280,8 +282,8 @@ fun ConversationScreen(sessionId: Int?, project: String?, targetItem: Int?) {
             when {
                 missing -> Text("这个对话不存在", Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 sessionId == null -> NewConversation(model, projects)
-                state == null || !state.loaded && state.items.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-                else -> Transcript(state, model.notice, model.stickRequests, targetItem) { url, name -> if (isImage(name)) viewing = url to name else nav.navigate(FilePreviewRoute(url, name)) }
+                state == null || !state.loaded && state.events.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                else -> Transcript(state, model.notice, model.stickRequests, targetSeq) { url, name -> if (isImage(name)) viewing = url to name else nav.navigate(FilePreviewRoute(url, name)) }
             }
         }
     }

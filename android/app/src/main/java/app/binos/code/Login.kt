@@ -51,9 +51,6 @@ import java.time.Instant
 // 和 web/src/services/kita/claude、codex 的 view.tsx、Login.tsx 对应：登录要留意的事、登录相关的几行，以及就地完成的登录
 
 private const val day = 86_400_000L
-// 完整登录剩不到这么多天时提醒重新登录，备用 token 剩不到这么多天时提醒更新
-private const val loginWarnDays = 7
-private const val backupWarnDays = 30
 
 private fun millis(iso: String): Long? = runCatching { Instant.parse(iso).toEpochMilli() }.getOrNull()
 
@@ -63,33 +60,27 @@ private fun daysLeft(iso: String, now: Long): Long = (((millis(iso) ?: now) - no
 // bad：用不了了；否则是还能用但要处理。action 是按钮上的字，fix 交给登录流程说明做哪种登录
 data class Attention(val agent: String, val text: String, val bad: Boolean, val action: String, val fix: String)
 
-fun attention(agent: String, status: AgentStatus?, now: Long): Attention? = when (agent) {
-    "claude" -> status?.auth?.claude?.let { auth ->
-        val loginExpiry = auth.login?.expiresAt
-        val backupExpiry = auth.backup?.expiresAt
-        when {
-            auth.mode == "none" -> Attention(agent, "Claude 没有能用的登录", true, "重新登录", "login")
-            auth.mode == "token" -> Attention(
-                agent,
-                if (auth.login?.broken == true) "Claude 的登录失效了，正在用备用 token" else "Claude 的登录过期了，正在用备用 token",
-                false, "重新登录", "login",
-            )
-            loginExpiry != null && (millis(loginExpiry) ?: Long.MAX_VALUE) - now < loginWarnDays * day -> {
-                val days = daysLeft(loginExpiry, now)
-                Attention(agent, "Claude 的登录${if (days == 0L) "今天" else "还有 $days 天"}到期", false, "重新登录", "login")
-            }
-            backupExpiry != null && (millis(backupExpiry) ?: Long.MAX_VALUE) - now < backupWarnDays * day ->
-                Attention(agent, "Claude 的备用 token 还有 ${daysLeft(backupExpiry, now)} 天到期", false, "更新", "token")
-            else -> null
+// 要处理什么由服务端判断，这里只决定怎么说
+fun attention(agent: String, status: AgentStatus?, now: Long): Attention? {
+    val (reason, usable, expiresAt) = status?.attention?.get(agent) ?: return null
+    val days = expiresAt?.let { daysLeft(it, now) } ?: 0
+    val left = if (days == 0L) "今天" else "还有 $days 天"
+    return when (agent) {
+        "claude" -> when (reason) {
+            "logged-out" -> Attention(agent, "Claude 没有能用的登录", !usable, "重新登录", "login")
+            "login-broken" -> Attention(agent, if (usable) "Claude 的登录失效了，正在用备用 token" else "Claude 的登录失效了", !usable, "重新登录", "login")
+            "login-expired" -> Attention(agent, if (usable) "Claude 的登录过期了，正在用备用 token" else "Claude 的登录过期了", !usable, "重新登录", "login")
+            "login-expiring" -> Attention(agent, "Claude 的登录${left}到期", !usable, "重新登录", "login")
+            "backup-expiring" -> Attention(agent, "Claude 的备用 token ${left}到期", !usable, "更新", "token")
+            else -> Attention(agent, "Claude 的登录要重新处理", !usable, "重新登录", "login")
         }
+        "codex" -> Attention(agent, if (reason == "login-broken") "Codex 的登录失效了，回答时认证失败了" else "Codex 的登录要重新处理", !usable, "重新登录", "login")
+        else -> Attention(agent, "${agentName(agent)} 的登录要重新处理", !usable, "重新登录", "login")
     }
-    // Codex 只在回答时认证失败过才提醒：没登录过 Codex 也照样能用别的 agent
-    "codex" -> status?.auth?.codex?.takeIf { it.broken }?.let { Attention(agent, "Codex 的登录失效了，回答时认证失败了", true, "重新登录", "login") }
-    else -> null
 }
 
 // 几个都要处理时按 agent 的顺序先处理前面的
-fun firstAttention(status: AgentStatus?, now: Long): Attention? = agentNames.keys.firstNotNullOfOrNull { attention(it, status, now) }
+fun firstAttention(status: AgentStatus?, now: Long): Attention? = (agentNames.keys + status?.attention?.keys.orEmpty()).firstNotNullOfOrNull { attention(it, status, now) }
 
 // 系统 app 里账号下面登录相关的一行；expired：已经用不了
 data class AuthRow(val label: String, val value: String, val note: String? = null, val expired: Boolean = false)
@@ -149,7 +140,7 @@ private suspend fun startLogin(agent: String, fix: String): LoginStep = try {
 }
 
 private fun cancelLogin(agent: String, id: String) {
-    app.scope.launch { runCatching { app.api.postJson("/api/kita/$agent/login/${encode(id)}/cancel") } }
+    app.scope.launch { runCatching { app.api.delete("/api/kita/$agent/login/${encode(id)}") } }
 }
 
 // 就地完成的登录：挂上就开始，onClose 关上，没完成时顺便取消这次登录。fix 是 Claude 的 login（重新登录）或 token（生成备用 token）
@@ -190,7 +181,8 @@ fun AgentLogin(agent: String, fix: String, onClose: () -> Unit) {
         step = current.copy(finishing = true)
         scope.launch {
             step = try {
-                app.api.postJson("/api/kita/claude/login/${encode(current.id)}", buildJsonObject { put("code", code.trim()) })
+                // 服务端最多等 claude 90 秒
+                app.api.postJson("/api/kita/claude/login/${encode(current.id)}", buildJsonObject { put("code", code.trim()) }, readTimeoutSeconds = 120)
                 LoginStep.Done
             } catch (error: CancellationException) {
                 throw error

@@ -44,6 +44,7 @@ class CodeApi(private val api: Api) {
     private val base = "/api/apps/code"
 
     suspend fun sessions(): List<SessionSummary> = api.get<SessionsResponse>("$base/sessions").sessions
+    suspend fun session(id: Int): SessionSummary = api.get("$base/sessions/$id")
     suspend fun projects(): List<Project> = api.get<ProjectsResponse>("$base/projects").projects
     suspend fun search(query: String): SearchResults = api.get("$base/search?q=${encode(query)}")
     suspend fun usage(): CodeUsage? = api.getJson("$base/usage").jsonObject["usage"]?.takeIf { it !is JsonNull }?.let { json.decodeFromJsonElement<CodeUsage>(it) }
@@ -54,8 +55,8 @@ class CodeApi(private val api: Api) {
             put("repository", repository)
             put("create", create)
         }
-        val path = if (connect != null) "$base/projects/${encode(connect)}/repository" else "$base/projects"
-        return json.decodeFromJsonElement(api.postJson(path, body).jsonObject["project"]!!)
+        val result = if (connect != null) api.putJson("$base/projects/${encode(connect)}/repository", body) else api.postJson("$base/projects", body)
+        return json.decodeFromJsonElement(result.jsonObject["project"]!!)
     }
 
     // 新对话时 sessionId 为 null；返回 session 的编号和 thread
@@ -71,11 +72,7 @@ class CodeApi(private val api: Api) {
             choice.effort?.let { put("effort", it) }
         }
         val path = if (sessionId == null) "$base/sessions" else "$base/sessions/$sessionId/messages"
-        val result = try {
-            api.postJson(path, body).jsonObject
-        } catch (error: ApiException) {
-            throw if (error.status == 503 && error.message == "unavailable") ApiException(503, "消息没能交给 agent，稍后再试") else error
-        }
+        val result = api.postJson(path, body).jsonObject
         return result["id"]!!.jsonPrimitive.content.toInt() to result["kitaSession"]!!.jsonPrimitive.content
     }
 
@@ -83,7 +80,7 @@ class CodeApi(private val api: Api) {
         val (name, size) = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) (cursor.getString(0) ?: "file") to cursor.getLong(1) else null
         } ?: ("file" to -1L)
-        if (size > maxUploadBytes) throw ApiException(413, "$name 太大，附件最大 ${maxUploadBytes / 1024 / 1024} MB")
+        if (size > maxUploadBytes) throw ApiException(413, "too-large", "$name 太大，附件最大 ${maxUploadBytes / 1024 / 1024} MB")
         val body = object : RequestBody() {
             override fun contentType(): MediaType = octetType
             override fun contentLength(): Long = size
@@ -94,14 +91,14 @@ class CodeApi(private val api: Api) {
         val result = try {
             api.upload("$base/uploads", body, mapOf("X-File-Name" to encode(name)))
         } catch (error: ApiException) {
-            throw ApiException(error.status, "上传 $name 失败（${if (error.status == 413) "文件太大" else error.status}）")
+            throw ApiException(error.status, error.code, "上传 $name 失败：${error.message}")
         }
         return Upload(result.jsonObject["file"]!!.jsonPrimitive.content, name)
     }
 
-    suspend fun withdraw(sessionId: Int, item: String): String? = runCatching {
-        api.postJson("$base/sessions/$sessionId/queue/${encode(item)}/withdraw").jsonObject["text"]?.jsonPrimitive?.content
-    }.getOrNull()
+    // 撤回排队的消息，返回它的文字；已经发出去时是 410
+    suspend fun withdraw(sessionId: Int, item: String): String =
+        api.delete("$base/sessions/$sessionId/queue/${encode(item)}").jsonObject["text"]!!.jsonPrimitive.content
 
     suspend fun sendQueued(sessionId: Int, item: String) {
         api.postJson("$base/sessions/$sessionId/queue/${encode(item)}/send")
@@ -111,13 +108,12 @@ class CodeApi(private val api: Api) {
         api.postJson("$base/sessions/$sessionId/stop")
     }
 
-    suspend fun edit(sessionId: Int, title: String? = null, pinned: Boolean? = null, archived: Boolean? = null) {
-        api.postJson("$base/sessions/$sessionId/edit", buildJsonObject {
+    suspend fun edit(sessionId: Int, title: String? = null, pinned: Boolean? = null, archived: Boolean? = null): SessionSummary =
+        json.decodeFromJsonElement(api.patchJson("$base/sessions/$sessionId", buildJsonObject {
             title?.let { put("title", it) }
             pinned?.let { put("pinned", it) }
             archived?.let { put("archived", it) }
-        })
-    }
+        }))
 
     suspend fun markRead(sessionId: Int) {
         runCatching { api.postJson("$base/sessions/$sessionId/read") }

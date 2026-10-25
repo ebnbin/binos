@@ -64,12 +64,14 @@ import app.binos.code.attention
 import app.binos.code.authRows
 import app.binos.code.loginActions
 import app.binos.net.LossyList
+import app.binos.net.StreamSignal
+import app.binos.net.eventStream
+import app.binos.net.json
 import app.binos.shell.LocalNav
 import app.binos.ui.formatBytes
 import app.binos.ui.formatMoment
 import app.binos.ui.formatUptime
 import app.binos.ui.rememberNow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -115,7 +117,7 @@ data class MonitorStatus(val snapshot: Snapshot? = null, val collecting: Boolean
 
 private val pressureNames = mapOf("normal" to "正常", "warning" to "偏高", "critical" to "很高", "unknown" to "未知")
 
-// 宿主 Mac 和 binOS 的状态，在前台时每 5 秒刷新
+// 宿主 Mac 和 binOS 的状态，在前台时跟着状态流更新
 @Composable
 fun SystemScreen() {
     val nav = LocalNav.current
@@ -125,9 +127,14 @@ fun SystemScreen() {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(Unit) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            while (true) {
-                runCatching { app.api.get<MonitorStatus>("/api/apps/system/status") }.onSuccess { status = it; error = null }.onFailure { error = it.message }
-                delay(5000)
+            app.api.eventStream { app.api.url("/api/apps/system/stream").toString() }.collect { signal ->
+                when (signal) {
+                    StreamSignal.Open -> error = null
+                    StreamSignal.Closed -> error = "连接断开，正在重连"
+                    is StreamSignal.Message -> if (signal.message.event == null) {
+                        runCatching { json.decodeFromString<MonitorStatus>(signal.message.data) }.onSuccess { status = it; error = null }
+                    }
+                }
             }
         }
     }

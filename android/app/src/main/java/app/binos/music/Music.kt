@@ -15,6 +15,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.outlined.DragHandle
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -65,6 +73,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -115,6 +124,9 @@ fun MusicScreen() {
     // 歌词、相似歌曲看正在播放的这首来自哪个来源，不是查找用的那个
     val currentProvider = current?.let { track -> providers.find { it.id == track.ref.provider } }
     val queued = tracks.map { it.key }.toSet()
+    val list = rememberLazyListState()
+    val drag = remember(list) { QueueDrag(list) }
+    val latestTracks by rememberUpdatedState(tracks)
 
     fun search(more: Boolean = false) {
         val source = provider ?: return
@@ -175,7 +187,7 @@ fun MusicScreen() {
             )
         },
     ) { padding ->
-        LazyColumn(Modifier.fillMaxSize().padding(padding)) {
+        LazyColumn(Modifier.fillMaxSize().padding(padding), state = list) {
             item(key = "search") {
                 TextField(
                     value = query,
@@ -223,7 +235,7 @@ fun MusicScreen() {
                     )
                 }
             }
-            val shown = if (tab == 0) tracks else results?.tracks.orEmpty()
+            val shown = if (tab == 0) drag.order ?: tracks else results?.tracks.orEmpty()
             if (shown.isEmpty()) {
                 item(key = "empty") {
                     Text(
@@ -238,9 +250,23 @@ fun MusicScreen() {
                     )
                 }
             }
-            itemsIndexed(shown, key = { index, track -> "$tab:${track.key}:$index" }) { _, track ->
+            // 队列里一首只出现一次，拖动时按曲目认位置
+            itemsIndexed(shown, key = { index, track -> if (tab == 0) queueKey(track) else "1:${track.key}:$index" }) { _, track ->
+                val dragged = tab == 0 && drag.key == queueKey(track)
                 TrackRow(
                     track,
+                    modifier = if (tab != 0) Modifier else if (dragged) Modifier.zIndex(1f).graphicsLayer { translationY = drag.offset } else Modifier.animateItem(),
+                    handle = if (tab == 0) Modifier.pointerInput(track.key) {
+                        detectDragGestures(
+                            onDragStart = { drag.start(track, latestTracks) },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                drag.move(amount.y)
+                            },
+                            onDragEnd = { drag.end() },
+                            onDragCancel = { drag.cancel() },
+                        )
+                    } else null,
                     active = track.key == MusicPlayer.currentKey,
                     queue = tab == 0,
                     queued = track.key in queued,
@@ -385,10 +411,61 @@ private fun LyricsView(track: Track) {
     }
 }
 
+private fun queueKey(track: Track) = "0:${track.key}"
+
+// 拖动排序：拖动把手到别的位置，拖动时先在本地调整顺序，松开时提交一次 move
+private class QueueDrag(private val list: LazyListState) {
+    var key by mutableStateOf<String?>(null)
+        private set
+    var offset by mutableFloatStateOf(0f)
+        private set
+    var order by mutableStateOf<List<Track>?>(null)
+        private set
+    private var track: Track? = null
+    private var from = -1
+
+    fun start(track: Track, tracks: List<Track>) {
+        this.track = track
+        key = queueKey(track)
+        order = tracks
+        from = tracks.indexOf(track)
+        offset = 0f
+    }
+
+    // 拖过了相邻的一首就和它换位置，被拖的这首在列表里的位置变了，偏移跟着减去移动的距离
+    fun move(delta: Float) {
+        val current = order ?: return
+        offset += delta
+        val items = list.layoutInfo.visibleItemsInfo
+        val dragged = items.find { it.key == key } ?: return
+        val center = dragged.offset + dragged.size / 2 + offset
+        val over = items.find { it.key != key && (it.key as? String)?.startsWith("0:") == true && center.toInt() in it.offset until it.offset + it.size } ?: return
+        val to = current.indexOfFirst { queueKey(it) == over.key }
+        val at = current.indexOfFirst { queueKey(it) == key }
+        if (to < 0 || at < 0) return
+        order = current.toMutableList().apply { add(to, removeAt(at)) }
+        offset -= over.offset - dragged.offset
+    }
+
+    fun end() {
+        val moved = track
+        val index = order?.indexOfFirst { queueKey(it) == key } ?: -1
+        cancel()
+        if (moved != null && index >= 0 && index != from) MusicStore.move(moved, index)
+    }
+
+    fun cancel() {
+        key = null
+        order = null
+        track = null
+        offset = 0f
+    }
+}
+
 @Composable
-private fun TrackRow(track: Track, active: Boolean, queue: Boolean, queued: Boolean, onPlay: () -> Unit, onAction: () -> Unit) {
+private fun TrackRow(track: Track, active: Boolean, queue: Boolean, queued: Boolean, onPlay: () -> Unit, onAction: () -> Unit, modifier: Modifier = Modifier, handle: Modifier? = null) {
     ListItem(
-        modifier = Modifier.clickable(onClick = onPlay),
+        modifier = modifier.clickable(onClick = onPlay),
         colors = ListItemDefaults.colors(containerColor = if (active) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent),
         leadingContent = {
             Box(Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh), contentAlignment = Alignment.Center) {
@@ -405,8 +482,11 @@ private fun TrackRow(track: Track, active: Boolean, queue: Boolean, queued: Bool
             )
         },
         trailingContent = {
-            IconButton(onClick = onAction, enabled = queue || !queued) {
-                Icon(if (queue) Icons.Outlined.Close else if (queued) Icons.Outlined.Check else Icons.Outlined.Add, if (queue) "移除" else if (queued) "已在队列中" else "加入队列")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onAction, enabled = queue || !queued) {
+                    Icon(if (queue) Icons.Outlined.Close else if (queued) Icons.Outlined.Check else Icons.Outlined.Add, if (queue) "移除" else if (queued) "已在队列中" else "加入队列")
+                }
+                handle?.let { Icon(Icons.Outlined.DragHandle, "拖动排序", it.padding(8.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         },
     )
@@ -447,7 +527,7 @@ private fun ProviderSettings(provider: ProviderInfo) {
     var message by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
-    fun save(patch: Map<String, String>) {
+    fun save(patch: Map<String, String?>) {
         saving = true
         message = null
         scope.launch {
@@ -474,7 +554,7 @@ private fun ProviderSettings(provider: ProviderInfo) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { save(mapOf(field.id to values[field.id].orEmpty().trim())) }, enabled = !saving && !values[field.id].isNullOrBlank()) { Text("保存") }
-                if (field.configured) TextButton(onClick = { save(mapOf(field.id to "")) }, enabled = !saving) { Text("移除") }
+                if (field.configured) TextButton(onClick = { save(mapOf(field.id to null)) }, enabled = !saving) { Text("移除") }
                 field.links.forEach { link -> TextButton(onClick = { uriHandler.openUri(link.url) }) { Text(link.label) } }
             }
         }

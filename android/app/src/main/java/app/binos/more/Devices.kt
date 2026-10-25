@@ -3,7 +3,6 @@
 package app.binos.more
 
 import android.graphics.BitmapFactory
-import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,11 +60,13 @@ import app.binos.shell.LocalNav
 import app.binos.shell.SessionRoute
 import app.binos.ui.formatClock
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
+import java.io.IOException
+import java.util.UUID
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.add
@@ -108,15 +109,16 @@ private val statusLabels = mapOf("creating" to "初始化中", "checking" to "�
 
 private fun ownerName(data: DevicesSnapshot, owner: String) = data.owners[owner]?.title ?: if (owner == "manual") "手动使用" else owner
 
-private suspend fun acquire(platforms: List<String>, reason: String, requestId: String? = null) {
+// 用同一个 requestId 再申请一次是接着原来的申请
+private suspend fun acquire(platforms: List<String>, reason: String, requestId: String = UUID.randomUUID().toString()) {
     app.api.postJson("$base/leases", buildJsonObject {
         putJsonArray("platforms") { platforms.forEach { add(it) } }
         put("reason", reason)
-        requestId?.let { put("requestId", it) }
+        put("requestId", requestId)
     })
 }
 
-// 开发测试设备：设备池、手动申请和归还、截图、排队和操作记录
+// 开发测试设备：设备池、手动申请和归还、截图、排队和操作记录。设备、租约或排队有变化时后端发 devices 通知
 @Composable
 fun DevicesScreen() {
     var data by remember { mutableStateOf<DevicesSnapshot?>(null) }
@@ -133,11 +135,7 @@ fun DevicesScreen() {
     }
     LaunchedEffect(revision) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            launch { app.events.of("devices").collect { load() } }
-            while (true) {
-                load()
-                delay(5000)
-            }
+            app.events.of("devices").onStart { emit(null) }.collectLatest { load() }
         }
     }
     fun act(operation: suspend () -> Unit) {
@@ -151,7 +149,7 @@ fun DevicesScreen() {
     val snapshot = data
     val own = snapshot?.leases?.find { it.owner == "manual" }
     val waiting = snapshot?.queue?.find { it.owner == "manual" }
-    // 申请还在等待或还没交付时，定时用同一个申请编号续上
+    // 申请还在等待或还没交付时，定时用同一个申请编号续上，设备服务据此知道还有人在等
     LaunchedEffect(waiting?.id, own?.id, own?.claimed) {
         val pending = waiting?.takeIf { it.phase != "failed" }?.let { Triple(it.platforms, it.reason, it.id) }
             ?: own?.takeIf { !it.claimed }?.let { Triple(it.platforms, it.reason, it.requestId) }
@@ -191,8 +189,8 @@ fun DevicesScreen() {
                         }
                         OutlinedTextField(reason, { reason = it }, label = { Text("使用用途") }, singleLine = true, enabled = !locked, modifier = Modifier.fillMaxWidth())
                         when {
-                            own != null -> Button(onClick = { act { app.api.postJson("$base/leases/${encode(own.id)}/release") } }, enabled = !busy) { Text("归还我的设备") }
-                            waiting != null -> OutlinedButton(onClick = { act { app.api.postJson("$base/queue/cancel", buildJsonObject { put("requestId", waiting.id) }) } }, enabled = !busy) { Text("取消申请") }
+                            own != null -> Button(onClick = { act { app.api.delete("$base/leases/${encode(own.id)}") } }, enabled = !busy) { Text("归还我的设备") }
+                            waiting != null -> OutlinedButton(onClick = { act { app.api.delete("$base/queue/${encode(waiting.id)}") } }, enabled = !busy) { Text("取消申请") }
                             else -> Button(onClick = { act { acquire(platforms, reason) } }, enabled = !busy) { Text("申请设备") }
                         }
                         if (own != null) Text("手动租约空闲 15 分钟后回收。查看截图不会延长占用。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -278,9 +276,12 @@ private fun DeviceCard(device: Device, data: DevicesSnapshot, busy: Boolean, act
                     loading = true
                     scope.launch {
                         runCatching {
-                            val result = app.api.getJson("$base/${encode(device.id)}/screenshot").jsonObject
-                            val bytes = Base64.decode(result["image"]!!.jsonPrimitive.content, Base64.DEFAULT)
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size).asImageBitmap() to result["at"]?.jsonPrimitive?.content?.toLongOrNull()
+                            // 响应体是图片本身，Last-Modified 是截图的时间
+                            app.api.response(app.api.request("$base/${encode(device.id)}/screenshot").build()) { response ->
+                                val bytes = response.body.bytes()
+                                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: throw IOException("显示不了 ${response.header("Content-Type")} 格式的截图")
+                                bitmap.asImageBitmap() to response.headers.getDate("Last-Modified")?.time
+                            }
                         }.onSuccess { screenshot = it; error = null }.onFailure { error = it.message }
                         loading = false
                     }
@@ -306,7 +307,7 @@ private fun DeviceCard(device: Device, data: DevicesSnapshot, busy: Boolean, act
             confirmButton = {
                 TextButton(onClick = {
                     destroying = false
-                    act { app.api.postJson("$base/${encode(device.id)}/control", buildJsonObject { put("operation", "destroy") }) }
+                    act { app.api.delete("$base/${encode(device.id)}") }
                 }) { Text(if (lease != null) "确认中断租约并销毁" else "确认销毁设备") }
             },
             dismissButton = { TextButton(onClick = { destroying = false }) { Text("取消") } },

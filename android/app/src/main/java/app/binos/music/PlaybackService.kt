@@ -24,6 +24,7 @@ import androidx.media3.session.SessionToken
 import app.binos.app
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 // 后台播放：ExoPlayer 放在媒体会话服务里，系统据此显示媒体通知、锁屏和耳机控制。音频请求带着登录 cookie
@@ -63,7 +64,7 @@ class PlaybackService : MediaSessionService() {
 
 fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(key)
-    .setUri(MusicStore.streamUrl(this))
+    .setUri(MusicStore.streamUrl(this)?.let(Uri::parse) ?: Uri.EMPTY)
     .setMediaMetadata(
         MediaMetadata.Builder()
             .setTitle(title)
@@ -100,12 +101,17 @@ object MusicPlayer {
             connected.addListener(object : Player.Listener {
                 override fun onEvents(player: Player, events: Player.Events) = update(player)
                 override fun onPlayerError(exception: PlaybackException) {
-                    error = "播放遇到问题：${exception.errorCodeName}"
+                    val track = MusicStore.queue.value?.find { it.key == connected.currentMediaItem?.mediaId }
+                    error = if (track != null && MusicStore.streamUrl(track) == null) "这首歌的来源不能直接播放音频。" else "播放遇到问题：${exception.errorCodeName}"
                 }
             })
             controller = connected
             update(connected)
-            app.scope.launch { MusicStore.queue.collectLatest { tracks -> tracks?.let { sync(it) } } }
+            // 读到来源之后才知道曲目的音频流在哪
+            app.scope.launch {
+                combine(MusicStore.queue, MusicStore.providers) { tracks, providers -> tracks.takeIf { providers.isNotEmpty() } }
+                    .collectLatest { tracks -> tracks?.let { sync(it) } }
+            }
         }, MoreExecutors.directExecutor())
     }
 
