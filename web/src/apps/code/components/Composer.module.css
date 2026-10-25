@@ -66,11 +66,13 @@
   cursor: default;
 }
 
+/* 放不下时（正在回答、出现打断和排队时）右边的按钮整组换到下一行，靠右 */
 .bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: var(--space-0-5);
+  gap: var(--space-1) var(--space-0-5);
   margin-top: var(--space-1-5);
   margin-left: calc(var(--card-padding) - var(--space-4));
 }
@@ -342,17 +344,6 @@
   .bar,
   .queue {
     margin-left: calc(var(--card-padding) - var(--space-3));
-  }
-}
-
-@container agent (width < 400px) {
-  .bar:has(.interrupt) {
-    flex-wrap: wrap;
-  }
-
-  .bar:has(.interrupt) .actions {
-    width: 100%;
-    justify-content: flex-end;
   }
 }
 
