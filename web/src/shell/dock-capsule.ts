@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 
 // 手机上 Dock 在底部时，打开 app 后平时缩成底部安全区里的一颗胶囊，把高度留给 app。
-// 展开后在 Dock 以外按下、在 Dock 上往下滑，或者一段时间没有操作就收起。外部 app 在 iframe 里，按下事件传不出来，只能等时间到
+// 展开后在 Dock 以外按下、在 Dock 上往下滑，或者一段时间没有操作就收起；在 Dock 上切换 app 不收起。外部 app 在 iframe 里，按下事件传不出来，只能等时间到
 const idleDelay = 3000
 const swipeDistance = 24
 
@@ -11,8 +11,9 @@ export function useDockCapsule(enabled: boolean, home: boolean) {
   const [activity, setActivity] = useState(0)
   const [previousHome, setPreviousHome] = useState(home)
   if (previousHome !== home) {
+    // 从桌面进入 app 时 Dock 先保持展开，时间到了再收起
     setPreviousHome(home)
-    setExpanded(false)
+    setExpanded(true)
   }
   const dock = useRef<HTMLElement>(null)
   const swipe = useRef<{ id: number; x: number; y: number } | null>(null)
@@ -47,7 +48,6 @@ export function useDockCapsule(enabled: boolean, home: boolean) {
     collapsed: active && !expanded,
     dock,
     expand: () => setExpanded(true),
-    collapse: () => setExpanded(false),
     touch,
     onPointerDown: (event: PointerEvent) => {
       touch()
