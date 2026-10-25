@@ -28,6 +28,9 @@ export async function readSession(id: number) {
 // agent：新对话用哪个 agent；model、effort：开始新的一轮时用，不给就是默认
 export type SendOptions = { project?: string; interrupt?: boolean; queue?: true; agent?: AgentId; model?: string; effort?: string }
 
+// 没收到回应或者网关出错时，请求可能已经到了：隔一会儿带着同一个 requestId 重试，后端不会再发一遍
+const retryDelays = [1000, 2000, 4000]
+
 // 正在回答时交给 agent 或者排队，没在回答时开始新的一轮
 export async function sendMessage(
   sessionId: number | null,
@@ -35,11 +38,17 @@ export async function sendMessage(
   attachments: Upload[],
   options: SendOptions,
 ): Promise<{ id: number; kitaSession: string } | { error: string }> {
-  const json = { text, attachments, ...options }
-  const res = await (sessionId === null
-    ? sessions.$post({ json })
-    : sessions[':id'].messages.$post({ param: { id: String(sessionId) }, json })
-  ).catch(() => undefined)
+  const json = { requestId: crypto.randomUUID(), text, attachments, ...options }
+  const post = () =>
+    (sessionId === null ? sessions.$post({ json }) : sessions[':id'].messages.$post({ param: { id: String(sessionId) }, json })).catch(() => undefined)
+  let res = await post()
+  for (const delay of retryDelays) {
+    // 类型里只有成功的状态码，失败的由 ApiException 给出
+    const status: number | undefined = res?.status
+    if (status !== undefined && (status < 500 || status === 503)) break
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    res = await post()
+  }
   if (res?.ok) {
     return await res.json()
   }
