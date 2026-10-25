@@ -2,7 +2,7 @@ import { formatDuration } from '../../../ui/format.ts'
 import { Activity } from './Activity.tsx'
 import styles from './ToolCall.module.css'
 import { ToolBody } from './ToolBody.tsx'
-import { callDuration, callStatus, lineChanges, toolLabel } from './tools.ts'
+import { callDuration, callStatus, toolLabel } from './tools.ts'
 import type { CallState } from './tools.ts'
 
 // 收起时显示的输出行数
@@ -29,9 +29,9 @@ function preview({ call, result }: CallState): string | undefined {
 }
 
 export function ToolCall({ thread, state, now }: { thread: string; state: CallState; now: number }) {
-  const { call, index, result } = state
+  const { call, seq, result } = state
   const duration = callDuration(state, now)
-  const changes = lineChanges(call)
+  const changes = call.tool.kind === 'edit' ? call.tool.lines : undefined
   const label = toolLabel(call)
   return (
     <Activity
@@ -48,7 +48,7 @@ export function ToolCall({ thread, state, now }: { thread: string; state: CallSt
       }
       preview={preview(state)}
       status={callStatus(state)}
-      body={() => <ToolBody thread={thread} index={index} call={call} result={result} />}
+      body={() => <ToolBody thread={thread} seq={seq} call={call} result={result} />}
     />
   )
 }

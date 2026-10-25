@@ -18,6 +18,9 @@ export type Item = { id: string; turnId: string | null; kind: 'input' | 'text' |
 // 原始协议的一行可能生成多条记录；它们作为同一批提交，重启时才能按 offset 安全地去重。
 export type EventBatch = { events: Event[] }
 
+// agent 的调用 id 只在一轮里不重复，一次调用和它的结果共用这个 itemId
+const callItemId = (turnId: string | null, callId: string) => `${turnId}:${callId}`
+
 export function encodeEntries(entries: Entry[], previous: Event | undefined): Event[] {
   let turnId = previous?.turnId ?? null
   let seq = (previous?.seq ?? 0) + 1
@@ -31,8 +34,8 @@ export function encodeEntries(entries: Entry[], previous: Event | undefined): Ev
       : data.type === 'tool_result' ? 'item.completed'
       : 'item.added'
     const itemId = data.type === 'session' || data.type === 'turn_end' || data.type === 'agent_session' ? null
-      : data.type === 'tool_call' ? `${turnId}:${data.id}`
-      : data.type === 'tool_result' ? `${turnId}:${data.callId}`
+      : data.type === 'tool_call' ? callItemId(turnId, data.id)
+      : data.type === 'tool_result' ? callItemId(turnId, data.callId)
       : randomUUID()
     return { seq: seq++, id: randomUUID(), turnId, itemId, type, data }
   })
@@ -73,16 +76,30 @@ function tail(text: string, limit: number) {
   return newline >= 0 && newline < kept.length - 1 ? kept.slice(newline + 1) : kept
 }
 
-// 页面只用到事件的序号和条目
-export type PageEvent = Pick<Event, 'seq' | 'data'>
+// 客户端看到的事件。seq 是在对话里的位置，从 1 开始；turnId 是所属的一轮，第一条 session 条目没有；
+// itemId 是所属的条目，一次工具调用和它的结果相同，session、turn_end、agent_session 没有；
+// parentId 是子 agent 的条目所属的那次工具调用的 itemId
+export type PageEvent = Pick<Event, 'seq' | 'turnId' | 'itemId' | 'data'> & { parentId?: string }
 
-// 发给页面的事件：过长的命令和工具输出省略掉，长会话里它们占了绝大部分的体积
-export function clipEvent({ seq, data }: PageEvent): PageEvent {
+export function pageEvent({ seq, turnId, itemId, data }: Event): PageEvent {
+  const parent = 'parent' in data && data.parent ? data.parent : undefined
+  return { seq, turnId, itemId, ...(parent && { parentId: callItemId(turnId, parent) }), data }
+}
+
+// 一次工具调用和它的结果，完整的
+export type CallDetail = { call: PageEvent; result?: PageEvent }
+
+// 流和分段读取里的事件：过长的命令和工具输出省略掉，长会话里它们占了绝大部分的体积
+export function clipEvent(event: PageEvent): PageEvent {
+  const { data } = event
   if (data.type === 'tool_call' && data.tool.kind === 'command' && data.tool.command.length > pageTextLimit) {
-    return { seq, data: { ...data, tool: { ...data.tool, command: data.tool.command.slice(0, pageTextLimit) }, clipped: true } }
+    return { ...event, data: { ...data, tool: { ...data.tool, command: data.tool.command.slice(0, pageTextLimit) }, clipped: true } }
   }
   if (data.type === 'tool_result' && data.output && data.output.length > pageTextLimit) {
-    return { seq, data: { ...data, output: tail(data.output, pageTextLimit), clipped: true } }
+    const output = tail(data.output, pageTextLimit)
+    // 去掉的行数加到起始行号上
+    const startLine = data.startLine && data.startLine + (data.output.slice(0, -output.length).match(/\n/g)?.length ?? 0)
+    return { ...event, data: { ...data, output, clipped: true, ...(startLine && { startLine }) } }
   }
-  return { seq, data }
+  return event
 }

@@ -1,14 +1,15 @@
 import type { Build, BuildsSnapshot } from '@binos/server/apps/builds/types'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { errorMessage } from '../../api.ts'
 import { onChange } from '../../events.ts'
 
 export const buildsBase = '/api/apps/builds'
 
-export async function buildsRequest(body?: unknown): Promise<BuildsSnapshot> {
-  const r = await fetch(buildsBase, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
-  const data = await r.json()
-  if (!r.ok) throw new Error(data.error ?? '请求失败')
-  return data
+// 读取构建，或者做一个操作，都返回操作后的快照。route 是 buildsBase 之后的部分
+export async function buildsRequest(route = '', method = 'GET', body: unknown = {}): Promise<BuildsSnapshot> {
+  const r = await fetch(buildsBase + route, method === 'GET' ? undefined : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  if (!r.ok) throw new Error(await errorMessage(r, '请求失败'))
+  return r.json()
 }
 
 // 构建状态变化时后端发 builds 通知；重新连上和切回页面时也重读，补上可能漏掉的通知

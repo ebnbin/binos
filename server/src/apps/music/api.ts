@@ -1,19 +1,23 @@
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
+import { HTTPException } from 'hono/http-exception'
 import { streamSSE } from 'hono/streaming'
+import { ApiException, errorHandler, notFound } from '../../errors.js'
 import { connectedPreamble } from '../../sse.js'
 import { parsePlayerCommand, playerCommandSchema } from './commands.js'
 import { MusicPlayers, PlayerError, parsePlayerReport } from './players.js'
 import { musicContract } from './contract.js'
 import { validator } from 'hono/validator'
 import { notifyChange } from '../../events.js'
-import type { MusicApiError, PlayerCommandRequest, PlayerMessage } from './types.js'
+import type { PlayerCommandRequest, PlayerMessage, ProviderSettings } from './types.js'
 import { mutateQueue, readQueue } from './queue.js'
 import { MusicError, requireCapability, type MusicProvider } from './provider.js'
 import { youtubeOfficial } from './youtubeOfficial.js'
 import { youtubeMusic } from './youtubeMusic.js'
 
-export function createMusicApi(adapters: MusicProvider[], players = new MusicPlayers()) {
+const handleError = errorHandler()
+
+export function createMusicApi(adapters: MusicProvider[], players = new MusicPlayers(Date.now, () => notifyChange({ type: 'players' }))) {
   const providers = new Map(adapters.map(provider => [provider.info().id, provider]))
   const getProvider = (id: string) => {
     const provider = providers.get(id)
@@ -22,12 +26,9 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
   }
   return new Hono()
     .use('*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next() })
-    .use(bodyLimit({ maxSize: 2 * 1024 * 1024, onError: c => c.json({ error: '请求体不能超过 2 MiB。', code: 'invalid-input' }, 413) }))
-    .onError((error, c) => {
-      if (error instanceof PlayerError) return c.json({ error: error.message, code: error.code }, error.status)
-      if (error instanceof MusicError) return c.json({ error: error.message, code: error.code } satisfies MusicApiError, error.code === 'invalid-input' ? 400 : error.code === 'unsupported' ? 422 : error.code === 'configuration' ? 409 : error.code === 'quota' ? 429 : 502)
-      return c.json({ error: '音乐来源暂时无法完成请求，请稍后重试或检查连接设置。', code: 'unavailable' } satisfies MusicApiError, 502)
-    })
+    .use(bodyLimit({ maxSize: 2 * 1024 * 1024, onError: () => { throw new ApiException(413, 'too-large', '请求体不能超过 2 MiB。') } }))
+    // 来源的库抛出的错误不外露，统一说暂时用不了
+    .onError((error, c) => handleError(error instanceof HTTPException ? error : new MusicError('音乐来源暂时无法完成请求，请稍后重试或检查连接设置。', 'unavailable'), c))
     .get('/', (c) => c.json({ ...musicContract, playerCommandSchema }))
     .get('/players/connect', (c) => {
       const label = c.req.query('label')?.trim()
@@ -57,7 +58,7 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
     .get('/players/:id', (c) => c.json(players.get(c.req.param('id')).snapshot))
     .post('/players/:id/report', async (c) => {
       players.report(c.req.param('id'), parsePlayerReport(await c.req.json().catch(() => null)))
-      return c.json({ ok: true })
+      return c.body(null, 204)
     })
     .post('/players/:id/commands', async (c) => {
       const body = await c.req.json().catch(() => null) as { [K in keyof PlayerCommandRequest]?: unknown } | null
@@ -70,13 +71,14 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
     .get('/queue', (c) => c.json(readQueue()))
     .post('/queue', async (c) => c.json(mutateQueue(await c.req.json().catch(() => null))))
     .get('/providers', (c) => c.json({ providers: adapters.map(provider => provider.info()) }))
-    .put('/providers/:provider/settings', validator('json', (value: unknown) => value), async (c) => {
+    // 只改请求体里有的字段，值为 null 的删掉
+    .patch('/providers/:provider/settings', validator('json', (value: unknown) => value), async (c) => {
       const provider = getProvider(c.req.param('provider'))
       if (!provider.configure) throw new MusicError('这个音乐来源没有可配置的连接参数。', 'unsupported')
       const body = c.req.valid('json')
       const fields = provider.info().configuration.fields
-      if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.keys(body).length || Object.entries(body).some(([key, value]) => !fields.some(field => field.id === key) || typeof value !== 'string' || value.length > 16000 || /[\r\n\0]/.test(value))) throw new MusicError('连接参数无效，请检查后重试。', 'invalid-input')
-      provider.configure(body as Record<string, string>)
+      if (!body || typeof body !== 'object' || Array.isArray(body) || !Object.keys(body).length || Object.entries(body).some(([key, value]) => !fields.some(field => field.id === key) || (value !== null && (typeof value !== 'string' || !value.trim() || value.length > 16000 || /[\r\n\0]/.test(value))))) throw new MusicError('连接参数无效，请检查后重试。', 'invalid-input')
+      provider.configure(body as ProviderSettings)
       notifyChange({ type: 'music' })
       return c.json(provider.info())
     })
@@ -105,7 +107,7 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
         if (!provider.lyrics) throw new MusicError('此来源未提供歌词能力。', 'unsupported')
         return c.json(await provider.lyrics(q))
       }
-      if (operation !== 'search' && operation !== 'resolve' && operation !== 'playlist' && operation !== 'recommendations') return c.notFound()
+      if (operation !== 'search' && operation !== 'resolve' && operation !== 'playlist' && operation !== 'recommendations') throw notFound('没有这项曲库能力')
       requireCapability(provider, operation)
       const method = provider[operation]
       if (!method) throw new MusicError('此来源未提供这项曲库能力。', 'unsupported')

@@ -4,9 +4,9 @@ import { notifyChange } from '../../events.js'
 import { appDir } from '../../paths.js'
 import type { QueueMutation, QueueSnapshot, Track } from './types.js'
 import { MusicError } from './provider.js'
+import { applyQueueOperation, maxQueueTracks } from './queue-operation.js'
 
 const file = () => path.join(appDir('music'), 'queue.json')
-const key = (track: Track) => JSON.stringify([track.ref.provider, track.ref.id])
 type SavedQueue = QueueSnapshot & { operations: string[] }
 function read(): SavedQueue {
   if (!existsSync(file())) return { revision: 0, tracks: [], operations: [] }
@@ -31,21 +31,15 @@ export function mutateQueue(value: unknown): QueueSnapshot {
   const mutation = value as QueueMutation | null
   const op = mutation?.operation
   if (!mutation || typeof mutation.id !== 'string' || !/^[\w-]{1,100}$/.test(mutation.id) || !op ||
-    !['add', 'initialize', 'remove', 'clear'].includes(op.type) ||
-    ((op.type === 'add' || op.type === 'initialize') && (!Array.isArray(op.tracks) || op.tracks.length > 500 || !op.tracks.every(validTrack))) ||
-    (op.type === 'remove' && (!op.ref || typeof op.ref.provider !== 'string' || typeof op.ref.id !== 'string'))) {
+    !['add', 'initialize', 'remove', 'move', 'clear'].includes(op.type) ||
+    ((op.type === 'add' || op.type === 'initialize') && (!Array.isArray(op.tracks) || op.tracks.length > maxQueueTracks || !op.tracks.every(validTrack))) ||
+    ((op.type === 'remove' || op.type === 'move') && (!op.ref || typeof op.ref.provider !== 'string' || typeof op.ref.id !== 'string')) ||
+    (op.type === 'move' && !Number.isSafeInteger(op.index))) {
     throw new MusicError('队列操作无效。', 'invalid-input')
   }
   const saved = read()
   if (saved.operations.includes(mutation.id)) return { revision: saved.revision, tracks: saved.tracks }
-  let tracks = saved.tracks
-  if (op.type === 'clear') tracks = []
-  else if (op.type === 'remove') tracks = tracks.filter(t => t.ref.provider !== op.ref.provider || t.ref.id !== op.ref.id)
-  else if (op.type === 'add' || saved.revision === 0) {
-    const known = new Set(tracks.map(key))
-    tracks = [...tracks]
-    for (const track of op.tracks) if (!known.has(key(track)) && tracks.length < 500) { tracks.push(track); known.add(key(track)) }
-  }
+  const tracks = applyQueueOperation(saved.tracks, op, saved.revision === 0)
   const next: SavedQueue = { revision: saved.revision + 1, tracks, operations: [...saved.operations, mutation.id].slice(-1000) }
   mkdirSync(appDir('music'), { recursive: true })
   writeFileSync(`${file()}.tmp`, JSON.stringify(next) + '\n', { mode: 0o600 })

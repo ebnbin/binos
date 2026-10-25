@@ -2,10 +2,10 @@ import { CalendarDays, Cat, CodeXml, Folder, Gauge, Globe, Music, Terminal } fro
 import { lazy } from 'react'
 import type { ApplicationDefinition } from './types.ts'
 
-export const builtinApplications: ApplicationDefinition[] = [
+// 名称由后端给出（GET /api/apps 的 builtin）
+export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   {
     id: 'calendar',
-    name: '日历',
     icon: CalendarDays,
     views: {
       month: { kind: 'widget', component: lazy(() => import('./calendar/CalendarWidget.tsx').then((module) => ({ default: module.CalendarWidget }))) },
@@ -14,7 +14,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'music',
-    name: '音乐',
     icon: Music,
     mainWindow: { viewId: 'main' },
     views: {
@@ -25,7 +24,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'browser',
-    name: '浏览器',
     icon: Globe,
     mainWindow: { viewId: 'main' },
     views: {
@@ -37,7 +35,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'terminal',
-    name: '终端',
     icon: Terminal,
     mainWindow: { viewId: 'main' },
     views: {
@@ -49,7 +46,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'files',
-    name: '文件',
     icon: Folder,
     mainWindow: { viewId: 'main' },
     views: {
@@ -61,7 +57,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'code',
-    name: 'Code',
     icon: CodeXml,
     mainWindow: { viewId: 'main' },
     views: {
@@ -78,7 +73,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'kita',
-    name: '喜多',
     icon: Cat,
     mainWindow: { viewId: 'main' },
     views: {
@@ -89,7 +83,6 @@ export const builtinApplications: ApplicationDefinition[] = [
   },
   {
     id: 'system',
-    name: '系统',
     icon: Gauge,
     mainWindow: { viewId: 'main' },
     views: {

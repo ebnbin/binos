@@ -10,10 +10,12 @@ import { copyAttachments, promptWithAttachments, snapshotFiles } from './files.j
 import { attachHost, startHost } from './host/client.js'
 import type { Host } from './host/client.js'
 import { saveLimits } from './limits.js'
-import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readCall, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
+import { addUsage, appendEntries, createKitaSession as createKitaSessionDir, filesDir, hostDir, journalEvents, listKitaSessions, readEntries, kitaSessionExists, sessionInfo, metadata, readEvents, removeKitaSession, windowStart, workerDir, unbindWorker } from './store.js'
 import type { Activity, AgentId, Entry, IdentityScope, Live, KitaSessionEvent, KitaSessionState, KitaSessionSummary } from './types.js'
 import { identityPrompt } from './identity.js'
 import { projectItems, projectTurns } from './journal.js'
+import { pageEvents } from './page.js'
+import type { CallDetail } from './journal.js'
 
 // session：和 agent 的一段对话，由 Kita 保存，任何 app 都能建。app 只管说话、停下、看内容，
 // agent 进程什么时候启动、什么时候退出是服务自己的事：一轮开始时没有合适的进程就启动一个（接着 agent 那边的会话），
@@ -69,8 +71,18 @@ export class KitaSession {
 
   metadata() { return metadata(this.id) }
   events(from = 0, to?: number) { return readEvents(this.id, from, to) }
+  // 第 from 条之后、到第 to 条为止的事件，客户端看到的样子
+  pageEvents(from = 0, to?: number) { return pageEvents(this.agent, journalEvents(this.id), from, to) }
   windowStart(size: number, before?: number) { return windowStart(this.id, size, before) }
-  call(index: number) { return readCall(this.id, index) }
+  // 第 seq 条事件的工具调用和它的结果，不是工具调用时返回 undefined
+  call(seq: number): CallDetail | undefined {
+    const journal = journalEvents(this.id)
+    const call = journal[seq - 1]
+    if (call?.data.type !== 'tool_call') return undefined
+    const result = journal.findIndex((event, i) => i >= seq && event.itemId === call.itemId && event.data.type === 'tool_result')
+    const [page] = pageEvents(this.agent, journal, seq - 1, seq)
+    return { call: page, ...(result >= 0 && { result: pageEvents(this.agent, journal, result, result + 1)[0] }) }
+  }
   items() { return projectItems(this.events()) }
   turns() { return projectTurns(this.events()) }
 
@@ -80,6 +92,8 @@ export class KitaSession {
 
   summary(): KitaSessionSummary {
     const info = sessionInfo(this.id)
+    const used = info.usedModel ?? info.model
+    const modelName = used && drivers[info.agent].modelName?.(used)
     return {
       id: this.id,
       agent: info.agent,
@@ -91,6 +105,7 @@ export class KitaSession {
       ...(info.context && { context: info.context }),
       ...(info.repliedAt && { repliedAt: info.repliedAt }),
       ...(info.model && { model: info.model }),
+      ...(modelName && { modelName }),
       ...(info.effort && { effort: info.effort }),
       usage: Object.keys(info.usageBefore).length > 0 ? addUsage(info.usageBefore, info.usageLatest) : info.usageLatest,
       costs: info.costs,
@@ -347,7 +362,7 @@ export class KitaSession {
       return Object.keys(files).length > 0 ? { ...item, files } : item
     })
     const index = appendEntries(this.id, withFiles)
-    readEvents(this.id, index).forEach((event) => this.emit({ type: 'event', event }))
+    this.pageEvents(index).forEach((event) => this.emit({ type: 'event', event }))
   }
 
   private endTurn(options: { stopped: boolean; error?: string }) {

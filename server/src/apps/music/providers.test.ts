@@ -23,7 +23,7 @@ it('有限能力的其他来源可接入同一接口，不支持和缺少配置�
   const search = vi.fn<NonNullable<MusicProvider['search']>>()
   const provider: MusicProvider = { info: () => ({ id: 'limited', name: '有限曲库', description: '', input: { references: [] }, configuration: { fields: [] }, capabilities: { resolve: unavailable, playback: unavailable, playlist: unavailable, recommendations: unavailable, lyrics: unavailable, search: { state: 'configuration-required', reason: '需要连接账号' } } }), search }
   const app = createMusicApi([provider])
-  expect(await (await app.request('/providers/limited/search?q=test')).json()).toEqual({ error: '需要连接账号', code: 'configuration' })
+  expect(await (await app.request('/providers/limited/search?q=test')).json()).toEqual({ error: { message: '需要连接账号', code: 'configuration' } })
   expect((await app.request('/providers/limited/lyrics?q=test')).status).toBe(422)
   expect(search).not.toHaveBeenCalled()
   expect((await app.request('/providers/limited/playlist?q=test')).status).toBe(422)
@@ -81,12 +81,12 @@ it('旧官方密钥继续有效，来源配置互不覆盖且读取只返回是�
   mkdirSync(dir, { recursive: true })
   writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ youtubeApiKey: 'legacy-key' }))
   expect(providerSettings('youtube').apiKey).toBe('legacy-key')
-  const response = await musicApi.request('/providers/youtube-music/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'session=private-value' }) })
+  const response = await musicApi.request('/providers/youtube-music/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'session=private-value' }) })
   expect(response.status).toBe(200)
   expect(await response.text()).not.toContain('private-value')
   expect(providerSettings('youtube').apiKey).toBe('legacy-key')
   expect((await (await musicApi.request('/providers')).json() as { providers: ProviderInfo[] }).providers.find(provider => provider.id === 'youtube')?.capabilities.search.state).toBe('available')
-  expect((await musicApi.request('/providers/youtube/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'wrong-provider' }) })).status).toBe(400)
+  expect((await musicApi.request('/providers/youtube/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'wrong-provider' }) })).status).toBe(400)
 })
 
 it('浏览器开放范围请求被拆成有限分段并连续输出，支持尾部范围与非法范围', async () => {

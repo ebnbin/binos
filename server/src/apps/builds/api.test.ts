@@ -9,7 +9,7 @@ process.execArgv.push('--import', import.meta.resolve('tsx'))
 const { api } = await import('../../api.js')
 const { buildRequest } = await import('./client.js')
 const base = '/api/apps/builds'
-const post = (body: unknown) => api.request(base, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+const post = (body: unknown, route = '') => api.request(base + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 afterAll(async () => {
   for (let i = 0; i < 50; i++) { try { await buildRequest({ action: 'stop' }); break } catch { await new Promise((r) => setTimeout(r, 100)) } }
   await new Promise((r) => setTimeout(r, 200))
@@ -17,9 +17,9 @@ afterAll(async () => {
 })
 it('HTTP 页面可触发构建和下载产物，拒绝停止服务、无效目标和任意文件', async () => {
   expect((await api.request(base)).status).toBe(200)
-  expect((await post({ action: 'stop' })).status).toBe(403)
-  expect((await post({ action: 'enqueue', ref: '--evil', targets: ['android'] })).status).toBe(409)
-  const response = await post({ action: 'enqueue', ref: 'main', targets: ['android'] })
+  expect((await post({}, '/stop')).status).toBe(404)
+  expect((await post({ ref: '--evil', targets: ['android'] })).status).toBe(400)
+  const response = await post({ ref: 'main', targets: ['android'] })
   expect(response.status).toBe(200)
   const id = ((await response.json()) as BuildsSnapshot).builds[0].id
   let snapshot: BuildsSnapshot | undefined

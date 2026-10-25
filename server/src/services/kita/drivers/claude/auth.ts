@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { kitaServiceDir, agentsDir } from '../../../../paths.js'
 import { notifyChange } from '../../../../events.js'
-import type { ClaudeAuth } from '../../types.js'
+import type { AgentAttention, ClaudeAuth } from '../../types.js'
 
 // 启动 Claude 时用哪份登录（两份见 ClaudeAuth）：平时用完整登录；它快过期、读不出来或者认证失败过时，
 // 换成备用的一年期 token（环境变量 CLAUDE_CODE_OAUTH_TOKEN 优先于钥匙串里的登录），重新登录后自动换回来。
@@ -139,4 +139,27 @@ export function storeToken(token: string) {
     stdio: ['pipe', 'ignore', 'pipe'],
   })
   claudeAuth()
+}
+
+const day = 86_400_000
+// 完整登录剩不到这么久时提醒重新登录，备用 token 剩不到这么久时提醒更新
+const loginWarning = 7 * day
+const backupWarning = 30 * day
+
+// 登录要处理的事。changesAt：最近的一个会让结果或正在用的登录变化的时间
+export function claudeAttention(auth: ClaudeAuth, now: number): { attention?: AgentAttention; changesAt?: number } {
+  const loginExpiry = auth.login?.expiresAt ? Date.parse(auth.login.expiresAt) : undefined
+  const backupExpiry = auth.backup?.expiresAt ? Date.parse(auth.backup.expiresAt) : undefined
+  const changes = [
+    ...(loginExpiry ? [loginExpiry - loginWarning, loginExpiry - switchMargin, loginExpiry] : []),
+    ...(backupExpiry ? [backupExpiry - backupWarning, backupExpiry] : []),
+  ].filter((time) => time > now)
+  const changesAt = changes.length ? Math.min(...changes) : undefined
+  const attention = ((): AgentAttention | undefined => {
+    if (auth.mode === 'none') return { reason: 'logged-out', usable: false }
+    if (auth.mode === 'token') return { reason: auth.login?.broken ? 'login-broken' : 'login-expired', usable: true }
+    if (loginExpiry && loginExpiry - now < loginWarning) return { reason: 'login-expiring', usable: true, expiresAt: auth.login!.expiresAt }
+    if (backupExpiry && backupExpiry - now < backupWarning) return { reason: 'backup-expiring', usable: true, expiresAt: auth.backup!.expiresAt }
+  })()
+  return { ...(attention && { attention }), ...(changesAt && { changesAt }) }
 }

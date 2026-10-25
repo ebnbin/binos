@@ -25,7 +25,7 @@ describe('Devices HTTP API', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(((await response.json()) as Snapshot).mode).toBe('mock')
     for (const endpoint of ['/run', '/provision', '/stop']) expect((await post(endpoint, {})).status).toBe(404)
-    expect((await post('/leases', { platforms: ['ios', 'ios'], reason: '' })).status).toBe(409)
+    expect((await post('/leases', { platforms: ['ios', 'ios'], reason: '' })).status).toBe(400)
     const acquired = await post('/leases', { owner: 'another-thread', platforms: ['android', 'ios'], reason: '手动测试' })
     let result = await acquired.json() as LeaseResult
     for (let i = 0; !result.lease && i < 100; i++) {
@@ -36,10 +36,10 @@ describe('Devices HTTP API', () => {
     expect(lease.owner).toBe('manual')
     const capture = await api.request(`${base}/${lease.devices[1]}/screenshot`)
     expect(capture.status).toBe(200)
-    expect(((await capture.json()) as { image: string }).image.length).toBeGreaterThan(0)
-    expect((await post(`/${lease.devices[1]}/control`, { operation: 'maintenance' })).status).toBe(409)
+    expect(capture.headers.get('Content-Type')).toMatch(/^image\//)
+    expect((await capture.arrayBuffer()).byteLength).toBeGreaterThan(0)
     await expect(deviceRequest({ action: 'control', device: lease.devices[0], operation: 'destroy' })).rejects.toThrow('仅限')
     await expect(deviceRequest({ action: 'stop' })).rejects.toThrow('仅限')
-    expect((await post(`/leases/${lease.id}/release`, {})).status).toBe(200)
+    expect((await api.request(`${base}/leases/${lease.id}`, { method: 'DELETE' })).status).toBe(204)
   }, 15_000)
 })

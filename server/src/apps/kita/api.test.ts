@@ -16,6 +16,7 @@ vi.spyOn(KitaSession.prototype, 'send').mockResolvedValue(true)
 
 const post = (url: string, body: unknown) =>
   kitaAppApi.request(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+const remove = (url: string) => kitaAppApi.request(url, { method: 'DELETE' })
 const start = async (body: unknown) => ((await (await post('/conversations', body)).json()) as { id: string }).id
 
 it('临时对话不带身份；每个对话有自己的工作目录，删除对话时一起删掉', async () => {
@@ -26,13 +27,13 @@ it('临时对话不带身份；每个对话有自己的工作目录，删除对�
   expect(temporary.metadata().cwd).not.toBe(personal.metadata().cwd)
   const cwd = temporary.metadata().cwd
   expect(existsSync(cwd)).toBe(true)
-  expect((await post(`/conversations/${temporary.id}/delete`, {})).status).toBe(200)
+  expect((await remove(`/conversations/${temporary.id}`)).status).toBe(204)
   expect(existsSync(cwd)).toBe(false)
 })
 
 it('别的 app 的 session 不能通过喜多访问；agent 不认识时拒绝', async () => {
   const foreign = forApp('code').createSession({ agent: 'claude', cwd: root })
   expect((await post(`/conversations/${foreign.id}/messages`, { text: '你好' })).status).toBe(404)
-  expect((await post(`/conversations/${foreign.id}/delete`, {})).status).toBe(404)
+  expect((await remove(`/conversations/${foreign.id}`)).status).toBe(404)
   expect((await post('/conversations', { text: '你好', agent: 'other' })).status).toBe(400)
 })

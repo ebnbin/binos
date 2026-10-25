@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { CDPSession, Page } from 'playwright-core'
 import { chromeContext, disconnectChrome } from './connection.js'
 import type { BrowserClientMessage, BrowserServerMessage } from './protocol.js'
+import { keyCode } from './keys.js'
 
 const sessions = new Map<string, Session>()
 let opening = 0
@@ -195,12 +196,10 @@ class Session {
         break
       case 'text': await this.cdp.send('Input.insertText', { text: message.text }); break
       case 'key': {
-        const codes: Record<string, number> = { Backspace: 8, Tab: 9, Enter: 13, Escape: 27, ' ': 32, PageUp: 33, PageDown: 34, End: 35, Home: 36, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Delete: 46 }
-        const keyCode = codes[message.key] ?? (message.key.length === 1 ? message.key.toUpperCase().charCodeAt(0) : 0)
         await this.cdp.send('Input.dispatchKeyEvent', {
           type: message.action === 'up' ? 'keyUp' : message.key === 'Enter' ? 'keyDown' : 'rawKeyDown',
           text: message.action === 'down' && message.key === 'Enter' ? '\r' : undefined, key: message.key, code: message.code,
-          modifiers: message.modifiers, windowsVirtualKeyCode: keyCode,
+          modifiers: message.modifiers, windowsVirtualKeyCode: keyCode(message.key, message.code),
           commands: message.action === 'down' && (message.modifiers & 6) && message.key.toLowerCase() === 'a' ? ['selectAll'] : undefined,
         })
         break

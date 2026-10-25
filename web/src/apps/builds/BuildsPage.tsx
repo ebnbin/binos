@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Build, Target } from '@binos/server/apps/builds/types'
+import type { Build, BuildLogMessage, InstallLink, Target } from '@binos/server/apps/builds/types'
+import { errorMessage } from '../../api.ts'
 import { RefreshCw } from 'lucide-react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
@@ -31,16 +32,27 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   const [clock, setClock] = useState(() => Date.now())
   const running = Boolean(data?.builds.some((b) => b.status === 'running'))
   useEffect(() => { if (!running) return; const timer = setInterval(() => setClock(Date.now()), 1000); return () => clearInterval(timer) }, [running])
-  // 日志不在通知里：没编完时定时重读，编完再读最后一次
-  const logStatus = data?.builds.find((b) => b.id === log?.id)?.status
-  const logLive = logStatus === 'queued' || logStatus === 'running'
+  // 日志由后端按偏移推送，断线后浏览器带着 Last-Event-ID 接着读；构建结束、读完了就关上
   useEffect(() => {
     if (!log) return
-    let active = true
-    const read = async () => { try { const r = await fetch(`${base}/${log.id}/log`); if (!r.ok) throw new Error('日志读取失败'); const value = await r.text(); if (active) setText(value) } catch (e) { if (active) setText(String(e)) } }
-    void read(); const timer = logLive ? setInterval(() => void read(), 2000) : undefined
-    return () => { active = false; clearInterval(timer) }
-  }, [log, logLive])
+    const source = new EventSource(`${base}/${log.id}/log/stream`)
+    let received = false
+    source.onmessage = (event) => {
+      const message = JSON.parse(event.data) as BuildLogMessage
+      if (message.type === 'end') {
+        source.close()
+        if (!received) setText('没有日志')
+        return
+      }
+      const first = !received
+      received = true
+      setText((value) => (first ? (message.offset > 0 ? '[仅显示日志末尾]\n' : '') : value) + message.text)
+    }
+    source.onerror = () => {
+      if (source.readyState === EventSource.CLOSED && !received) setText('日志读取失败')
+    }
+    return () => source.close()
+  }, [log])
   // 报错一般在最后：打开时滚到末尾，停在末尾时跟着新内容走，往上翻看时不打断
   const pre = useRef<HTMLPreElement>(null)
   const follow = useRef(true)
@@ -50,9 +62,8 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
     setBusy(true)
     try {
       const r = await fetch(`${base}/${id}/install`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-      const value = await r.json()
-      if (!r.ok) throw new Error(value.error ?? '无法创建安装链接')
-      window.location.assign(value.url)
+      if (!r.ok) throw new Error(await errorMessage(r, '无法创建安装链接'))
+      window.location.assign(((await r.json()) as InstallLink).url)
     } catch (e) { setError(String(e)) } finally { setBusy(false) }
   }
   // 预览链接指向 PR 当前的预览，只在开着的 PR 最新一次成功的 Web 构建上显示
@@ -69,7 +80,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       {/* 产物按钮跟在操作后面：Android 下载安装包，iOS 无线安装（下载的 IPA 在设备上装不上），Web 打开预览 */}
       <div className={styles.actions}>
         <button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>
-        {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act({ action: 'cancel', id: b.id })}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act({ action: 'retry', id: b.id })}>重新构建</button>}
+        {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act(`/${b.id}/cancel`)}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act(`/${b.id}/retry`)}>重新构建</button>}
         {b.artifacts.map((a) => a.kind === 'link'
           ? live.has(b.id) && <a className={styles.tinted} key={a.name} href={a.url} target="_blank" rel="noreferrer">打开预览 ↗</a>
           : a.platform === 'android'
@@ -78,17 +89,17 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       </div>
     </article>
   }
-  async function act(body: unknown) { setBusy(true); try { update(await request(body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
+  async function act(route: string, method = 'POST', body?: unknown) { setBusy(true); try { update(await request(route, method, body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   return <section className={styles.page}>
     <div className={styles.content}>
-    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act({ action: 'poll' })}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
+    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act('/poll')}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
     {data?.mode === 'mock' && <p className={styles.notice}>预览模式：模拟构建，与正式构建及签名隔离。</p>}
     {error && <p role="alert" className={styles.alert}>{error}</p>}
     {data?.pollError && <p role="alert" className={styles.alert}>检查仓库失败：{data.pollError}</p>}
     {data && <div className={styles.block}><div className={styles.group}>
-      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act({ action: 'settings', automatic: e.target.checked })} /></label>
+      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act('/settings', 'PUT', { automatic: e.target.checked })} /></label>
     </div>{data.checkedAt && <small className={styles.footer}>上次检查：{new Date(data.checkedAt).toLocaleString()}</small>}</div>}
-    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act({ action: 'enqueue', ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
+    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act('', 'POST', { ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
       <div className={styles.group}>
         <label className={styles.row}>构建来源<input className={styles.field} aria-label="构建来源" required value={ref} onChange={(e) => setRef(e.target.value)} placeholder="main、pr/编号、完整提交号" /></label>
         <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={setTarget} options={[{ value: 'both', label: 'Android + iOS' }, ...Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))]} /></div>
@@ -107,6 +118,6 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       </section>
     })}
     </div>
-    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log?download=1`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
+    {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
   </section>
 }

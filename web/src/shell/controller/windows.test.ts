@@ -60,7 +60,7 @@ describe('window state and controller compatibility', () => {
     const { desktopItems } = await import('../desktop-items.ts')
     const { ensureApplicationWindow } = await import('./applications.ts')
     const { getWindows } = await import('../state/windows.ts')
-    const calendar = builtinApplications.find((app) => app.id === 'calendar')!
+    const calendar = { ...builtinApplications.find((app) => app.id === 'calendar')!, name: '日历' }
     expect(validateApplications([calendar])).toEqual([calendar])
     expect(ensureApplicationWindow([calendar], 'calendar')).toBeUndefined()
     expect(getWindows().windows).toEqual({})

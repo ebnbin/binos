@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chooseAuth } from './auth.js'
+import { chooseAuth, claudeAttention } from './auth.js'
 
 const hour = 3600_000
 const now = Date.parse('2026-10-20T00:00:00Z')
@@ -22,5 +22,16 @@ describe('chooseAuth', () => {
     expect(chooseAuth(login(now + hour), undefined, false, now).mode).toBe('login')
     expect(chooseAuth(login(now + hour), { token: 't', expiresAt: now - hour }, false, now).mode).toBe('login')
     expect(chooseAuth(login(now - hour), undefined, false, now).mode).toBe('none')
+  })
+})
+
+describe('claudeAttention', () => {
+  const day = 24 * hour
+  it('按登录的状况给出要处理的事，以及下一次会变的时间', () => {
+    const expiring = chooseAuth(login(now + 3 * day), token, false, now)
+    expect(claudeAttention(expiring, now)).toEqual({ attention: { reason: 'login-expiring', usable: true, expiresAt: new Date(now + 3 * day).toISOString() }, changesAt: now + 3 * day - 6 * hour })
+    expect(claudeAttention(chooseAuth(login(now + 10 * day), token, false, now), now)).toEqual({ changesAt: now + 3 * day })
+    expect(claudeAttention(chooseAuth(login(now + 10 * day), token, true, now), now).attention).toEqual({ reason: 'login-broken', usable: true })
+    expect(claudeAttention(chooseAuth(undefined, undefined, false, now), now).attention).toEqual({ reason: 'logged-out', usable: false })
   })
 })

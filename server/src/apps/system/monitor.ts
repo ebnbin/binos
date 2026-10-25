@@ -7,6 +7,13 @@ export class Monitor {
   private collecting: Promise<void> | undefined
   private timer: ReturnType<typeof setTimeout> | undefined
   private collectionError: string | undefined
+  private listeners = new Set<(status: MonitorStatus) => void>()
+
+  // 每采样一次（成功或失败）收到一次
+  subscribe(listener: (status: MonitorStatus) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
   start() {
     if (this.timer) return
     const tick = () => {
@@ -30,6 +37,8 @@ export class Monitor {
       })
       .finally(() => {
         this.collecting = undefined
+        const status = this.status()
+        this.listeners.forEach((listener) => listener(status))
       })
     await this.collecting
   }

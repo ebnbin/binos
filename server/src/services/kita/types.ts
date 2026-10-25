@@ -22,27 +22,38 @@ export type AgentCatalog = { agent: AgentId; available: boolean; models: AgentMo
 // 用户发消息时附上的文件。file 是 session 的 files/ 里的文件名，name 是原来的文件名
 export type Attachment = { file: string; name: string }
 
-// 一次工具调用做的是什么，各个 agent 的工具都归到这几类。不认识的是 other，页面显示原始的工具名和参数
+// 一次工具调用做的是什么，各个 agent 的工具都归到这几类。不认识的是 other，页面显示原始的工具名和参数。
+// 注明「客户端看到的」的字段由服务端从记下的条目算出，只在发给客户端的事件上
 export type ToolDetail =
   | { kind: 'command'; command: string }
   | { kind: 'read'; path: string }
-  // 没有 change 时（比如改 notebook）页面显示原始参数
-  | { kind: 'edit'; path: string; change?: FileChange }
+  // 没有 change 时（比如改 notebook）页面显示原始参数；lines 是增删了多少行，客户端看到的
+  | { kind: 'edit'; path: string; change?: FileChange; lines?: LineCount }
   // target：搜内容还是搜文件名
   | { kind: 'search'; pattern: string; target: 'content' | 'files' }
   | { kind: 'web_search'; query: string }
   | { kind: 'web_fetch'; url: string; prompt?: string }
   | { kind: 'image_view'; path: string }
-  // action 是浏览器工具的名字，target 是它操作的对象（网址、查找的文字……）
-  | { kind: 'browser'; action: string; target?: string }
-  | { kind: 'mcp'; server: string; tool: string }
+  // action 是浏览器工具的名字，target 是它操作的对象（网址、查找的文字……）；operation 是归类后的操作，客户端看到的
+  | { kind: 'browser'; action: string; target?: string; operation?: BrowserOperation }
+  // target 是参数里第一个文字参数，客户端看到的
+  | { kind: 'mcp'; server: string; tool: string; target?: string }
   | { kind: 'subagent'; description: string; prompt?: string; type?: string }
   // 按需加载工具的定义
   | { kind: 'tool_search'; query: string }
   | { kind: 'skill'; name: string }
   | { kind: 'todo' }
-  | { kind: 'other' }
+  | { kind: 'other'; target?: string }
 export type ToolKind = ToolDetail['kind']
+
+export type LineCount = { added: number; removed: number }
+
+// 浏览器操作的归类：打开网址、点击输入之类的操作页面、执行脚本、读取页面内容、在页面里查找、填写表单、
+// 看控制台、看网络请求、查看标签页、新建标签页、关闭标签页，以及认不出的
+export type BrowserOperation = 'navigate' | 'interact' | 'script' | 'read' | 'find' | 'fill' | 'console' | 'network' | 'tabs' | 'open-tab' | 'close-tab' | 'other'
+
+// 网页搜索搜到的一个网页
+export type WebLink = { title: string; url: string }
 
 // 改一个文件：整个写入、替换一段（all：替换全部出现的地方）、按 diff 新建、修改或删除
 export type FileChange =
@@ -80,7 +91,9 @@ export type Entry =
   | ({ type: 'text'; time: string; text: string; files?: Record<string, string> } & Produced)
   // name 是 agent 自己的工具名；tool 不足以显示全部参数时（mcp、browser、other，没有 change 的 edit）带着原始的 input
   | ({ type: 'tool_call'; time: string; id: string; name: string; tool: ToolDetail; input?: unknown; background?: true } & Clippable & Produced)
-  // output 是结果文字的末尾一段，truncated 表示前面还有被省略的；images 是结果里的图片，在 files/ 里
+  // output 是结果文字的末尾一段，truncated 表示前面还有被省略的；images 是结果里的图片，在 files/ 里。
+  // 客户端看到的：读文件的结果认得出行号时，output 是去掉行号的内容，startLine 是第一行的行号；
+  // 网页搜索的结果认得出搜到的网页时，links 是这些网页，output 是剩下的总结
   | ({
       type: 'tool_result'
       time: string
@@ -89,11 +102,13 @@ export type Entry =
       output?: string
       truncated?: true
       images?: string[]
+      startLine?: number
+      links?: WebLink[]
     } & Clippable & Produced)
   // 上下文被压缩了：手动还是自动，压缩前后各多少 token
   | ({ type: 'compact'; time: string; trigger: string; preTokens?: number; postTokens?: number } & Produced)
   // outputTokens 含子 agent 的；context 是结束时的上下文大小；usage 是 agent 会话到这时为止按模型累计的用量。
-  // offset 是这一轮结束时读到的输出位置
+  // offset 是这一轮结束时读到的输出位置；modelName 是 model 的显示名，客户端看到的
   | {
       type: 'turn_end'
       time: string
@@ -101,6 +116,7 @@ export type Entry =
       outcome?: 'stopped' | 'error'
       error?: string
       model?: string
+      modelName?: string
       outputTokens?: number
       context?: Context
       usage?: Record<string, Tokens>
@@ -138,20 +154,21 @@ export type LiveEvent =
   | { type: 'task'; callId: string; progress: TaskProgress | null }
   | { type: 'file'; path: string; name: string }
 
-// 订阅 session 收到的：持久化事件带着序号与对象身份；live 是订阅时（以及一轮开始和结束时）的临时内容，null 表示没在回答；
+// 订阅 session 收到的：event 是新记下的一条；live 是订阅时（以及一轮开始和结束时）的临时内容，null 表示没在回答；
 // 其余是临时内容的变化。记成条目的思考和文字取代对应的临时内容。
-// window：只订阅最后几轮时最先收到，from 是补发的第一条的位置，session 是第一条条目；events：订阅时补发的条目，一次发完
+// window：第一次订阅（只要最后几轮）时最先收到，events 从一轮的开头起，第一条的 seq 大于 1 时前面还有更早的，session 是第一条条目；
+// events：断线续传时补发的，一次发完
 export type KitaSessionEvent =
   | { type: 'event'; event: PageEvent }
   | { type: 'events'; events: PageEvent[] }
   | { type: 'live'; live: Live | null }
-  | { type: 'window'; from: number; session: Extract<Entry, { type: 'session' }> }
+  | { type: 'window'; session: Extract<Entry, { type: 'session' }>; events: PageEvent[] }
   | LiveEvent
 
 // idle：没在回答；running：正在回答；waiting：答完了，在等后台任务
 export type KitaSessionState = 'idle' | 'running' | 'waiting'
 
-// app 看到的 session 的概况。model、effort 是最近一轮的；usage 是一共用掉的 token，按模型；
+// app 看到的 session 的概况。model、effort 是最近一轮选的，modelName 是这一轮实际用的模型（还没答完时是选的）的显示名；usage 是一共用掉的 token，按模型；
 // costs 是每一轮按 API 价格折算的花费（美元）和这一轮结束的时间，只有能折算的 agent 有
 export type KitaSessionSummary = {
   id: string
@@ -164,6 +181,7 @@ export type KitaSessionSummary = {
   context?: Context
   repliedAt?: string
   model?: string
+  modelName?: string
   effort?: string
   usage: Record<string, Tokens>
   costs: [time: string, cost: number][]
@@ -190,8 +208,17 @@ export type CodexAuth = { loggedIn: boolean; broken?: true }
 // 各个 agent 登录的状况，各家的登录方式不同，形状也不同，页面上由各自的组件显示
 export type AgentAuths = { claude: ClaudeAuth; codex: CodexAuth }
 
-// 页面看到的 agent 的状况：各 agent 最近报告的额度和登录。有变化时后端发 agent 通知，页面重新读取
-export type AgentStatus = { limits: Partial<Record<AgentId, Limits>>; auth: Partial<AgentAuths> }
+// 登录要用户处理的事。logged-out：没有能用的登录；login-expired：完整登录过期了；login-broken：回答时认证失败了；
+// login-expiring、backup-expiring：完整登录、备用 token 快到期了，expiresAt 是到期时间。usable：现在还能回答
+export type AgentAttention = {
+  reason: 'logged-out' | 'login-expired' | 'login-broken' | 'login-expiring' | 'backup-expiring'
+  usable: boolean
+  expiresAt?: string
+}
+
+// 客户端看到的 agent 的状况：各 agent 最近报告的额度和登录，以及登录要处理的事（没有的不在里面）。
+// 有变化（包括到了该提醒的时候）时后端发 agent 通知，客户端重新读取
+export type AgentStatus = { limits: Partial<Record<AgentId, Limits>>; auth: Partial<AgentAuths>; attention: Partial<Record<AgentId, AgentAttention>> }
 
 // 账号的一项信息，各家独有的（比如组织、额度重置次数）都用它，页面逐行原样显示
 export type AccountDetail = { label: string; value: string; note?: string }

@@ -2,7 +2,9 @@ import { randomUUID } from 'node:crypto'
 import { commandOutput, parseJson } from '../../cli.js'
 import type { Driver } from '../types.js'
 import { claudeApi } from './api.js'
-import { claudeAuth, claudeAuthEnv, claudeAuthFailed, configDir, readLogin } from './auth.js'
+import { claudeAttention, claudeAuth, claudeAuthEnv, claudeAuthFailed, configDir, readLogin } from './auth.js'
+import { claudeModelName, claudeResult } from './tools.js'
+import type { ClaudeAuth } from '../../types.js'
 import { claudeModels } from './catalog.js'
 import { ClaudeDecoder } from './decoder.js'
 import { tokenCost } from './prices.js'
@@ -50,6 +52,9 @@ export const claude: Driver = {
   },
   account,
   auth: claudeAuth,
+  attention: (auth, now) => claudeAttention(auth as ClaudeAuth, now),
+  modelName: claudeModelName,
+  result: claudeResult,
   api: claudeApi,
   authEnv: claudeAuthEnv,
   authFailed: claudeAuthFailed,

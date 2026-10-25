@@ -3,12 +3,18 @@ import { mkdirSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { appDir, codeDir, isTestInstance } from '../../paths.js'
+import { ApiException } from '../../errors.js'
 
 const run = promisify(execFile)
 export const repositoriesDir = path.join(appDir('code'), 'repositories')
 export const repoDir = process.env.BINOS_REPO_DIR ?? (isTestInstance ? codeDir : path.join(repositoriesDir, 'binos', 'main'))
 
-export class RepositoryError extends Error {}
+// 准备不了仓库：message 是给用户看的原因
+export class RepositoryError extends ApiException {
+  constructor(message: string) {
+    super(400, 'invalid-input', message)
+  }
+}
 
 export function parseRepository(value: string): string | undefined {
   const match = /^(?:https:\/\/github\.com\/|git@github\.com:)?([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(value.trim())
