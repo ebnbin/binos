@@ -16,7 +16,7 @@ type State = { mode: string; builds: Build[]; settings: Settings; sequence: numb
 const day = 86_400_000
 // 构建删了只能重编，老提交重编的结果未必相同，所以只删用不上的：main 最近 5 个提交、开着的 PR 最新提交的构建一直保留，
 // 其余结束满 3 天才删。openPrs 未知时所有 PR 都当作开着。
-export function expired(builds: Build[], openPrs: Set<number> | undefined, at: number) {
+export function expired(builds: Build[], openPrs: { has(pr: number): boolean } | undefined, at: number) {
   const keep = new Set<string>()
   const main: string[] = []
   const prs = new Map<number, string>()
@@ -34,7 +34,7 @@ export class Manager {
   private active?: string
   private pollError?: string
   private checkedAt?: string
-  private openPrs?: Set<number>
+  private openPrs?: Map<number, string>
   constructor() {
     mkdirSync(resultsDir, { recursive: true }); mkdirSync(workDir, { recursive: true })
     const stored = read<State>(statePath)
@@ -45,7 +45,7 @@ export class Manager {
     this.save()
   }
   private save() { writeFileSync(statePath + '.tmp', JSON.stringify(this.state, null, 2)); renameSync(statePath + '.tmp', statePath) }
-  snapshot(): Snapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }) } }
+  snapshot(): Snapshot { return { builds: [...this.state.builds].reverse(), settings: this.state.settings, mode: mock ? 'mock' : 'real', version, ...(this.pollError && { pollError: this.pollError }), ...(this.checkedAt && { checkedAt: this.checkedAt }), ...(this.openPrs && { prs: [...this.openPrs].map(([number, title]) => ({ number, title })) }) } }
   busy() { return this.ticking || this.polling || Boolean(this.active) }
   private enqueue(commit: string, targets: Target[], trigger: Build['trigger'], pr?: number, force = false) {
     for (const target of targets) {
@@ -111,10 +111,10 @@ export class Manager {
       // 只编含移动端脚本的提交，避免旧分支持续产生无意义的失败。
       const supported = async (sha: string) => git('cat-file', '-e', `${sha}:scripts/mobile-build.sh`).then(() => true, () => false)
       if (await supported(commit)) this.enqueue(commit, selected, 'main')
-      const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
-      const prs = JSON.parse(stdout) as { number: number; headRefOid: string; isCrossRepository: boolean }[]
+      const { stdout } = await exec('gh', ['pr', 'list', '--state', 'open', '--limit', '100', '--json', 'number,title,headRefOid,isCrossRepository'], { cwd: repository, timeout: 30_000 })
+      const prs = JSON.parse(stdout) as { number: number; title: string; headRefOid: string; isCrossRepository: boolean }[]
       // 已关闭或合并的 PR 不再构建尚未开始的任务。
-      this.openPrs = new Set(prs.map((pr) => pr.number))
+      this.openPrs = new Map(prs.map((pr) => [pr.number, pr.title]))
       this.state.builds = this.state.builds.filter((b) => !(b.status === 'queued' && b.trigger === 'pr' && !this.openPrs!.has(b.pr!)))
       this.save()
       for (const pr of prs) {
