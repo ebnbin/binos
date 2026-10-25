@@ -205,8 +205,12 @@ fun ExternalAppsScreen() {
     val nav = LocalNav.current
     var registry by remember { mutableStateOf<AppRegistry?>(null) }
     var editing by remember { mutableStateOf<ExternalApp?>(null) }
+    var removing by remember { mutableStateOf<ExternalApp?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        app.events.of("apps").collect { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it }.onFailure { error = it.message } }
+    }
     LaunchedEffect(Unit) { runCatching { app.api.get<AppRegistry>("/api/apps") }.onSuccess { registry = it }.onFailure { error = it.message } }
 
     fun save(apps: List<ExternalApp>) {
@@ -237,12 +241,26 @@ fun ExternalAppsScreen() {
                     trailingContent = {
                         Row {
                             IconButton(onClick = { editing = external }) { Icon(Icons.Outlined.Edit, "编辑") }
-                            IconButton(onClick = { save(registry!!.external.filter { it.id != external.id }) }) { Icon(Icons.Outlined.Delete, "删除") }
+                            IconButton(onClick = { removing = external }) { Icon(Icons.Outlined.Delete, "删除") }
                         }
                     },
                 )
             }
         }
+    }
+    removing?.let { external ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("删除「${external.name}」？") },
+            text = { Text("只从清单里移除，不影响这个 app 本身。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    removing = null
+                    registry?.let { current -> save(current.external.filter { it.id != external.id }) }
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("取消") } },
+        )
     }
     editing?.let { current ->
         var name by remember(current.id) { mutableStateOf(current.name) }
@@ -316,6 +334,8 @@ private fun externalIcon(name: String): ImageVector = when (name) {
 fun WebPage(url: String, modifier: Modifier = Modifier, onState: (title: String, url: String) -> Unit = { _, _ -> }, onView: (WebView) -> Unit = {}) {
     var progress by remember { mutableIntStateOf(0) }
     var webView by remember { mutableStateOf<WebView?>(null) }
+    // 最后一次要求打开的地址：换了地址才重新加载，页面里自己跳转不算
+    var requested by remember { mutableStateOf(url) }
     BackHandler(enabled = webView?.canGoBack() == true) { webView?.goBack() }
     Box(modifier) {
         AndroidView(
@@ -337,6 +357,12 @@ fun WebPage(url: String, modifier: Modifier = Modifier, onState: (title: String,
                     loadUrl(url)
                     webView = this
                     onView(this)
+                }
+            },
+            update = { view ->
+                if (url != requested) {
+                    requested = url
+                    view.loadUrl(url)
                 }
             },
         )

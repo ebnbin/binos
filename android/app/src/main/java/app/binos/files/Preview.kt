@@ -154,9 +154,11 @@ private fun TextPreview(url: String, name: String, kind: String) {
         kind == "html" -> AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
+                // 和网页版的沙箱一样不给它 binOS 的源：脚本照常运行，但碰不到 binOS 的 cookie 和接口
                 WebView(context).apply {
                     settings.javaScriptEnabled = true
-                    loadDataWithBaseURL(url, content, "text/html", "UTF-8", null)
+                    settings.allowFileAccess = false
+                    loadDataWithBaseURL(null, content, "text/html", "UTF-8", null)
                 }
             },
         )

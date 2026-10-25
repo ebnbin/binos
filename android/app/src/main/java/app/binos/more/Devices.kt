@@ -5,6 +5,7 @@ package app.binos.more
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,7 +20,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +55,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.binos.app
 import app.binos.code.encode
+import app.binos.shell.LocalNav
+import app.binos.shell.SessionRoute
 import app.binos.ui.formatClock
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -193,7 +198,7 @@ fun DevicesScreen() {
                 }
             }
             if (snapshot.devices.isEmpty()) item { Text("设备池为空，申请时会自动创建专属设备。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            items(snapshot.devices, key = { it.id }) { device -> DeviceCard(device, snapshot) }
+            items(snapshot.devices, key = { it.id }) { device -> DeviceCard(device, snapshot, busy, ::act) }
             item { Text("排队", style = MaterialTheme.typography.titleMedium) }
             if (snapshot.queue.isEmpty()) item { Text("没有等待中的申请", color = MaterialTheme.colorScheme.onSurfaceVariant) }
             items(snapshot.queue, key = { "queue-${it.id}" }) { item ->
@@ -239,9 +244,12 @@ private fun Stat(label: String, value: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun DeviceCard(device: Device, data: DevicesSnapshot) {
+private fun DeviceCard(device: Device, data: DevicesSnapshot, busy: Boolean, act: (suspend () -> Unit) -> Unit) {
+    val nav = LocalNav.current
     val lease = data.leases.find { device.id in it.devices }
-    var screenshot by remember { mutableStateOf<ImageBitmap?>(null) }
+    val owner = lease?.let { data.owners[it.owner] }
+    var destroying by remember { mutableStateOf(false) }
+    var screenshot by remember { mutableStateOf<Pair<ImageBitmap, Long?>?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -252,7 +260,16 @@ private fun DeviceCard(device: Device, data: DevicesSnapshot) {
                 Text(statusLabels[device.status] ?: device.status, style = MaterialTheme.typography.labelLarge, color = if (device.status == "broken") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
             }
             Text(listOfNotNull(device.system, device.name).joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            lease?.let { Text("${ownerName(data, it.owner)} · ${it.reason}", style = MaterialTheme.typography.bodySmall) }
+            Text(device.id, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            lease?.let {
+                // 持有设备的是 Code 的对话时点开它
+                Text(
+                    "${ownerName(data, it.owner)} · ${it.reason}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (owner != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    modifier = if (owner != null) Modifier.clickable { nav.navigate(SessionRoute(owner.session)) } else Modifier,
+                )
+            }
             device.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             FlowRow {
                 TextButton(onClick = {
@@ -261,14 +278,36 @@ private fun DeviceCard(device: Device, data: DevicesSnapshot) {
                         runCatching {
                             val result = app.api.getJson("$base/${encode(device.id)}/screenshot").jsonObject
                             val bytes = Base64.decode(result["image"]!!.jsonPrimitive.content, Base64.DEFAULT)
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size).asImageBitmap()
+                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size).asImageBitmap() to result["at"]?.jsonPrimitive?.content?.toLongOrNull()
                         }.onSuccess { screenshot = it; error = null }.onFailure { error = it.message }
                         loading = false
                     }
-                }, enabled = !loading && device.status != "creating") { Text(if (screenshot == null) "查看截图" else "刷新截图") }
+                }, enabled = !loading && device.status in setOf("free", "reserved", "leased") && device.error == null) { Text(if (screenshot == null) "查看截图" else "刷新截图") }
+                if (device.status != "destroying") {
+                    TextButton(onClick = { destroying = true }, enabled = !busy, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                        Text(if (lease != null) "强制回收" else "销毁设备")
+                    }
+                }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-            screenshot?.let { Image(it, "截图", Modifier.fillMaxWidth().heightIn(max = 480.dp), contentScale = ContentScale.Fit) }
+            screenshot?.let { (image, at) ->
+                at?.let { Text("截图于 ${formatClock(it)} · 非实时画面", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                Image(image, "截图", Modifier.fillMaxWidth().heightIn(max = 480.dp), contentScale = ContentScale.Fit)
+            }
         }
+    }
+    if (destroying) {
+        AlertDialog(
+            onDismissRequest = { destroying = false },
+            title = { Text(if (lease != null) "中断租约并销毁？" else "销毁这台设备？") },
+            text = { Text(if (lease != null) "${ownerName(data, lease.owner)} 正在使用它，租约会被中断。" else "设备服务之后会按需重新创建。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    destroying = false
+                    act { app.api.postJson("$base/${encode(device.id)}/control", buildJsonObject { put("operation", "destroy") }) }
+                }) { Text(if (lease != null) "确认中断租约并销毁" else "确认销毁设备") }
+            },
+            dismissButton = { TextButton(onClick = { destroying = false }) { Text("取消") } },
+        )
     }
 }

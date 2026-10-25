@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -32,6 +33,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Keyboard
@@ -62,8 +64,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -106,6 +110,8 @@ fun TerminalHomeScreen() {
     var creating by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<TerminalInfo?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(refresh) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -153,7 +159,16 @@ fun TerminalHomeScreen() {
                             leadingContent = { Icon(Icons.Outlined.Terminal, null) },
                             headlineContent = { Text(session.cwd.ifEmpty { session.id.removePrefix("terminal-").take(8) }, fontFamily = FontFamily.Monospace) },
                             supportingContent = { Text("创建于 ${formatTime(session.created)}") },
-                            trailingContent = { IconButton(onClick = { deleting = session }) { Icon(Icons.Outlined.Delete, "关闭终端") } },
+                            trailingContent = {
+                                Row {
+                                    // 在 Mac 的终端里接上同一个 shell 的命令
+                                    if (session.command.isNotEmpty()) IconButton(onClick = {
+                                        clipboard.setText(AnnotatedString(session.command))
+                                        Toast.makeText(context, "已复制 Mac Terminal 连接命令", Toast.LENGTH_SHORT).show()
+                                    }) { Icon(Icons.Outlined.ContentCopy, "复制 Mac Terminal 连接命令") }
+                                    IconButton(onClick = { deleting = session }) { Icon(Icons.Outlined.Delete, "关闭终端") }
+                                }
+                            },
                             colors = androidx.compose.material3.ListItemDefaults.colors(containerColor = Color.Transparent),
                         )
                     }
