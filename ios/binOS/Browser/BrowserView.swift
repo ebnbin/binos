@@ -113,6 +113,8 @@ private struct RemoteBrowserView: View {
     @State private var typing = ""
     @FocusState private var keyboard: Bool
     @State private var dragLast: CGPoint?
+    // 按键栏上按下的修饰键，和下一个键一起发出去
+    @State private var modifiers: KeyModifiers = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -156,23 +158,49 @@ private struct RemoteBrowserView: View {
                 )
                 .onChange(of: geometry.size, initial: true) { _, size in connection.resize(size) }
             }
-            // 键盘输入：文字整段发过去，回车和退格单独发按键
+            // 键盘输入：文字整段发过去，回车和退格单独发按键；按着修饰键时（按键栏上的或者外接键盘的）字母、数字作为组合键发
             TextField("", text: $typing)
                 .focused($keyboard)
                 .frame(width: 1, height: 1)
                 .opacity(0.01)
                 .onChange(of: typing) { old, new in
                     if new.count > old.count, new.hasPrefix(old) {
-                        connection.send(["type": "text", "text": String(new.dropFirst(old.count))])
+                        let added = String(new.dropFirst(old.count))
+                        if !modifiers.isEmpty, added.count == 1, let key = RemoteKey.character(added.first!) {
+                            connection.key(key.key, code: key.code, modifiers: modifiers.union(key.shift ? .shift : []))
+                            modifiers = []
+                        } else {
+                            connection.send(["type": "text", "text": added])
+                        }
                     } else if new.count < old.count {
-                        connection.key("Backspace", code: "Backspace")
+                        connection.key("Backspace", code: "Backspace", modifiers: modifiers)
+                        modifiers = []
                     }
-                    if new.count > 200 { typing = "" }
+                    if new.count > 200 { typing = " " }
                 }
                 .onSubmit {
-                    connection.key("Enter", code: "Enter")
+                    connection.key("Enter", code: "Enter", modifiers: modifiers)
+                    modifiers = []
                     keyboard = true
                 }
+                .onKeyPress(phases: .down) { press in
+                    let held = KeyModifiers(press.modifiers)
+                    if let special = RemoteKey.special(press.key) {
+                        connection.key(special.key, code: special.code, modifiers: held.union(modifiers))
+                        modifiers = []
+                        return .handled
+                    }
+                    guard !held.subtracting(.shift).isEmpty, let character = press.characters.first, let key = RemoteKey.character(character) else { return .ignored }
+                    connection.key(key.key, code: key.code, modifiers: held.union(modifiers))
+                    modifiers = []
+                    return .handled
+                }
+            if keyboard {
+                KeyBar(modifiers: $modifiers) { key in
+                    connection.key(key.key, code: key.code, modifiers: modifiers)
+                    modifiers = []
+                }
+            }
             HStack {
                 Button("后退", systemImage: "chevron.backward") { connection.send(["type": "back"]) }.disabled(!connection.state.canBack)
                 Spacer()
@@ -322,8 +350,8 @@ final class RemoteBrowserConnection {
         task?.send(.string(text)) { _ in }
     }
 
-    func key(_ key: String, code: String) {
-        for action in ["down", "up"] { send(["type": "key", "action": action, "key": key, "code": code, "modifiers": 0]) }
+    func key(_ key: String, code: String, modifiers: KeyModifiers = []) {
+        for action in ["down", "up"] { send(["type": "key", "action": action, "key": key, "code": code, "modifiers": modifiers.rawValue]) }
     }
 
     func resize(_ size: CGSize) {
