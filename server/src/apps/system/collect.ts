@@ -5,7 +5,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import { codeDir, isTestInstance } from '../../paths.js'
 import { cpuUsage, parseNetwork, parseVm, parseVolumes } from './parsers.js'
-import type { Snapshot } from './types.js'
+import type { SystemSnapshot } from './types.js'
 
 const exec = promisify(execFile)
 async function command(file: string, args: string[] = []) {
@@ -18,7 +18,7 @@ export class Collector {
   private previousNet: { at: number; received: number; sent: number } | undefined
   private identity: Promise<{ model: string; chip: string; os: string; version: string }> | undefined
 
-  async collect(): Promise<Snapshot> {
+  async collect(): Promise<SystemSnapshot> {
     this.identity ??= Promise.all([
       command('/usr/sbin/sysctl', ['-n', 'hw.model']).catch(() => os.machine()),
       command('/usr/sbin/sysctl', ['-n', 'machdep.cpu.brand_string']).catch(() => os.cpus()[0]?.model || '未知'),
@@ -37,7 +37,7 @@ export class Collector {
     const [identity, vm, pressure, volumes, counters, power] = await Promise.all([
       this.identity,
       read('内存详情', '/usr/bin/vm_stat', [], parseVm, { cached: null, wired: null, compressed: null }),
-      read<Snapshot['memory']['pressure']>(
+      read<SystemSnapshot['memory']['pressure']>(
         '内存压力',
         '/usr/sbin/sysctl',
         ['-n', 'kern.memorystatus_vm_pressure_level'],

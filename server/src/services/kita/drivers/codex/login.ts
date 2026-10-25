@@ -27,8 +27,11 @@ function end(id: string) {
   killTerminal(login)
 }
 
+export type CodexLoginStart = { id: string; url: string; code: string }
+export type CodexLoginStatus = { status: 'waiting' | 'done' } | { status: 'failed'; error: string }
+
 // 开始登录：返回这次登录的编号、要打开的网址和要输入的码
-export async function startCodexLogin(): Promise<{ id: string; url: string; code: string }> {
+export async function startCodexLogin(): Promise<CodexLoginStart> {
   const id = randomUUID()
   const login: Login = Object.assign(openTerminal(['codex', 'login', '--device-auth'], { ...agentEnv('codex'), BROWSER: '/usr/bin/true' }), {
     timer: setTimeout(() => end(id), loginTimeout),
@@ -53,7 +56,7 @@ export async function startCodexLogin(): Promise<{ id: string; url: string; code
 }
 
 // 这次登录现在怎么样了：waiting 还在等用户授权，done 登录好了，failed 没成功（error 是原因）
-export function codexLoginStatus(id: string): { status: 'waiting' | 'done' } | { status: 'failed'; error: string } {
+export function codexLoginStatus(id: string): CodexLoginStatus {
   const login = logins.get(id)
   if (!login) {
     return { status: 'failed', error: '这次登录已经结束了，重新开始' }

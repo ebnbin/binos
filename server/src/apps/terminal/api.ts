@@ -3,7 +3,9 @@ import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { streamSSE } from 'hono/streaming'
+import { isCrossSite } from '../../websocket-origin.js'
 import { connectTerminal, parseMessage } from './connection.js'
+import type { TerminalServerMessage, TerminalStreamMessage } from './connection.js'
 import { createSession, hasSession, listSessions, runTmux, tmux } from './sessions.js'
 
 type Connection = ReturnType<typeof connectTerminal>
@@ -36,9 +38,7 @@ export const terminalApi = new Hono()
     return c.json({ ok: true })
   })
   .get('/sessions/:id/socket', async (c, next) => {
-    // WebSocket 不经过浏览器的 CORS 预检，必须单独拒绝跨站连接。
-    const origin = c.req.header('origin')
-    if (!origin || new URL(origin).host !== c.req.header('host') || !/^https?:\/\//.test(origin)) return c.text('Forbidden', 403)
+    if (isCrossSite(c)) return c.text('Forbidden', 403)
     return upgradeWebSocket(() => {
       let connection: Connection | undefined
       let release: (() => void) | undefined
@@ -54,7 +54,7 @@ export const terminalApi = new Hono()
           } catch (error) {
             release?.()
             release = undefined
-            ws.send(JSON.stringify({ type: 'error', message: String(error) }))
+            ws.send(JSON.stringify({ type: 'error', message: String(error) } satisfies TerminalServerMessage))
             ws.close()
           }
         },
@@ -97,7 +97,7 @@ export const terminalApi = new Hono()
       }
       stream.onAbort(dispose)
       try {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'connection', id: token }) })
+        await stream.writeSSE({ data: JSON.stringify({ type: 'connection', id: token } satisfies TerminalStreamMessage) })
         connection = connectTerminal(
           c.req.param('id'),
           (message) => {
@@ -108,7 +108,7 @@ export const terminalApi = new Hono()
         streams.set(token, connection)
         await done
       } catch (error) {
-        await stream.writeSSE({ data: JSON.stringify({ type: 'error', message: String(error) }) }).catch(() => {})
+        await stream.writeSSE({ data: JSON.stringify({ type: 'error', message: String(error) } satisfies TerminalStreamMessage) }).catch(() => {})
       } finally {
         dispose()
         release()

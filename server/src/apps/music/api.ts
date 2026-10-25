@@ -7,7 +7,7 @@ import { MusicPlayers, PlayerError, parsePlayerReport } from './players.js'
 import { musicContract } from './contract.js'
 import { validator } from 'hono/validator'
 import { notifyChange } from '../../events.js'
-import type { MusicApiError } from './types.js'
+import type { MusicApiError, PlayerCommandRequest, PlayerMessage } from './types.js'
 import { mutateQueue, readQueue } from './queue.js'
 import { MusicError, requireCapability, type MusicProvider } from './provider.js'
 import { youtubeOfficial } from './youtubeOfficial.js'
@@ -44,7 +44,7 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
         stream.onAbort(() => players.disconnect(id))
         try {
           await stream.write(connectedPreamble)
-          await stream.writeSSE({ data: JSON.stringify({ type: 'connected', playerId: id }) })
+          await stream.writeSSE({ data: JSON.stringify({ type: 'connected', playerId: id } satisfies PlayerMessage) })
           await done
         } finally {
           clearInterval(timer)
@@ -60,7 +60,7 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
       return c.json({ ok: true })
     })
     .post('/players/:id/commands', async (c) => {
-      const body = await c.req.json().catch(() => null) as { id?: unknown; command?: unknown } | null
+      const body = await c.req.json().catch(() => null) as { [K in keyof PlayerCommandRequest]?: unknown } | null
       const command = parsePlayerCommand(body?.command)
       if (typeof body?.id !== 'string' || !command) throw new PlayerError('请输入指令 ID 和有效的 command。', 'invalid-input', 400)
       const result = players.submit(c.req.param('id'), body.id, command)

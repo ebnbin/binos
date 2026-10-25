@@ -27,6 +27,9 @@ const inlineTypes: Record<string, string> = {
   json: 'text/plain; charset=utf-8',
 }
 
+// 带 ?info=1 时返回的文件信息
+export type FileInfo = { size: number; modified: string; type: string }
+
 export function serveFile(c: Context, filePath: string, immutable = false) {
   const inline = inlineTypes[path.extname(filePath).slice(1).toLowerCase()]
   const name = c.req.query('name')
@@ -34,7 +37,7 @@ export function serveFile(c: Context, filePath: string, immutable = false) {
   const info = statSync(filePath)
   if (!info.isFile()) return c.text('Not Found', 404)
   if (c.req.query('info') === '1') {
-    return c.json({ size: info.size, modified: info.mtime.toISOString(), type: inline || 'application/octet-stream' })
+    return c.json({ size: info.size, modified: info.mtime.toISOString(), type: inline || 'application/octet-stream' } satisfies FileInfo)
   }
   const headers = {
     'Content-Type': inline || 'application/octet-stream',

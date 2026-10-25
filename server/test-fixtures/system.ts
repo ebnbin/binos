@@ -1,5 +1,5 @@
-import type { Snapshot } from '../src/apps/system/types.js'
-export function snapshot(at = Date.now()): Snapshot {
+import type { SystemSnapshot } from '../src/apps/system/types.js'
+export function snapshot(at = Date.now()): SystemSnapshot {
   return {
     at,
     host: { name: 'test-mac', model: 'Mac-test', chip: 'Test CPU', os: 'macOS', uptime: 600, cores: 8 },

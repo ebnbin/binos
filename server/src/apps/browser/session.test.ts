@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 import type { BrowserContext, Page } from 'playwright-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { chromeContext, disconnectChrome } from './connection.js'
-import type { ServerMessage } from './protocol.js'
+import type { BrowserServerMessage } from './protocol.js'
 import { connectBrowser, stopBrowser } from './session.js'
 
 vi.mock('./connection.js', () => ({
@@ -40,10 +40,10 @@ afterEach(async () => {
 })
 
 function client() {
-  const messages: ServerMessage[] = []
+  const messages: BrowserServerMessage[] = []
   return {
     messages,
-    send: (message: ServerMessage) => { messages.push(message) },
+    send: (message: BrowserServerMessage) => { messages.push(message) },
     close: vi.fn<(code?: number) => void>(),
     id: () => {
       const ready = messages.find((message) => message.type === 'ready')

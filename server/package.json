@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "protocol.schema.json"
   ],
   "exports": {
     "./api": "./src/api.ts",
