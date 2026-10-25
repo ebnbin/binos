@@ -38,19 +38,23 @@ export const kitaAppApi = new Hono()
     const { text, temporary = false, agent = defaultAgent } = c.req.valid('json')
     const id = await startConversation(text, temporary, agent)
     if (!id) throw unavailable()
-    return c.json({ id }, 200)
+    return c.json({ id }, 201)
   })
   .post('/conversations/:id/messages', conversationParam, messageBody, async (c) => {
     const sent = await sendMessage(c.req.valid('param').id, c.req.valid('json').text)
     if (!sent) throw unavailable()
-    return c.json({ ok: true } as const, 200)
+    return c.body(null, 204)
   })
-  .post('/conversations/:id/stop', conversationParam, (c) => c.json({ ok: stopConversation(c.req.valid('param').id) }, 200))
+  // 没在回答时什么也不做
+  .post('/conversations/:id/stop', conversationParam, (c) => {
+    stopConversation(c.req.valid('param').id)
+    return c.body(null, 204)
+  })
   // 只能删没在回答的
-  .post('/conversations/:id/delete', conversationParam, async (c) => {
+  .delete('/conversations/:id', conversationParam, async (c) => {
     const deleted = await deleteConversation(c.req.valid('param').id)
     if (!deleted) throw new ApiException(409, 'answering', '正在回答的对话不能删除')
-    return c.json({ ok: true } as const, 200)
+    return c.body(null, 204)
   })
 
 export type KitaAppApi = typeof kitaAppApi

@@ -16,5 +16,5 @@ export async function codexLoginStatus(id: string): Promise<{ status: 'waiting' 
 }
 
 export async function cancelCodexLogin(id: string) {
-  await client.login[':id'].cancel.$post({ param: { id } }, { headers: { 'Content-Type': 'application/json' } }).catch(() => undefined)
+  await client.login[':id'].$delete({ param: { id } }).catch(() => undefined)
 }

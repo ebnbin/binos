@@ -8,13 +8,15 @@ import { FilePreview } from '../../services/preview/index.ts'
 import type { WindowContext } from '../types.ts'
 import styles from './FilesApp.module.css'
 
-type Entry = { name: string; path: string; directory: boolean; symlink: boolean; size: number; modified: number }
-type Listing = { path: string; parent: string; home: string; entries: Entry[] }
+import type { Directory, FileEntry, FileResults, FileTransfer, FileTrash } from '@binos/server/apps/files/types'
+
+type Entry = FileEntry
+type Listing = Directory
 const base = '/api/apps/files'
 async function request(url: string, init?: RequestInit) {
   const response = await fetch(base + url, init)
   if (!response.ok) throw new Error(await errorMessage(response, '文件操作失败'))
-  return response.json()
+  return response.status === 204 ? undefined : response.json()
 }
 const size = (bytes: number) =>
   bytes < 1024
@@ -71,12 +73,12 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
     })
   }, [route])
   const go = (dir: string) => ctx.navigate('/' + encodeURIComponent(dir))
-  async function operation(action: string, file: string, extra = {}) {
-    await request('/operation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, path: file, ...extra }),
-    })
+  const post = (route: string, body: object) => request(route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  // 批量操作逐项返回结果，有没做成的就报出第一个的原因
+  async function batch(route: '/copy' | '/move' | '/trash', body: FileTransfer | FileTrash) {
+    const { results } = (await post(route, body)) as FileResults
+    const failed = results.filter((result) => result.error)
+    if (failed.length) throw new Error(`${failed.length} 项没有完成：${failed[0].error!.message}`)
   }
   async function run(task: () => Promise<void>) {
     if (operationBusy.current) return
@@ -229,8 +231,7 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
             disabled={!clipboard || busy || !listing || loading}
             onClick={() =>
               void run(async () => {
-                for (const file of clipboard!.paths)
-                  await operation(clipboard!.move ? 'move' : 'copy', file, { destination: listing!.path })
+                await batch(clipboard!.move ? '/move' : '/copy', { paths: clipboard!.paths, destination: listing!.path })
                 setClipboard(undefined)
               })
             }
@@ -357,9 +358,9 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
             onSubmit={(e) => {
               e.preventDefault()
               void run(async () => {
-                if (dialog.action === 'trash') {
-                  for (const file of selected) await operation('trash', file)
-                } else await operation(dialog.action, dialog.action === 'mkdir' ? listing!.path : selected[0], { name: dialog.value })
+                if (dialog.action === 'trash') await batch('/trash', { paths: selected })
+                else if (dialog.action === 'mkdir') await post('/directories', { path: listing!.path, name: dialog.value })
+                else await post('/rename', { path: selected[0], name: dialog.value })
               })
             }}
           >

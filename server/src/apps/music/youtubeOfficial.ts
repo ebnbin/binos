@@ -19,7 +19,7 @@ export const youtubeOfficial: MusicProvider = {
     }
   },
   configure: values => {
-    if (values.apiKey !== undefined && (values.apiKey.length > 256 || /\s/.test(values.apiKey))) throw new MusicError('请输入有效的搜索密钥。', 'invalid-input')
+    if (typeof values.apiKey === 'string' && (values.apiKey.length > 256 || /\s/.test(values.apiKey))) throw new MusicError('请输入有效的搜索密钥。', 'invalid-input')
     saveProviderSettings('youtube', values)
   },
   search: (query, page) => youtubeCatalog.search(query, key(), page),

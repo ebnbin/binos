@@ -10,7 +10,7 @@ process.env.BINOS_ROOT = root
 process.env.BINOS_TEST_INSTANCE = '1'
 const { musicApi } = await import('./api.js')
 const settingsFile = path.join(root, 'Library', 'Apps', 'music', 'settings.json')
-const settings = (youtubeApiKey: unknown) => musicApi.request('/providers/youtube/settings', { method: 'PUT', body: JSON.stringify({ apiKey: youtubeApiKey }), headers: { 'Content-Type': 'application/json' } })
+const settings = (youtubeApiKey: unknown) => musicApi.request('/providers/youtube/settings', { method: 'PATCH', body: JSON.stringify({ apiKey: youtubeApiKey }), headers: { 'Content-Type': 'application/json' } })
 beforeEach(() => rmSync(path.dirname(settingsFile), { recursive: true, force: true }))
 afterEach(() => vi.unstubAllGlobals())
 afterAll(() => rmSync(root, { recursive: true, force: true }))
@@ -44,7 +44,9 @@ describe('YouTube 内容入口', () => {
     expect(JSON.stringify(data)).not.toContain('test-search-key')
     expect(data.providers.find(provider => provider.id === 'youtube')!.configuration.fields[0].configured).toBe(true)
     expect((await settings('bad\nkey')).status).toBe(400)
-    expect((await settings(null)).status).toBe(400)
+    expect((await settings('')).status).toBe(400)
+    expect((await settings(null)).status).toBe(200)
+    expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toEqual({ providers: { youtube: {} } })
   })
 
   it('上游额度错误不泄露上游内容，密钥通过请求头传递', async () => {

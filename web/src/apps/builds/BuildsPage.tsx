@@ -69,7 +69,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       {/* 产物按钮跟在操作后面：Android 下载安装包，iOS 无线安装（下载的 IPA 在设备上装不上），Web 打开预览 */}
       <div className={styles.actions}>
         <button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>
-        {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act({ action: 'cancel', id: b.id })}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act({ action: 'retry', id: b.id })}>重新构建</button>}
+        {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act(`/${b.id}/cancel`)}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act(`/${b.id}/retry`)}>重新构建</button>}
         {b.artifacts.map((a) => a.kind === 'link'
           ? live.has(b.id) && <a className={styles.tinted} key={a.name} href={a.url} target="_blank" rel="noreferrer">打开预览 ↗</a>
           : a.platform === 'android'
@@ -78,17 +78,17 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
       </div>
     </article>
   }
-  async function act(body: unknown) { setBusy(true); try { update(await request(body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
+  async function act(route: string, method = 'POST', body?: unknown) { setBusy(true); try { update(await request(route, method, body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   return <section className={styles.page}>
     <div className={styles.content}>
-    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act({ action: 'poll' })}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
+    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act('/poll')}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
     {data?.mode === 'mock' && <p className={styles.notice}>预览模式：模拟构建，与正式构建及签名隔离。</p>}
     {error && <p role="alert" className={styles.alert}>{error}</p>}
     {data?.pollError && <p role="alert" className={styles.alert}>检查仓库失败：{data.pollError}</p>}
     {data && <div className={styles.block}><div className={styles.group}>
-      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act({ action: 'settings', automatic: e.target.checked })} /></label>
+      <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act('/settings', 'PUT', { automatic: e.target.checked })} /></label>
     </div>{data.checkedAt && <small className={styles.footer}>上次检查：{new Date(data.checkedAt).toLocaleString()}</small>}</div>}
-    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act({ action: 'enqueue', ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
+    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act('', 'POST', { ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
       <div className={styles.group}>
         <label className={styles.row}>构建来源<input className={styles.field} aria-label="构建来源" required value={ref} onChange={(e) => setRef(e.target.value)} placeholder="main、pr/编号、完整提交号" /></label>
         <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={setTarget} options={[{ value: 'both', label: 'Android + iOS' }, ...Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))]} /></div>

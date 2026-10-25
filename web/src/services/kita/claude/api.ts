@@ -18,5 +18,5 @@ export async function finishClaudeLogin(id: string, code: string): Promise<{ ok:
 }
 
 export async function cancelClaudeLogin(id: string) {
-  await client.login[':id'].cancel.$post({ param: { id } }, { headers: { 'Content-Type': 'application/json' } }).catch(() => undefined)
+  await client.login[':id'].$delete({ param: { id } }).catch(() => undefined)
 }

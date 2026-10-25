@@ -160,13 +160,13 @@ export const kitaApi = new Hono()
   .get('/activity', (c) => c.json({ activity: activity() }))
   // 喜多：用户写的描述和照片
   .get('/profile', (c) => c.json({ profile: readProfile() }))
-  .post('/profile/description', validator('json', (value) => {
+  .put('/profile/description', validator('json', (value) => {
     const description = (value as { description?: unknown } | null)?.description
     if (typeof description !== 'string' || description.length > maxDescriptionLength) throw badRequest(`描述最多 ${maxDescriptionLength} 个字`)
     return { description }
   }), (c) => {
     setDescription(c.req.valid('json').description)
-    return c.json({ ok: true }, 200)
+    return c.body(null, 204)
   })
   // 请求体就是照片本身，原来的文件名 URL 编码后放在 X-File-Name 里
   .post('/profile/photos', async (c) => {
@@ -178,11 +178,22 @@ export const kitaApi = new Hono()
     } catch {
       // 文件名解不开就当没有，按格式不支持拒绝
     }
-    return c.json({ file: await addPhoto(body, name) }, 200)
+    return c.json({ file: await addPhoto(body, name) }, 201)
   })
   .get('/profile/photos/:file', photoParam, (c) => serveFile(c, path.join(photosDir, c.req.valid('param').file), true))
-  .post('/profile/photos/:file/delete', photoParam, (c) => c.json({ ok: removePhoto(c.req.valid('param').file) }, 200))
-  .post('/profile/photos/:file/avatar', photoParam, (c) => c.json({ ok: setAvatar(c.req.valid('param').file) }, 200))
+  .delete('/profile/photos/:file', photoParam, (c) => {
+    removePhoto(c.req.valid('param').file)
+    return c.body(null, 204)
+  })
+  // 用哪张照片作头像
+  .put('/profile/avatar', validator('json', (value) => {
+    const file = (value as { file?: unknown } | null)?.file
+    if (typeof file !== 'string' || !readProfile().photos.some((photo) => photo.file === file)) throw notFound('照片不存在')
+    return { file }
+  }), (c) => {
+    setAvatar(c.req.valid('json').file)
+    return c.body(null, 204)
+  })
   // 长期记忆
   .get('/memories', (c) => c.json({ memories: listMemories() }))
   // agent 记的写到它的身份的 write 范围
@@ -190,16 +201,17 @@ export const kitaApi = new Hono()
     const { session, text, kind = 'stated', scope } = c.req.valid('json')
     const writer = memoryWriter(session)
     if (!writer || (writer.scope && scope !== undefined)) throw forbidden('agent 只能记到它的身份能写的范围')
-    return c.json({ memory: addMemory(text, kind, writer.scope?.write ?? scope ?? 'personal', writer.source) }, 200)
+    return c.json({ memory: addMemory(text, kind, writer.scope?.write ?? scope ?? 'personal', writer.source) }, 201)
   })
-  .post('/memories/:id', memoryChangeBody, (c) => {
+  .patch('/memories/:id', memoryChangeBody, (c) => {
     const { session, ...change } = c.req.valid('json')
     const target = memoryChange(c.req.param('id'), session)
     return c.json({ memory: updateMemory(target.memory.id, change, target.source)! }, 200)
   })
-  .post('/memories/:id/delete', memoryChangeBody, (c) => {
-    const target = memoryChange(c.req.param('id'), c.req.valid('json').session)
-    return c.json({ ok: removeMemory(target.memory.id) }, 200)
+  // session：agent 在哪个 session 里删的，页面上的用户不带
+  .delete('/memories/:id', (c) => {
+    removeMemory(memoryChange(c.req.param('id'), c.req.query('session')).memory.id)
+    return c.body(null, 204)
   })
   // 恢复上一个版本，只在页面上
   .post('/memories/:id/revert', memoryChangeBody, (c) => {

@@ -4,7 +4,7 @@ import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
 import type { Device, Platform } from '@binos/server/apps/devices/types'
 import type { WindowContext } from '../types.ts'
 import { onChange } from '../../events.ts'
-import { acquireDevices, cancelDevices, captureDevice, controlDevice, discoverDevices, readDevices, releaseDevices } from './api.ts'
+import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, releaseDevices } from './api.ts'
 import { Select } from '../../ui/Select.tsx'
 import styles from './DevicesApp.module.css'
 
@@ -119,7 +119,7 @@ function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: De
         <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => setCapture(await captureDevice(device.id)))}><Camera size={14} strokeWidth={2} />截图</button>
         {device.status !== 'destroying' && <button className={styles.destructive} disabled={busy} onClick={() => {
           if (!confirmDestroy) { setConfirmDestroy(true); return }
-          void act(() => controlDevice(device.id, 'destroy'))
+          void act(() => destroyDevice(device.id))
         }}><Trash2 size={14} strokeWidth={2} />{confirmDestroy ? lease ? '确认中断租约并销毁' : '确认销毁设备' : lease ? '强制回收' : '销毁设备'}</button>}
         {confirmDestroy && <button className={styles.button} disabled={busy} onClick={() => setConfirmDestroy(false)}>取消</button>}
       </div>

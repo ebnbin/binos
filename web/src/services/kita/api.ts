@@ -57,9 +57,6 @@ export function sessionFileUrl(thread: string, file: string, name?: string) {
   return url.pathname + url.search
 }
 
-// 写操作都要带上 JSON 的 Content-Type，后端以此拒绝跨站请求
-const jsonHeaders = { headers: { 'Content-Type': 'application/json' } }
-
 // 各个 app 正在回答的 session；读不到时返回 undefined
 export async function kitaActivity() {
   const res = await client.activity.$get().catch(() => undefined)
@@ -73,7 +70,7 @@ export async function readProfile() {
 }
 
 export async function saveDescription(description: string) {
-  const res = await client.profile.description.$post({ json: { description } }).catch(() => undefined)
+  const res = await client.profile.description.$put({ json: { description } }).catch(() => undefined)
   return res?.ok ?? false
 }
 
@@ -90,11 +87,11 @@ export async function uploadPhoto(file: File): Promise<string | undefined> {
 }
 
 export async function removePhoto(file: string) {
-  await client.profile.photos[':file'].delete.$post({ param: { file } }, jsonHeaders).catch(() => undefined)
+  await client.profile.photos[':file'].$delete({ param: { file } }).catch(() => undefined)
 }
 
 export async function setAvatar(file: string) {
-  await client.profile.photos[':file'].avatar.$post({ param: { file } }, jsonHeaders).catch(() => undefined)
+  await client.profile.avatar.$put({ json: { file } }).catch(() => undefined)
 }
 
 export async function listMemories() {
@@ -109,12 +106,12 @@ export async function addMemory(text: string) {
 }
 
 export async function updateMemory(id: string, change: { text?: string; kind?: 'stated' | 'inferred' }) {
-  const res = await client.memories[':id'].$post({ param: { id }, json: change }).catch(() => undefined)
+  const res = await client.memories[':id'].$patch({ param: { id }, json: change }).catch(() => undefined)
   return res?.ok ?? false
 }
 
 export async function removeMemory(id: string) {
-  await client.memories[':id'].delete.$post({ param: { id }, json: {} }).catch(() => undefined)
+  await client.memories[':id'].$delete({ param: { id } }).catch(() => undefined)
 }
 
 export async function revertMemory(id: string) {

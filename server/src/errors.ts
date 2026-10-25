@@ -53,7 +53,7 @@ const statusCodes: Partial<Record<number, [ErrorCode, string]>> = {
   415: ['unsupported-media-type', '请求体的格式不支持'],
 }
 
-function toApiException(error: Error, fallback?: [ContentfulStatusCode, ErrorCode]): ApiException {
+export function toApiException(error: Error, fallback?: [ContentfulStatusCode, ErrorCode]): ApiException {
   if (error instanceof ApiException) return error
   if (error instanceof HTTPException) {
     const [code, message] = statusCodes[error.status] ?? ['internal', '服务器出错了']

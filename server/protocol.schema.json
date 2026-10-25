@@ -58,24 +58,10 @@
           "properties": {
             "request": {
               "$ref": "#/definitions/AppRegistry"
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
             }
           },
           "required": [
-            "request",
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
@@ -271,7 +257,7 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/profile/description": {
+        "PUT /api/kita/profile/description": {
           "type": "object",
           "properties": {
             "request": {
@@ -285,24 +271,10 @@
                 "description"
               ],
               "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
             }
           },
           "required": [
-            "request",
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
@@ -339,45 +311,28 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/profile/photos/:file/delete": {
+        "DELETE /api/kita/profile/photos/:file": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
-        "POST /api/kita/profile/photos/:file/avatar": {
+        "PUT /api/kita/profile/avatar": {
           "type": "object",
           "properties": {
-            "response": {
+            "request": {
               "type": "object",
               "properties": {
-                "ok": {
-                  "type": "boolean"
+                "file": {
+                  "type": "string"
                 }
               },
               "required": [
-                "ok"
+                "file"
               ],
               "additionalProperties": false
             }
           },
           "required": [
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
@@ -430,7 +385,7 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/memories/:id": {
+        "PATCH /api/kita/memories/:id": {
           "type": "object",
           "properties": {
             "request": {
@@ -455,35 +410,8 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/memories/:id/delete": {
+        "DELETE /api/kita/memories/:id": {
           "type": "object",
-          "properties": {
-            "request": {
-              "type": "object",
-              "properties": {
-                "session": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "request",
-            "response"
-          ],
           "additionalProperties": false
         },
         "POST /api/kita/memories/:id/revert": {
@@ -556,47 +484,15 @@
                 "code"
               ],
               "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
             }
           },
           "required": [
-            "request",
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/claude/login/:id/cancel": {
+        "DELETE /api/kita/claude/login/:id": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "POST /api/kita/codex/login": {
@@ -623,26 +519,8 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/kita/codex/login/:id/cancel": {
+        "DELETE /api/kita/codex/login/:id": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "GET /api/apps/builds": {
@@ -661,85 +539,7 @@
           "type": "object",
           "properties": {
             "request": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "enum": [
-                        "status",
-                        "poll"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "action"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "const": "enqueue"
-                    },
-                    "ref": {
-                      "type": "string"
-                    },
-                    "targets": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/definitions/Target"
-                      }
-                    }
-                  },
-                  "required": [
-                    "action",
-                    "ref",
-                    "targets"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "enum": [
-                        "cancel",
-                        "retry"
-                      ]
-                    },
-                    "id": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "action",
-                    "id"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "action": {
-                      "type": "string",
-                      "const": "settings"
-                    },
-                    "automatic": {
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "action",
-                    "automatic"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
+              "$ref": "#/definitions/BuildEnqueue"
             },
             "response": {
               "$ref": "#/definitions/BuildsSnapshot"
@@ -747,6 +547,58 @@
           },
           "required": [
             "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/builds/poll": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/BuildsSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "PUT /api/apps/builds/settings": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/Settings"
+            },
+            "response": {
+              "$ref": "#/definitions/BuildsSnapshot"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/builds/:id/cancel": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/BuildsSnapshot"
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/builds/:id/retry": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "$ref": "#/definitions/BuildsSnapshot"
+            }
+          },
+          "required": [
             "response"
           ],
           "additionalProperties": false
@@ -812,7 +664,7 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/apps/code/projects/:project/repository": {
+        "PUT /api/apps/code/projects/:project/repository": {
           "type": "object",
           "properties": {
             "request": {
@@ -954,7 +806,7 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/apps/code/sessions/:id/queue/:item/withdraw": {
+        "DELETE /api/apps/code/sessions/:id/queue/:item": {
           "type": "object",
           "properties": {
             "response": {
@@ -987,24 +839,14 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/apps/code/sessions/:id/edit": {
+        "PATCH /api/apps/code/sessions/:id": {
           "type": "object",
           "properties": {
             "request": {
               "$ref": "#/definitions/SessionEdit"
             },
             "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/SessionSummary"
             }
           },
           "required": [
@@ -1015,46 +857,10 @@
         },
         "POST /api/apps/code/sessions/:id/read": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "POST /api/apps/code/sessions/:id/stop": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "GET /api/apps/devices": {
@@ -1116,97 +922,16 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/apps/devices/leases/:id/release": {
+        "DELETE /api/apps/devices/leases/:id": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
-        "POST /api/apps/devices/queue/cancel": {
+        "DELETE /api/apps/devices/queue/:requestId": {
           "type": "object",
-          "properties": {
-            "request": {
-              "type": "object",
-              "properties": {
-                "requestId": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "requestId"
-              ],
-              "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "request",
-            "response"
-          ],
           "additionalProperties": false
         },
-        "POST /api/apps/devices/:id/control": {
+        "DELETE /api/apps/devices/:id": {
           "type": "object",
-          "properties": {
-            "request": {
-              "type": "object",
-              "properties": {
-                "operation": {
-                  "type": "string",
-                  "const": "destroy"
-                }
-              },
-              "required": [
-                "operation"
-              ],
-              "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "request",
-            "response"
-          ],
           "additionalProperties": false
         },
         "GET /api/apps/devices/:id/screenshot": {
@@ -1245,24 +970,70 @@
           ],
           "additionalProperties": false
         },
-        "POST /api/apps/files/operation": {
+        "POST /api/apps/files/directories": {
           "type": "object",
           "properties": {
             "request": {
-              "$ref": "#/definitions/FileOperation"
+              "$ref": "#/definitions/FileName"
+            }
+          },
+          "required": [
+            "request"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/rename": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/FileName"
+            }
+          },
+          "required": [
+            "request"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/copy": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/FileTransfer"
             },
             "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
+              "$ref": "#/definitions/FileResults"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/move": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/FileTransfer"
+            },
+            "response": {
+              "$ref": "#/definitions/FileResults"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "POST /api/apps/files/trash": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "#/definitions/FileTrash"
+            },
+            "response": {
+              "$ref": "#/definitions/FileResults"
             }
           },
           "required": [
@@ -1273,24 +1044,6 @@
         },
         "POST /api/apps/files/upload": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "GET /api/apps/kita/conversations": {
@@ -1356,68 +1109,19 @@
                 "text"
               ],
               "additionalProperties": false
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
             }
           },
           "required": [
-            "request",
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
         "POST /api/apps/kita/conversations/:id/stop": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean"
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
-        "POST /api/apps/kita/conversations/:id/delete": {
+        "DELETE /api/apps/kita/conversations/:id": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "GET /api/apps/music": {
@@ -1474,24 +1178,10 @@
           "properties": {
             "request": {
               "$ref": "#/definitions/PlayerReport"
-            },
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
             }
           },
           "required": [
-            "request",
-            "response"
+            "request"
           ],
           "additionalProperties": false
         },
@@ -1575,14 +1265,11 @@
           ],
           "additionalProperties": false
         },
-        "PUT /api/apps/music/providers/:provider/settings": {
+        "PATCH /api/apps/music/providers/:provider/settings": {
           "type": "object",
           "properties": {
             "request": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "string"
-              }
+              "$ref": "#/definitions/ProviderSettings"
             },
             "response": {
               "$ref": "#/definitions/ProviderInfo"
@@ -1682,24 +1369,6 @@
         },
         "DELETE /api/apps/terminal/sessions/:id": {
           "type": "object",
-          "properties": {
-            "response": {
-              "type": "object",
-              "properties": {
-                "ok": {
-                  "type": "boolean",
-                  "const": true
-                }
-              },
-              "required": [
-                "ok"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "response"
-          ],
           "additionalProperties": false
         },
         "POST /api/apps/terminal/connections/:token": {
@@ -1742,55 +1411,63 @@
         "GET /api/kita/sessions/:id/files/:file",
         "GET /api/kita/activity",
         "GET /api/kita/profile",
-        "POST /api/kita/profile/description",
+        "PUT /api/kita/profile/description",
         "POST /api/kita/profile/photos",
         "GET /api/kita/profile/photos/:file",
-        "POST /api/kita/profile/photos/:file/delete",
-        "POST /api/kita/profile/photos/:file/avatar",
+        "DELETE /api/kita/profile/photos/:file",
+        "PUT /api/kita/profile/avatar",
         "GET /api/kita/memories",
         "POST /api/kita/memories",
-        "POST /api/kita/memories/:id",
-        "POST /api/kita/memories/:id/delete",
+        "PATCH /api/kita/memories/:id",
+        "DELETE /api/kita/memories/:id",
         "POST /api/kita/memories/:id/revert",
         "POST /api/kita/claude/login",
         "POST /api/kita/claude/login/:id",
-        "POST /api/kita/claude/login/:id/cancel",
+        "DELETE /api/kita/claude/login/:id",
         "POST /api/kita/codex/login",
         "GET /api/kita/codex/login/:id",
-        "POST /api/kita/codex/login/:id/cancel",
+        "DELETE /api/kita/codex/login/:id",
         "GET /api/apps/builds",
         "POST /api/apps/builds",
+        "POST /api/apps/builds/poll",
+        "PUT /api/apps/builds/settings",
+        "POST /api/apps/builds/:id/cancel",
+        "POST /api/apps/builds/:id/retry",
         "POST /api/apps/builds/:id/install",
         "GET /api/apps/code/projects",
         "POST /api/apps/code/projects",
-        "POST /api/apps/code/projects/:project/repository",
+        "PUT /api/apps/code/projects/:project/repository",
         "GET /api/apps/code/search",
         "GET /api/apps/code/sessions",
         "GET /api/apps/code/usage",
         "POST /api/apps/code/uploads",
         "POST /api/apps/code/sessions",
         "POST /api/apps/code/sessions/:id/messages",
-        "POST /api/apps/code/sessions/:id/queue/:item/withdraw",
+        "DELETE /api/apps/code/sessions/:id/queue/:item",
         "POST /api/apps/code/sessions/:id/queue/:item/send",
-        "POST /api/apps/code/sessions/:id/edit",
+        "PATCH /api/apps/code/sessions/:id",
         "POST /api/apps/code/sessions/:id/read",
         "POST /api/apps/code/sessions/:id/stop",
         "GET /api/apps/devices",
         "POST /api/apps/devices/discover",
         "POST /api/apps/devices/leases",
-        "POST /api/apps/devices/leases/:id/release",
-        "POST /api/apps/devices/queue/cancel",
-        "POST /api/apps/devices/:id/control",
+        "DELETE /api/apps/devices/leases/:id",
+        "DELETE /api/apps/devices/queue/:requestId",
+        "DELETE /api/apps/devices/:id",
         "GET /api/apps/devices/:id/screenshot",
         "GET /api/apps/files",
         "GET /api/apps/files/download",
-        "POST /api/apps/files/operation",
+        "POST /api/apps/files/directories",
+        "POST /api/apps/files/rename",
+        "POST /api/apps/files/copy",
+        "POST /api/apps/files/move",
+        "POST /api/apps/files/trash",
         "POST /api/apps/files/upload",
         "GET /api/apps/kita/conversations",
         "POST /api/apps/kita/conversations",
         "POST /api/apps/kita/conversations/:id/messages",
         "POST /api/apps/kita/conversations/:id/stop",
-        "POST /api/apps/kita/conversations/:id/delete",
+        "DELETE /api/apps/kita/conversations/:id",
         "GET /api/apps/music",
         "GET /api/apps/music/players",
         "GET /api/apps/music/players/:id",
@@ -1800,7 +1477,7 @@
         "GET /api/apps/music/queue",
         "POST /api/apps/music/queue",
         "GET /api/apps/music/providers",
-        "PUT /api/apps/music/providers/:provider/settings",
+        "PATCH /api/apps/music/providers/:provider/settings",
         "GET /api/apps/music/providers/:provider/:operation",
         "GET /api/apps/system/status",
         "POST /api/apps/system/refresh",
@@ -3642,6 +3319,25 @@
       ],
       "additionalProperties": false
     },
+    "BuildEnqueue": {
+      "type": "object",
+      "properties": {
+        "ref": {
+          "type": "string"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Target"
+          }
+        }
+      },
+      "required": [
+        "ref",
+        "targets"
+      ],
+      "additionalProperties": false
+    },
     "InstallLink": {
       "type": "object",
       "properties": {
@@ -4480,74 +4176,120 @@
       ],
       "additionalProperties": false
     },
-    "FileOperation": {
-      "anyOf": [
-        {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "mkdir",
-                "rename"
-              ]
-            },
-            "path": {
-              "type": "string"
-            },
-            "name": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "action",
-            "path",
-            "name"
-          ],
-          "additionalProperties": false
+    "FileName": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
         },
-        {
-          "type": "object",
-          "properties": {
-            "action": {
-              "type": "string",
-              "enum": [
-                "copy",
-                "move"
-              ]
-            },
-            "path": {
-              "type": "string"
-            },
-            "destination": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "action",
-            "path",
-            "destination"
-          ],
-          "additionalProperties": false
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "FileTransfer": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
-        {
+        "destination": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "paths",
+        "destination"
+      ],
+      "additionalProperties": false
+    },
+    "FileResults": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FileResult"
+          }
+        }
+      },
+      "required": [
+        "results"
+      ],
+      "additionalProperties": false
+    },
+    "FileResult": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "error": {
           "type": "object",
           "properties": {
-            "action": {
-              "type": "string",
-              "const": "trash"
+            "code": {
+              "$ref": "#/definitions/ErrorCode"
             },
-            "path": {
+            "message": {
               "type": "string"
             }
           },
           "required": [
-            "action",
-            "path"
+            "code",
+            "message"
           ],
           "additionalProperties": false
         }
+      },
+      "required": [
+        "path"
+      ],
+      "additionalProperties": false
+    },
+    "ErrorCode": {
+      "type": "string",
+      "enum": [
+        "invalid-input",
+        "unauthorized",
+        "forbidden",
+        "not-found",
+        "conflict",
+        "gone",
+        "too-large",
+        "unsupported-media-type",
+        "answering",
+        "busy",
+        "capacity",
+        "unavailable",
+        "configuration",
+        "unsupported",
+        "quota",
+        "network",
+        "internal"
       ]
+    },
+    "FileTrash": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "additionalProperties": false
     },
     "Conversation": {
       "type": "object",
@@ -5314,6 +5056,15 @@
         }
       ]
     },
+    "ProviderSettings": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
     "CatalogPage": {
       "type": "object",
       "properties": {
@@ -5780,28 +5531,6 @@
         "error"
       ],
       "additionalProperties": false
-    },
-    "ErrorCode": {
-      "type": "string",
-      "enum": [
-        "invalid-input",
-        "unauthorized",
-        "forbidden",
-        "not-found",
-        "conflict",
-        "gone",
-        "too-large",
-        "unsupported-media-type",
-        "answering",
-        "busy",
-        "capacity",
-        "unavailable",
-        "configuration",
-        "unsupported",
-        "quota",
-        "network",
-        "internal"
-      ]
     },
     "Sse": {
       "type": "object",

@@ -32,8 +32,8 @@ beforeAll(() => {
   writeFileSync(path.join(root, 'Library', 'secret.png'), 'secret')
 })
 
-const post = (url: string, body: string, contentType: string) =>
-  api.request(url, { method: 'POST', body, headers: { 'Content-Type': contentType } })
+const post = (url: string, body: string, contentType: string, method = 'POST') =>
+  api.request(url, { method, body, headers: { 'Content-Type': contentType } })
 
 describe('api', () => {
   it('写操作只接受 JSON', async () => {
@@ -219,10 +219,10 @@ describe('项目仓库', () => {
     writeFileSync(file, JSON.stringify([...listProjects(), { id: 'legacy', name: '旧项目' }]))
     const response = await post('/api/apps/code/sessions', JSON.stringify({ text: '开发', project: 'legacy' }), 'application/json')
     expect(await response.json()).toEqual({ error: { code: 'invalid-input', message: '请先为这个项目关联 GitHub 仓库' } })
-    const connected = await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'example/legacy' }), 'application/json')
+    const connected = await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'example/legacy' }), 'application/json', 'PUT')
     expect(connected.status).toBe(200)
     expect(projectDirectory('legacy')).toBe(path.join(root, 'Library/Apps/code/repositories/legacy/main'))
-    expect((await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'other/repo' }), 'application/json')).status).toBe(400)
+    expect((await post('/api/apps/code/projects/legacy/repository', JSON.stringify({ name: '旧项目', repository: 'other/repo' }), 'application/json', 'PUT')).status).toBe(400)
   })
 })
 

@@ -33,6 +33,6 @@ export async function stopConversation(id: string) {
 }
 
 export async function deleteConversation(id: string) {
-  const res = await conversations[':id'].delete.$post({ param: { id } }, jsonHeaders).catch(() => undefined)
+  const res = await conversations[':id'].$delete({ param: { id } }).catch(() => undefined)
   return res?.ok ?? false
 }

@@ -25,7 +25,7 @@ describe('app 注册表', () => {
     const { write, read, onChange } = await load()
     const events: unknown[] = []
     const off = onChange((event) => events.push(event))
-    expect((await write([{ ...app, name: ' A ' }])).status).toBe(200)
+    expect((await write([{ ...app, name: ' A ' }])).status).toBe(204)
     off()
     expect(events).toEqual([{ type: 'apps' }])
     expect(await read()).toEqual({ external: [app] })

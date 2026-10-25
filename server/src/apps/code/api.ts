@@ -146,7 +146,8 @@ export const codeApi = new Hono()
     notifyChange({ type: 'project' })
     return c.json({ project }, 201)
   })
-  .post('/projects/:project/repository', repositoryBody, async (c) => {
+  // 给还没有仓库的项目关联 GitHub 仓库
+  .put('/projects/:project/repository', repositoryBody, async (c) => {
     const { repository, create } = c.req.valid('json')
     const project = await connectProject(c.req.param('project'), repository, create)
     notifyChange({ type: 'project' })
@@ -189,8 +190,8 @@ export const codeApi = new Hono()
     const id = c.req.valid('param').id
     return c.json(toResult(await (queue ? queueMessage : sendMessage)(id, text, attachments, options)), 200)
   })
-  // 撤回排队的消息，返回它的文字放回输入框；已经发出去了时 404
-  .post('/sessions/:id/queue/:item/withdraw', queueParam, (c) => {
+  // 撤回排队的消息，返回它的文字放回输入框
+  .delete('/sessions/:id/queue/:item', queueParam, (c) => {
     const { id, item } = c.req.valid('param')
     const text = unqueueMessage(id, item)
     if (text === undefined) throw new ApiException(410, 'gone', '这条消息已经发出去了')
@@ -204,8 +205,8 @@ export const codeApi = new Hono()
     }
     return c.json(toResult(await sendQueued(id, item)), 200)
   })
-  // 改名、置顶、归档是用户的整理，记在 session.json
-  .post('/sessions/:id/edit', sessionParam, editBody, (c) => {
+  // 改名、置顶、归档是用户的整理，记在 session.json。返回改过的概况
+  .patch('/sessions/:id', sessionParam, editBody, async (c) => {
     const id = c.req.valid('param').id
     const { title, pinned, archived } = c.req.valid('json')
     if (title) {
@@ -218,7 +219,7 @@ export const codeApi = new Hono()
       setUserState(id, { archived: archived || undefined })
     }
     notifyChange({ type: 'session', id })
-    return c.json({ ok: true }, 200)
+    return c.json(await summary(id), 200)
   })
   // 页面正在显示这个 session：记为已读。原本有未读时才通知各个页面，否则页面收到通知重新读取，又会来标记，来回不停
   .post('/sessions/:id/read', sessionParam, (c) => {
@@ -228,13 +229,13 @@ export const codeApi = new Hono()
     if (wasUnread) {
       notifyChange({ type: 'session', id })
     }
-    return c.json({ ok: true }, 200)
+    return c.body(null, 204)
   })
   .post('/sessions/:id/stop', sessionParam, (c) => {
     if (!stopSession(c.req.valid('param').id)) {
       throw conflict('没在回答')
     }
-    return c.json({ ok: true }, 200)
+    return c.body(null, 204)
   })
 
 export type CodeApi = typeof codeApi

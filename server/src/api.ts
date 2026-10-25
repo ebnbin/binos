@@ -20,9 +20,12 @@ const versionFile = path.join(codeDir, 'VERSION')
 const version = existsSync(versionFile) ? readFileSync(versionFile, 'utf8').trim() : 'dev'
 const protocol = protocolId(readFileSync(schemaPath, 'utf8'))
 
-// 写操作只接受 JSON 和上传文件用的 octet-stream：浏览器跨站提交这两种都需要预检，其他网站无法借你的登录状态发起请求
+// 写操作只接受 JSON 和上传文件用的 octet-stream：浏览器跨站提交这两种都需要预检，其他网站无法借你的登录状态发起请求。
+// DELETE 本身就要预检，不带请求体时不用看 Content-Type
 const requirePreflight: MiddlewareHandler = async (c, next) => {
-  if (c.req.method !== 'GET' && c.req.method !== 'HEAD' && !/^application\/(json|octet-stream)(;|$)/.test(c.req.header('Content-Type') ?? '')) {
+  const { method } = c.req
+  const type = c.req.header('Content-Type')
+  if (method !== 'GET' && method !== 'HEAD' && !(method === 'DELETE' && type === undefined) && !/^application\/(json|octet-stream)(;|$)/.test(type ?? '')) {
     throw new ApiException(415, 'unsupported-media-type', '写操作的请求体只能是 JSON 或文件本身')
   }
   await next()
@@ -45,7 +48,7 @@ export function createApi(authorize: MiddlewareHandler = requireOwner) {
     .get('/apps', (c) => c.json(readRegistry()))
     .put('/apps', registryBody, (c) => {
       saveRegistry(c.req.valid('json'))
-      return c.json({ ok: true as const }, 200)
+      return c.body(null, 204)
     })
     .route('/kita', kitaApi)
     // 页面只连这一条全局通知；断线重连后页面会全部重新读取，这里不补发

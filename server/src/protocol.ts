@@ -4,17 +4,17 @@ import type { api } from './api.js'
 import type { browserApi } from './apps/browser/api.js'
 import type { BrowserClientMessage, BrowserServerMessage } from './apps/browser/protocol.js'
 import type { buildsApi } from './apps/builds/api.js'
-import type { BuildRequest, BuildsSnapshot, InstallLink } from './apps/builds/types.js'
+import type { BuildEnqueue, BuildsSnapshot, InstallLink, Settings } from './apps/builds/types.js'
 import type { codeApi } from './apps/code/api.js'
 import type { CodeUsage, MessageBody, Project, RepositoryBody, SearchResults, SessionEdit, SessionRef, SessionSummary } from './apps/code/types.js'
 import type { devicesApi, DevicesSnapshot } from './apps/devices/api.js'
 import type { DeviceScreenshot, LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
 import type { filesApi } from './apps/files/api.js'
-import type { Directory, FileOperation } from './apps/files/types.js'
+import type { Directory, FileName, FileResults, FileTransfer, FileTrash } from './apps/files/types.js'
 import type { kitaAppApi } from './apps/kita/api.js'
 import type { Conversation, ConversationMessage } from './apps/kita/types.js'
 import type { musicApi } from './apps/music/api.js'
-import type { CatalogPage, CommandResult, Lyrics, PlaybackSource, PlayerCommandRequest, PlayerMessage, PlayerReport, PlayerSnapshot, ProviderInfo, QueueMutation, QueueSnapshot } from './apps/music/types.js'
+import type { CatalogPage, CommandResult, Lyrics, PlaybackSource, PlayerCommandRequest, PlayerMessage, PlayerReport, PlayerSnapshot, ProviderInfo, ProviderSettings, QueueMutation, QueueSnapshot } from './apps/music/types.js'
 import type { systemApi } from './apps/system/api.js'
 import type { MonitorStatus } from './apps/system/types.js'
 import type { terminalApi } from './apps/terminal/api.js'
@@ -32,8 +32,8 @@ import type { Activity, AgentAccount, AgentCatalog, AgentStatus, KitaSessionEven
 import type { AppRegistry, ChangeEvent, Health } from './types.js'
 
 // 客户端收发的全部 JSON：pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 protocol-id.ts。
-// http 的 request 是 JSON 请求体，response 是成功时的 JSON 响应体；请求体或响应体是文件本身、纯文字的不在这里。
-// 出错时（4xx、5xx）所有接口的响应体都是 error
+// http 的 request 是 JSON 请求体（请求体是文件本身时没有），成功时：有 response 的返回这个 JSON，
+// file 是响应体为文件本身（图片、音频、日志……），两样都没有的是 204、没有响应体。出错时（4xx、5xx）所有接口的响应体都是 error
 export type Protocol = {
   http: Http
   error: ApiError
@@ -41,13 +41,10 @@ export type Protocol = {
   websocket: WebSockets
 }
 
-type Ok = { ok: true }
-type Done = { ok: boolean }
-
 export type Http = {
   'GET /api/health': { response: Health }
   'GET /api/apps': { response: AppRegistry }
-  'PUT /api/apps': { request: AppRegistry; response: Ok }
+  'PUT /api/apps': { request: AppRegistry }
 
   'GET /api/kita/status': { response: AgentStatus }
   'GET /api/kita/accounts': { response: { accounts: AgentAccount[] } }
@@ -60,75 +57,85 @@ export type Http = {
   'GET /api/kita/sessions/:id/files/:file': { response: FileInfo }
   'GET /api/kita/activity': { response: { activity: Activity[] } }
   'GET /api/kita/profile': { response: { profile: Profile } }
-  'POST /api/kita/profile/description': { request: { description: string }; response: Ok }
+  'PUT /api/kita/profile/description': { request: { description: string } }
   'POST /api/kita/profile/photos': { response: { file: string } }
   // ?info=1 时
   'GET /api/kita/profile/photos/:file': { response: FileInfo }
-  'POST /api/kita/profile/photos/:file/delete': { response: Done }
-  'POST /api/kita/profile/photos/:file/avatar': { response: Done }
+  'DELETE /api/kita/profile/photos/:file': {}
+  'PUT /api/kita/profile/avatar': { request: { file: string } }
   'GET /api/kita/memories': { response: { memories: Memory[] } }
   'POST /api/kita/memories': { request: NewMemory; response: { memory: Memory } }
-  'POST /api/kita/memories/:id': { request: MemoryChange; response: { memory: Memory } }
-  'POST /api/kita/memories/:id/delete': { request: Pick<MemoryChange, 'session'>; response: Done }
+  'PATCH /api/kita/memories/:id': { request: MemoryChange; response: { memory: Memory } }
+  // ?session= 是 agent 在哪个 session 里删的，页面上的用户不带
+  'DELETE /api/kita/memories/:id': {}
   'POST /api/kita/memories/:id/revert': { request: Pick<MemoryChange, 'session'>; response: { memory: Memory } }
   'POST /api/kita/claude/login': { request: { kind: ClaudeLoginKind }; response: ClaudeLoginStart }
-  'POST /api/kita/claude/login/:id': { request: { code: string }; response: Ok }
-  'POST /api/kita/claude/login/:id/cancel': { response: Ok }
+  'POST /api/kita/claude/login/:id': { request: { code: string } }
+  'DELETE /api/kita/claude/login/:id': {}
   'POST /api/kita/codex/login': { response: CodexLoginStart }
   'GET /api/kita/codex/login/:id': { response: CodexLoginStatus }
-  'POST /api/kita/codex/login/:id/cancel': { response: Ok }
+  'DELETE /api/kita/codex/login/:id': {}
 
   'GET /api/apps/builds': { response: BuildsSnapshot }
-  'POST /api/apps/builds': { request: Exclude<BuildRequest, { action: 'stop' | 'handoff' }>; response: BuildsSnapshot }
+  'POST /api/apps/builds': { request: BuildEnqueue; response: BuildsSnapshot }
+  'POST /api/apps/builds/poll': { response: BuildsSnapshot }
+  'PUT /api/apps/builds/settings': { request: Settings; response: BuildsSnapshot }
+  'POST /api/apps/builds/:id/cancel': { response: BuildsSnapshot }
+  'POST /api/apps/builds/:id/retry': { response: BuildsSnapshot }
   'POST /api/apps/builds/:id/install': { response: InstallLink }
 
   'GET /api/apps/code/projects': { response: { projects: Project[] } }
   'POST /api/apps/code/projects': { request: RepositoryBody; response: { project: Project } }
-  'POST /api/apps/code/projects/:project/repository': { request: RepositoryBody; response: { project: Project } }
+  'PUT /api/apps/code/projects/:project/repository': { request: RepositoryBody; response: { project: Project } }
   'GET /api/apps/code/search': { response: SearchResults }
   'GET /api/apps/code/sessions': { response: { sessions: SessionSummary[] } }
   'GET /api/apps/code/usage': { response: { usage: CodeUsage | null } }
   'POST /api/apps/code/uploads': { response: { file: string } }
   'POST /api/apps/code/sessions': { request: MessageBody; response: SessionRef }
   'POST /api/apps/code/sessions/:id/messages': { request: MessageBody; response: SessionRef }
-  'POST /api/apps/code/sessions/:id/queue/:item/withdraw': { response: { text: string } }
+  // 撤回排队的消息，返回它的文字
+  'DELETE /api/apps/code/sessions/:id/queue/:item': { response: { text: string } }
   'POST /api/apps/code/sessions/:id/queue/:item/send': { response: SessionRef }
-  'POST /api/apps/code/sessions/:id/edit': { request: SessionEdit; response: Ok }
-  'POST /api/apps/code/sessions/:id/read': { response: Ok }
-  'POST /api/apps/code/sessions/:id/stop': { response: Ok }
+  'PATCH /api/apps/code/sessions/:id': { request: SessionEdit; response: SessionSummary }
+  'POST /api/apps/code/sessions/:id/read': {}
+  'POST /api/apps/code/sessions/:id/stop': {}
 
   'GET /api/apps/devices': { response: DevicesSnapshot }
   'POST /api/apps/devices/discover': { response: DevicesSnapshot }
   'POST /api/apps/devices/leases': { request: Pick<Extract<DeviceRequest, { action: 'acquire' }>, 'reason' | 'platforms' | 'requestId'>; response: LeaseResult }
-  'POST /api/apps/devices/leases/:id/release': { response: Ok }
-  'POST /api/apps/devices/queue/cancel': { request: { requestId: string }; response: Ok }
-  'POST /api/apps/devices/:id/control': { request: { operation: 'destroy' }; response: Ok }
+  'DELETE /api/apps/devices/leases/:id': {}
+  'DELETE /api/apps/devices/queue/:requestId': {}
+  'DELETE /api/apps/devices/:id': {}
   'GET /api/apps/devices/:id/screenshot': { response: DeviceScreenshot }
 
   'GET /api/apps/files': { response: Directory }
   // ?info=1 时
   'GET /api/apps/files/download': { response: FileInfo }
-  'POST /api/apps/files/operation': { request: FileOperation; response: Ok }
-  'POST /api/apps/files/upload': { response: Ok }
+  'POST /api/apps/files/directories': { request: FileName }
+  'POST /api/apps/files/rename': { request: FileName }
+  'POST /api/apps/files/copy': { request: FileTransfer; response: FileResults }
+  'POST /api/apps/files/move': { request: FileTransfer; response: FileResults }
+  'POST /api/apps/files/trash': { request: FileTrash; response: FileResults }
+  // ?path= 目录、?name= 文件名，请求体是文件本身
+  'POST /api/apps/files/upload': {}
 
   'GET /api/apps/kita/conversations': { response: { conversations: Conversation[] } }
   'POST /api/apps/kita/conversations': { request: ConversationMessage; response: { id: string } }
-  'POST /api/apps/kita/conversations/:id/messages': { request: Pick<ConversationMessage, 'text'>; response: Ok }
-  'POST /api/apps/kita/conversations/:id/stop': { response: Done }
-  'POST /api/apps/kita/conversations/:id/delete': { response: Ok }
+  'POST /api/apps/kita/conversations/:id/messages': { request: Pick<ConversationMessage, 'text'> }
+  'POST /api/apps/kita/conversations/:id/stop': {}
+  'DELETE /api/apps/kita/conversations/:id': {}
 
   // 音乐 API 的自述，给 agent 读：文字说明和指令的 JSON Schema
   'GET /api/apps/music': { response: { [key: string]: unknown } }
   'GET /api/apps/music/players': { response: { players: PlayerSnapshot[] } }
   'GET /api/apps/music/players/:id': { response: PlayerSnapshot }
-  'POST /api/apps/music/players/:id/report': { request: PlayerReport; response: Ok }
+  'POST /api/apps/music/players/:id/report': { request: PlayerReport }
   'POST /api/apps/music/players/:id/commands': { request: PlayerCommandRequest; response: CommandResult }
   'GET /api/apps/music/commands/:id': { response: CommandResult }
   'GET /api/apps/music/queue': { response: QueueSnapshot }
   'POST /api/apps/music/queue': { request: QueueMutation; response: QueueSnapshot }
   'GET /api/apps/music/providers': { response: { providers: ProviderInfo[] } }
-  // 请求体的键是 ProviderInfo 里 configuration.fields 的 id
-  'PUT /api/apps/music/providers/:provider/settings': { request: Record<string, string>; response: ProviderInfo }
+  'PATCH /api/apps/music/providers/:provider/settings': { request: ProviderSettings; response: ProviderInfo }
   // operation 是 search、resolve、playlist、recommendations 时是 CatalogPage
   'GET /api/apps/music/providers/:provider/:operation': { response: CatalogPage | Lyrics | PlaybackSource }
 
@@ -137,8 +144,8 @@ export type Http = {
 
   'GET /api/apps/terminal': { response: { available: boolean; sessions: TerminalSession[] } }
   'POST /api/apps/terminal/sessions': { response: TerminalSession }
-  'DELETE /api/apps/terminal/sessions/:id': { response: Ok }
-  'POST /api/apps/terminal/connections/:token': { request: TerminalClientMessage; response: Ok }
+  'DELETE /api/apps/terminal/sessions/:id': {}
+  'POST /api/apps/terminal/connections/:token': { request: TerminalClientMessage; response: { ok: true } }
 }
 
 // 每条消息是一个 data 字段里的 JSON；event 为 ping 的是保活，没有 JSON
@@ -171,8 +178,8 @@ type Mounted =
   | Routes<typeof systemApi, '/api/apps/system'>
   | Routes<typeof terminalApi, '/api/apps/terminal'>
 
-// 前两个有分支返回 c.notFound()，Hono 推断不出它们的 JSON 响应；音乐 API 的自述不是给客户端解析的
-type Unchecked = 'POST /api/apps/builds/:id/install' | 'GET /api/apps/music/providers/:provider/:operation' | 'GET /api/apps/music'
+// 音乐 API 的自述不是给客户端解析的
+type Unchecked = 'GET /api/apps/music'
 
 type Method<M> = M extends `$${infer Name}` ? Uppercase<Name> : never
 type Routes<App, Prefix extends string, S = ExtractSchema<App>> = {
@@ -183,7 +190,7 @@ type Routes<App, Prefix extends string, S = ExtractSchema<App>> = {
 type Actual = { [K in Mounted[0]]: Extract<Mounted, [K, unknown]>[1] }
 type Plain<T> = T extends readonly unknown[] ? Plain<T[number]>[] : T extends object ? { -readonly [K in keyof T]: Plain<T[K]> } : T
 type Same<A, B> = (<T>() => T extends Plain<A> ? 1 : 2) extends <T>() => T extends Plain<B> ? 1 : 2 ? true : false
-type Checked = Exclude<keyof Http, Unchecked>
+type Checked = Exclude<{ [K in keyof Http]: Http[K] extends { response: unknown } ? K : never }[keyof Http], Unchecked>
 type Mismatch = { [K in Checked & keyof Actual]: Same<JSONParsed<Http[K]['response']>, Actual[K]> extends true ? never : K }[Checked & keyof Actual]
 type Assert<T extends never> = T
 export type RoutesMatch = [Assert<Mismatch>, Assert<Exclude<keyof Actual, keyof Http>>, Assert<Exclude<Checked, keyof Actual>>]

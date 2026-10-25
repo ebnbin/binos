@@ -31,6 +31,8 @@ export type ProviderInfo = {
   capabilities: ProviderCapabilities
   configuration: { fields: { id: string; label: string; description: string; secret: boolean; configured: boolean; links?: { label: string; url: string }[] }[] }
 }
+// 改来源设置的请求体：键是 ProviderInfo 里 configuration.fields 的 id，null 是删掉这一项
+export type ProviderSettings = Record<string, string | null>
 export type Lyrics = { text: string; attribution?: string }
 export type PlaybackSource =
   | { kind: 'audio'; url: string; expiresAt?: number; controls: { seek: boolean; volume: boolean } }

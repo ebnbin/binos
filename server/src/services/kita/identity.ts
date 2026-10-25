@@ -167,8 +167,8 @@ export function identityPrompt(scope: IdentityScope): string {
       '长期记忆通过本机 binOS API 读写，每条一句话，上面每条的 id 用来修改或删除它：',
       `- 用户明确让你记住一件事：${api} -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…","kind":"stated"}' http://localhost/api/kita/memories`,
       '- 从交流中看出可能长期有用的偏好或习惯，用 "kind":"inferred" 记下；一次性的事情不要记',
-      `- 用户纠正了某条记忆：${api} -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…"}' http://localhost/api/kita/memories/<id>`,
-      '- 用户让你忘掉某条：同样的地址加 /delete，请求体只带 session',
+      `- 用户纠正了某条记忆：${api} -X PATCH -d '{"session":"'"$BINOS_THREAD_ID"'","text":"…"}' http://localhost/api/kita/memories/<id>`,
+      `- 用户让你忘掉某条：curl --unix-socket "$BINOS_API_SOCKET" -X DELETE "http://localhost/api/kita/memories/<id>?session=$BINOS_THREAD_ID"`,
       '记下、改动或删除记忆后，简短告诉用户。',
     ].join('\n'),
   ]

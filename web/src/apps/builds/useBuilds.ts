@@ -5,8 +5,9 @@ import { onChange } from '../../events.ts'
 
 export const buildsBase = '/api/apps/builds'
 
-export async function buildsRequest(body?: unknown): Promise<BuildsSnapshot> {
-  const r = await fetch(buildsBase, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : undefined)
+// 读取构建，或者做一个操作，都返回操作后的快照。route 是 buildsBase 之后的部分
+export async function buildsRequest(route = '', method = 'GET', body: unknown = {}): Promise<BuildsSnapshot> {
+  const r = await fetch(buildsBase + route, method === 'GET' ? undefined : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   if (!r.ok) throw new Error(await errorMessage(r, '请求失败'))
   return r.json()
 }

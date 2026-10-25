@@ -25,6 +25,7 @@
     "./apps/devices/api": "./src/apps/devices/api.ts",
     "./apps/devices/types": "./src/apps/devices/types.ts",
     "./apps/builds/types": "./src/apps/builds/types.ts",
+    "./apps/files/types": "./src/apps/files/types.ts",
     "./apps/music/commands": "./src/apps/music/commands.ts",
     "./apps/browser/protocol": "./src/apps/browser/protocol.ts"
   },

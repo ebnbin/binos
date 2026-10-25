@@ -7,10 +7,10 @@ const base = '/api/apps/terminal'
 export async function terminalRequest<T>(path: string, method = 'GET'): Promise<T> {
   const response = await fetch(`${base}${path === '/' ? '' : path}`, {
     method,
-    ...(method !== 'GET' && { headers: { 'Content-Type': 'application/json' }, body: '{}' }),
+    ...(method === 'POST' && { headers: { 'Content-Type': 'application/json' }, body: '{}' }),
   })
   if (!response.ok) throw new Error(await errorMessage(response, '请求失败'))
-  return (await response.json()) as T
+  return (response.status === 204 ? undefined : await response.json()) as T
 }
 
 export function openTerminal(id: string, receive: (message: Message) => void, disconnected: () => void): TerminalTransport {

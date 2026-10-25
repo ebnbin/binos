@@ -4,7 +4,7 @@ export const musicContract = {
   endpoints: [
     { method: 'GET', path: '/', description: '发现音乐 API 和播放器指令参数。' },
     { method: 'GET', path: '/providers', description: '列出来源、可用能力、链接识别规则和配置字段；不返回密钥。' },
-    { method: 'PUT', path: '/providers/{provider}/settings', description: '更新连接配置；JSON 对象的字段由 providers.configuration.fields 声明。' },
+    { method: 'PATCH', path: '/providers/{provider}/settings', description: '更新连接配置；JSON 对象的字段由 providers.configuration.fields 声明，只改给出的字段，值为 null 时删除。' },
     { method: 'GET', path: '/providers/{provider}/{operation}', description: '按来源查询；先检查对应 capability。', parameters: { operation: ['search', 'resolve', 'playlist', 'recommendations', 'lyrics', 'playback'], q: '必填：搜索词、链接或来源曲目 ID', page: '可选：上次返回的 nextPage' } },
     { method: 'GET', path: '/providers/{provider}/stream', description: '音频流；支持 Range 和断开取消。', parameters: { id: '来源曲目 ID' } },
     { method: 'GET', path: '/queue', description: '读取共享队列与 revision。' },

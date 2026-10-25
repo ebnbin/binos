@@ -1,25 +1,45 @@
 import { Hono } from 'hono'
+import { validator } from 'hono/validator'
 import { lstat, open } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { createReadStream } from 'node:fs'
-import { errorHandler, forbidden, notFound } from '../../errors.js'
+import { badRequest, errorHandler, notFound } from '../../errors.js'
 import { buildRequest } from './client.js'
 import { installableBuild, installationOrigin, installToken, ipaInfo } from './install.js'
 import { resultsDir } from './config.js'
 import { parseRequest } from './protocol.js'
-import type { BuildsSnapshot, InstallLink } from './types.js'
+import type { BuildEnqueue, BuildsSnapshot, InstallLink, Settings } from './types.js'
 const idValid = (id: string) => /^[a-f0-9-]{36}$/.test(id)
+const buildParam = validator('param', (value: Record<string, string>) => {
+  if (!idValid(value.id ?? '')) throw notFound('构建不存在')
+  return { id: value.id! }
+})
+const enqueueBody = validator('json', (value): BuildEnqueue => {
+  try {
+    const { ref, targets } = parseRequest({ ...(value as object), action: 'enqueue' }) as BuildEnqueue
+    return { ref, targets }
+  } catch {
+    throw badRequest('构建来源要是 main、pr/编号 或完整的提交号，并选择构建目标')
+  }
+})
+const settingsBody = validator('json', (value): Settings => {
+  const automatic = (value as Partial<Settings> | null)?.automatic
+  if (typeof automatic !== 'boolean') throw badRequest()
+  return { automatic }
+})
 export const buildsApi = new Hono()
   .use('*', async (c, next) => { c.header('Cache-Control', 'no-store'); await next() })
   // 构建服务回复的错误是给用户看的原因
   .onError(errorHandler([409, 'conflict']))
   .get('/', async (c) => c.json(await buildRequest({ action: 'status' })))
-  .post('/', async (c) => {
-    const request = parseRequest(await c.req.json())
-    if (request.action === 'stop' || request.action === 'handoff') throw forbidden('网页不能停止构建服务')
-    return c.json(await buildRequest(request))
-  })
+  // 手动构建
+  .post('/', enqueueBody, async (c) => c.json(await buildRequest({ action: 'enqueue', ...c.req.valid('json') })))
+  // 现在就检查 main 和 PR 有没有新提交
+  .post('/poll', async (c) => c.json(await buildRequest({ action: 'poll' })))
+  .put('/settings', settingsBody, async (c) => c.json(await buildRequest({ action: 'settings', ...c.req.valid('json') })))
+  .post('/:id/cancel', buildParam, async (c) => c.json(await buildRequest({ action: 'cancel', id: c.req.valid('param').id })))
+  .post('/:id/retry', buildParam, async (c) => c.json(await buildRequest({ action: 'retry', id: c.req.valid('param').id })))
   .post('/:id/install', async (c) => {
     const item = await installableBuild(c.req.param('id'))
     if (!item) throw notFound('没有可安装的 iOS 包')

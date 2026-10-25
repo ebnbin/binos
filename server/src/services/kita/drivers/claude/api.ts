@@ -25,11 +25,12 @@ export const claudeApi = new Hono()
   // 贴回授权后的代码，完成登录
   .post('/login/:id', codeBody, async (c) => {
     await finishClaudeLogin(c.req.param('id'), c.req.valid('json').code)
-    return c.json({ ok: true as const }, 200)
+    return c.body(null, 204)
   })
-  .post('/login/:id/cancel', (c) => {
+  // 放弃这次登录
+  .delete('/login/:id', (c) => {
     cancelClaudeLogin(c.req.param('id'))
-    return c.json({ ok: true as const }, 200)
+    return c.body(null, 204)
   })
 
 export type ClaudeApi = typeof claudeApi

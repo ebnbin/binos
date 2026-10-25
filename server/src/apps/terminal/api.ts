@@ -37,7 +37,7 @@ export const terminalApi = new Hono()
     const id = c.req.param('id')
     if (!(await hasSession(id))) throw notFound('终端会话已结束')
     await runTmux(['kill-session', '-t', id])
-    return c.json({ ok: true })
+    return c.body(null, 204)
   })
   .get('/sessions/:id/socket', async (c, next) => {
     if (isCrossSite(c)) throw forbidden('不能从别的网站连接')

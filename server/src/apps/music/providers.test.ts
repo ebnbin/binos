@@ -81,12 +81,12 @@ it('旧官方密钥继续有效，来源配置互不覆盖且读取只返回是�
   mkdirSync(dir, { recursive: true })
   writeFileSync(path.join(dir, 'settings.json'), JSON.stringify({ youtubeApiKey: 'legacy-key' }))
   expect(providerSettings('youtube').apiKey).toBe('legacy-key')
-  const response = await musicApi.request('/providers/youtube-music/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'session=private-value' }) })
+  const response = await musicApi.request('/providers/youtube-music/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'session=private-value' }) })
   expect(response.status).toBe(200)
   expect(await response.text()).not.toContain('private-value')
   expect(providerSettings('youtube').apiKey).toBe('legacy-key')
   expect((await (await musicApi.request('/providers')).json() as { providers: ProviderInfo[] }).providers.find(provider => provider.id === 'youtube')?.capabilities.search.state).toBe('available')
-  expect((await musicApi.request('/providers/youtube/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'wrong-provider' }) })).status).toBe(400)
+  expect((await musicApi.request('/providers/youtube/settings', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cookie: 'wrong-provider' }) })).status).toBe(400)
 })
 
 it('浏览器开放范围请求被拆成有限分段并连续输出，支持尾部范围与非法范围', async () => {
