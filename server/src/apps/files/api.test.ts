@@ -46,7 +46,7 @@ it('复制保留链接，拒绝覆盖同名文件和复制到自身子目录，�
   expect(await batch('/copy', { paths: [source, source], destination: source })).toEqual(['invalid-input', 'invalid-input'])
   expect(await batch('/copy', { paths: [source], destination: target })).toEqual(['invalid-input'])
   expect((await operate('/rename', { path: path.join(source, 'file.txt'), name: 'renamed.txt' })).status).toBe(204)
-  expect(await batch('/move', { paths: [path.join(source, 'renamed.txt'), path.join(source, 'missing')], destination: target })).toEqual([undefined, 'invalid-input'])
+  expect(await batch('/move', { paths: [path.join(source, 'renamed.txt'), path.join(source, 'missing')], destination: target })).toEqual([undefined, 'not-found'])
   expect(await readFile(path.join(target, 'renamed.txt'), 'utf8')).toBe('original')
   expect((await operate('/directories', { path: target, name: '../escape' })).status).toBe(400)
   expect((await operate('/directories', { path: target, name: '新文件夹' })).status).toBe(204)
@@ -58,7 +58,7 @@ it('上传拒绝覆盖，预览支持 Range 与元数据，HTML 作为附件返�
   const query = new URLSearchParams({ path: dir, name: 'example.html' })
   const upload = () => filesApi.request(`/upload?${query}`, { method: 'POST', body: '<b>hello</b>', headers: { 'Content-Type': 'application/octet-stream' } })
   expect((await upload()).status).toBe(204)
-  expect((await upload()).status).toBe(400)
+  expect((await upload()).status).toBe(409)
   expect(await readdir(dir)).toEqual(['example.html'])
   const url = `/download?${new URLSearchParams({ path: path.join(dir, 'example.html') })}`
   const response = await filesApi.request(url, { headers: { Range: 'bytes=3-7' } })

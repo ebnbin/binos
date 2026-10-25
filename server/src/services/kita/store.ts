@@ -30,7 +30,7 @@ export const hostDir = (id: string) => path.join(sessionDir(id), 'host')
 export const eventsPath = (id: string) => path.join(sessionDir(id), 'events.jsonl')
 const metadataPath = (id: string) => path.join(sessionDir(id), 'metadata.json')
 const infoPath = (id: string) => path.join(sessionDir(id), 'summary.json')
-const infoVersion = 1
+const infoVersion = 2
 
 export function workerDir(id: string): string {
   const file = path.join(sessionDir(id), 'runtime.json')
@@ -65,9 +65,10 @@ export type KitaSessionInfo = {
   context?: Context
   // 最近一轮结束的时间
   repliedAt?: string
-  // 最近一轮用的模型和思考程度
+  // 最近一轮选的模型和思考程度；usedModel 是这一轮结束时 agent 报告实际用的模型
   model?: string
   effort?: string
+  usedModel?: string
   // agent 那边的会话，agent 进程重新启动时接着它
   agentSession?: string
   // 用掉的 token，按模型：每一轮结束时报告的是 agent 那边的会话到这时为止的累计（usageLatest），
@@ -210,6 +211,7 @@ function apply(info: KitaSessionInfo, item: Entry) {
         delete info.outcome
         info.model = item.model
         info.effort = item.effort
+        delete info.usedModel
       }
       break
     case 'agent_session':
@@ -228,6 +230,9 @@ function apply(info: KitaSessionInfo, item: Entry) {
       }
       if (item.context) {
         info.context = item.context
+      }
+      if (item.model) {
+        info.usedModel = item.model
       }
       if (item.usage) {
         const cost = usageCost(info.agent, item.usage) - usageCost(info.agent, info.usageLatest)

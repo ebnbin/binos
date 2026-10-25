@@ -92,7 +92,8 @@ export class KitaSession {
 
   summary(): KitaSessionSummary {
     const info = sessionInfo(this.id)
-    const modelName = info.model && drivers[info.agent].modelName?.(info.model)
+    const used = info.usedModel ?? info.model
+    const modelName = used && drivers[info.agent].modelName?.(used)
     return {
       id: this.id,
       agent: info.agent,

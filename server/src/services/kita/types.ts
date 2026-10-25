@@ -168,7 +168,7 @@ export type KitaSessionEvent =
 // idle：没在回答；running：正在回答；waiting：答完了，在等后台任务
 export type KitaSessionState = 'idle' | 'running' | 'waiting'
 
-// app 看到的 session 的概况。model、effort 是最近一轮的，modelName 是 model 的显示名；usage 是一共用掉的 token，按模型；
+// app 看到的 session 的概况。model、effort 是最近一轮选的，modelName 是这一轮实际用的模型（还没答完时是选的）的显示名；usage 是一共用掉的 token，按模型；
 // costs 是每一轮按 API 价格折算的花费（美元）和这一轮结束的时间，只有能折算的 agent 有
 export type KitaSessionSummary = {
   id: string

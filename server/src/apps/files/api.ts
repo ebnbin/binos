@@ -5,7 +5,9 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
 import { validator } from 'hono/validator'
-import { apiErrorBody, badRequest, errorHandler, toApiException } from '../../errors.js'
+import { ApiException, apiErrorBody, badRequest, errorHandler, toApiException } from '../../errors.js'
+import type { ErrorCode } from '../../errors.js'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { serveFile } from '../../files.js'
 import type { Directory, FileEntry, FileName, FileResult, FileResults, FileTransfer, FileTrash } from './types.js'
 
@@ -18,6 +20,22 @@ function child(dir: string, value: unknown) {
     throw new Error('文件名不能为空或包含 /')
   return path.join(dir, value)
 }
+
+// 文件系统的错误换成给用户看的说法，其余的错误（路径、名称不合规）本身就是给用户看的
+const fsErrors: Record<string, [ContentfulStatusCode, ErrorCode, string]> = {
+  ENOENT: [404, 'not-found', '文件或文件夹不存在'],
+  EEXIST: [409, 'conflict', '已经有同名的文件'],
+  ENOTDIR: [400, 'invalid-input', '不是文件夹'],
+  EISDIR: [400, 'invalid-input', '是文件夹，不是文件'],
+  ENOTEMPTY: [409, 'conflict', '文件夹不是空的'],
+  EACCES: [403, 'forbidden', '没有权限'],
+  EPERM: [403, 'forbidden', '没有权限'],
+}
+function fileError(error: Error): ApiException {
+  const known = fsErrors[(error as NodeJS.ErrnoException).code ?? '']
+  return known ? new ApiException(...known) : toApiException(error, [400, 'invalid-input'])
+}
+const handleError = errorHandler()
 
 const maxPaths = 1000
 const nameBody = validator('json', (value): FileName => {
@@ -44,7 +62,7 @@ async function each(items: string[], run: (source: string) => Promise<void>): Pr
       await run(absolute(item))
       results.push({ path: item })
     } catch (error) {
-      results.push({ path: item, error: apiErrorBody(toApiException(error as Error, [400, 'invalid-input'])).error })
+      results.push({ path: item, error: apiErrorBody(fileError(error as Error)).error })
     }
   }
   return { results }
@@ -56,8 +74,7 @@ function transfer({ paths, destination }: FileTransfer, move: boolean) {
 }
 
 export const filesApi = new Hono()
-  // 文件操作的错误是给用户看的原因
-  .onError(errorHandler([400, 'invalid-input']))
+  .onError((error, c) => handleError(fileError(error), c))
   .get('/', async (c) => {
     const dir = absolute(c.req.query('path') || os.homedir())
     const names = await readdir(dir)
