@@ -1,4 +1,4 @@
-/* 统一的工具栏：标题和编号在左，PR 是右边一组玻璃按钮。下面不画分隔线，内容往上滚时边缘渐隐 */
+/* 统一的工具栏：标题和编号在左，PR 是右边的一个玻璃按钮。下面不画分隔线，内容往上滚时边缘渐隐 */
 .bar {
   position: relative;
   display: flex;
@@ -82,7 +82,7 @@
   max-width: 420px;
 }
 
-.id {
+.subtitle {
   flex: none;
   color: var(--color-label-secondary);
   font-size: var(--font-size-callout);
@@ -90,116 +90,127 @@
   font-variant-numeric: tabular-nums;
 }
 
-.prs {
-  composes: glassGroup from '../../../ui/controls.module.css';
+.prButton {
+  composes: glassIcon from '../../../ui/controls.module.css';
   position: relative;
-  gap: var(--space-0-5);
+  flex: none;
   margin-left: auto;
+  color: var(--color-label);
 }
 
-.pr {
-  display: inline-flex;
-  align-items: center;
-  font-size: var(--font-size-body);
+.prButton[data-state='open'] {
+  background: var(--color-pressed);
+}
+
+/* 开着的 PR 个数，颜色是构建结果 */
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--color-label-secondary);
+  color: var(--color-background);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: 16px;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
-.pr a,
-.pr .build,
-.finished {
-  display: inline-flex;
+.badge[data-state='success'] {
+  background: var(--color-success);
+}
+
+.badge[data-state='running'] {
+  background: var(--color-link);
+}
+
+.badge[data-state='failed'] {
+  background: var(--color-destructive);
+}
+
+/* 弹层里一行一个 PR */
+.prMenu {
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  max-height: min(360px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  padding: var(--space-1-5);
+}
+
+.prRow {
+  display: flex;
   align-items: center;
   gap: var(--space-1);
-  height: 100%;
-  padding: 0 var(--space-2-5);
-  border: 0;
-  border-radius: var(--radius-full);
-  background: none;
-  color: var(--color-label);
+  min-height: var(--size-row);
   font-size: var(--font-size-body);
+}
+
+.prLink,
+.prAction {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  border: 0;
+  border-radius: var(--radius-item);
+  background: none;
+  font-size: inherit;
   text-decoration: none;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-standard);
 }
 
+.prLink {
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1-5) var(--space-2-5);
+  color: var(--color-label);
+}
+
+.prAction {
+  flex: none;
+  padding: 0 var(--space-2);
+  color: var(--color-link);
+}
+
 @media (hover: hover) {
-  .pr a:hover,
-  .pr .build:hover,
-  .finished:hover {
+  .prLink:hover,
+  .prAction:hover {
     background: var(--color-hover);
   }
 }
 
-.pr[data-state='open'] a:first-child svg,
-.pr:not([data-state]) a:first-child svg {
+.prIcon {
+  flex: none;
+}
+
+.prRow[data-state='open'] .prIcon {
   color: var(--color-success);
 }
 
-.pr[data-state='merged'] a:first-child svg {
+.prRow[data-state='merged'] .prIcon {
   color: var(--color-done);
 }
 
-.pr[data-state='closed'] a:first-child svg {
+.prRow[data-state='closed'] .prIcon {
   color: var(--color-destructive);
 }
 
-.pr .preview {
-  color: var(--color-link);
-}
-
-.pr .build {
+.prRow:not([data-state='open']) .prTitle {
   color: var(--color-label-secondary);
 }
 
-.pr .build[data-state='running'] {
-  color: var(--color-link);
+.prAction[data-build='success'] {
+  color: var(--color-label-secondary);
 }
 
-.pr .build[data-state='failed'] {
+.prAction[data-build='failed'] {
   color: var(--color-destructive-text);
-}
-
-.finished {
-  color: var(--color-label-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.finished[data-state='open'] {
-  background: var(--color-pressed);
-}
-
-/* 结束了的 PR：弹层里的一列，行之间有缩进的分隔线 */
-.prMenu {
-  display: flex;
-  flex-direction: column;
-  width: 360px;
-  max-height: min(320px, var(--radix-popover-content-available-height));
-  overflow-y: auto;
-  padding: var(--space-1-5);
-}
-
-.prMenu a {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-2);
-  min-height: var(--size-row);
-  padding: var(--space-1-5) var(--space-2-5);
-  border-radius: var(--radius-item);
-  color: var(--color-label);
-  font-size: var(--font-size-body);
-  text-decoration: none;
-}
-
-@media (hover: hover) {
-  .prMenu a:hover {
-    background: var(--color-selection);
-    color: var(--color-on-selection);
-  }
-
-  .prMenu a:hover .prNumber,
-  .prMenu a:hover .prState {
-    color: inherit;
-  }
 }
 
 .prNumber {
@@ -218,16 +229,9 @@
 
 .prState {
   flex: none;
+  padding: 0 var(--space-2);
   color: var(--color-label-secondary);
   font-size: var(--font-size-footnote);
-}
-
-.prMenu a[data-state='open'] .prState {
-  color: var(--color-success-text);
-}
-
-.prMenu a[data-state='merged'] .prState {
-  color: var(--color-done);
 }
 
 /* 提高优先级，盖过 IconButton 自身的 display */
@@ -247,7 +251,7 @@
     flex: none;
   }
 
-  /* 标题下面一行小字的副标题：编号和 PR */
+  /* 标题下面一行小字的副标题：项目和编号 */
   .heading {
     flex-wrap: wrap;
     justify-content: center;
@@ -265,34 +269,9 @@
     padding: 0 var(--space-1);
   }
 
-  .id {
+  .subtitle {
     font-size: var(--font-size-footnote);
     line-height: var(--line-height-footnote);
-  }
-
-  .heading .prs {
-    height: auto;
-    margin: 0;
-    padding: 0;
-    background: none;
-    box-shadow: none;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  .heading .prs > * {
-    height: auto;
-  }
-
-  .pr a,
-  .finished {
-    padding: 0;
-    font-size: var(--font-size-footnote);
-    line-height: var(--line-height-footnote);
-  }
-
-  .pr a + a {
-    margin-left: var(--space-2);
   }
 
   .bar .singleColumnOnly {
