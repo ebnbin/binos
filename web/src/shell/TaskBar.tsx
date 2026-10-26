@@ -30,7 +30,7 @@ const connectionLabels: Record<ConnectionState, string> = {
   updated: '有新版本',
 }
 
-// 屏幕外面的 Dock：连接状态的圆点（连接失败或有新版本时换成刷新按钮）、回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
+// 屏幕外面的 Dock：连接失败或有新版本时的刷新按钮、回到桌面（下面的点是连接状态）、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
 // 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
   ref,
@@ -94,6 +94,9 @@ export function TaskBar({
   // 用键盘展开或收起时，焦点跟着移到显示出来的那一边，不留在被隐藏的按钮上
   const moveFocus = useRef<'dock' | 'capsule' | null>(null)
   const collapsed = capsule?.collapsed
+  // 需要刷新时最前面是刷新按钮；其余时候连接状态是桌面按钮下面的点
+  const attention = connection === 'failed' || connection === 'updated'
+  const homeLabel = attention ? '桌面' : `桌面，${connectionLabels[connection]}`
   useEffect(() => {
     const target = moveFocus.current === 'dock'
       ? dock.current?.querySelector<HTMLElement>('[aria-pressed="true"]') ?? dock.current?.querySelector<HTMLElement>('button')
@@ -137,7 +140,7 @@ export function TaskBar({
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
-        {connection === 'failed' || connection === 'updated' ? (
+        {attention && (
           <button
             type="button"
             className={styles.item}
@@ -148,13 +151,10 @@ export function TaskBar({
           >
             {connection === 'failed' ? <RefreshCw size={32} strokeWidth={2} /> : <CircleArrowUp size={32} strokeWidth={2} />}
           </button>
-        ) : (
-          <span className={styles.dockConnection} role="img" aria-label={connectionLabels[connection]} title={connectionLabels[connection]}>
-            <span className={styles.connection} data-state={connection} />
-          </span>
         )}
-        <button type="button" className={styles.item} aria-label="桌面" title="桌面" aria-pressed={home} onClick={onHome}>
+        <button type="button" className={styles.item} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
           <BrandMark size={40} inverted />
+          {!attention && <span className={styles.connection} data-state={connection} />}
         </button>
         {accessory}
         {windows.length > 0 && <span className={styles.separator} />}

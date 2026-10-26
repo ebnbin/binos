@@ -119,8 +119,11 @@
 }
 
 /* 正在显示的 app 下面有个点，放在图标和 Dock 边缘之间那一条的正中 */
-.item[data-visible='true']::after {
+.item {
   --offset: calc(((var(--item) - var(--icon)) / 2 - var(--dock-padding)) / 2 - 2px);
+}
+
+.item[data-visible='true']::after {
   content: '';
   position: absolute;
   bottom: var(--offset);
@@ -321,21 +324,28 @@
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
 
-/* Dock 最前面放连接状态圆点的一小格，圆点落在 Dock 端头圆角的圆心上 */
-.dockConnection {
-  --size: 12px;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: var(--size);
-  height: var(--size);
-  margin-inline-start: calc(var(--item-radius) - var(--size) / 2);
+/* 桌面按钮下面的连接状态点，和 app 下面的点一样大、一样的位置 */
+.item > .connection {
+  position: absolute;
+  bottom: var(--offset);
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
 }
 
-.bar[data-placement='left'] .dockConnection,
-.bar[data-placement='right'] .dockConnection {
-  margin-inline-start: 0;
-  margin-block-start: calc(var(--item-radius) - var(--size) / 2);
+.bar[data-placement='left'] .item > .connection,
+.bar[data-placement='right'] .item > .connection {
+  top: calc(50% - 2px);
+  bottom: auto;
+}
+
+.bar[data-placement='left'] .item > .connection {
+  right: var(--offset);
+  left: auto;
+}
+
+.bar[data-placement='right'] .item > .connection {
+  left: var(--offset);
 }
 
 /* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
