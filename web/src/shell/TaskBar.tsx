@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent, PointerEventHandler, ReactNode, Ref } from 'react'
 import { CircleArrowUp, RefreshCw } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
@@ -16,6 +16,29 @@ import styles from './TaskBar.module.css'
 
 const longPressDelay = 500
 const longPressSlop = 10
+
+const viewportMargin = 12
+
+// 页面上的布局位置，不算 transform：Dock 展开收起的动画进行到一半时量出来的也是最终位置
+function layoutOffset(element: HTMLElement, vertical: boolean) {
+  let offset = 0
+  for (let current: HTMLElement | null = element; current; current = current.offsetParent as HTMLElement | null) {
+    offset += vertical ? current.offsetTop : current.offsetLeft
+  }
+  return offset
+}
+
+// 提示居中对着桌面按钮放不下时往里挪多少
+function noticeShift(notice: HTMLElement, vertical: boolean) {
+  const anchor = notice.parentElement!
+  const center = layoutOffset(anchor, vertical) + (vertical ? anchor.offsetHeight : anchor.offsetWidth) / 2
+  const length = vertical ? notice.offsetHeight : notice.offsetWidth
+  const limit = vertical ? window.innerHeight : window.innerWidth
+  const start = center - length / 2
+  if (start < viewportMargin) return viewportMargin - start
+  if (start + length > limit - viewportMargin) return limit - viewportMargin - start - length
+  return 0
+}
 
 const connectionLabels: Record<ConnectionState, string> = {
   connected: '已连接',
@@ -92,6 +115,15 @@ export function TaskBar({
   // 连接状态是桌面按钮下面的点；连接失败或有新版本时，Dock 展开着就在桌面按钮旁边一直显示刷新的提示，不能关
   const attention = connection === 'failed' || connection === 'updated'
   const homeLabel = `桌面，${connectionLabels[connection]}`
+  const notice = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    const element = notice.current
+    if (!element) return
+    const update = () => element.style.setProperty('--shift', `${noticeShift(element, placement !== 'bottom')}px`)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  })
 
   // 长按 app 图标出现的操作。拖动时 pointer 是手指的位置；长按后直接松手、右键或再点一次时是 null，点要做的操作
   type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: DOMRect; pointer: { x: number; y: number } | null; moved: boolean }
@@ -258,7 +290,7 @@ export function TaskBar({
             <span className={styles.connection} data-state={connection} />
           </button>
           {attention && (
-            <button type="button" className={styles.notice} data-connection={connection} onClick={() => window.location.reload()}>
+            <button ref={notice} type="button" className={styles.notice} data-connection={connection} onClick={() => window.location.reload()}>
               {connection === 'failed' ? <RefreshCw size={20} strokeWidth={2} /> : <CircleArrowUp size={20} strokeWidth={2} />}
               <span className={styles.noticeText}>
                 <strong>{connectionLabels[connection]}</strong>

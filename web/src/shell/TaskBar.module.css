@@ -364,7 +364,7 @@
 }
 
 /* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
-/* 连接失败或有新版本时桌面按钮旁边的提示：在桌面按钮朝屏幕的一侧，和 Dock 的一端对齐，尖角指着桌面按钮 */
+/* 连接失败或有新版本时桌面按钮旁边的提示：在桌面按钮朝屏幕的一侧，居中对着它，超出页面时往里挪 --shift，尖角始终指着桌面按钮 */
 .homeSlot {
   position: relative;
   display: flex;
@@ -374,9 +374,10 @@
 .notice {
   --surface: color-mix(in srgb, var(--color-on-chrome) 10%, var(--color-chrome));
   --tail: 10px;
+  --shift: 0px;
   position: absolute;
   bottom: calc(100% + var(--dock-padding) + var(--space-2));
-  left: calc(var(--dock-padding) * -1);
+  left: 50%;
   display: flex;
   align-items: center;
   gap: var(--space-2-5);
@@ -387,13 +388,14 @@
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
   color: var(--color-on-chrome);
   text-align: start;
+  transform: translateX(calc(-50% + var(--shift)));
 }
 
 .notice::after {
   content: '';
   position: absolute;
   bottom: calc(var(--tail) / -2);
-  left: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  left: calc(50% - var(--shift) - var(--tail) / 2);
   width: var(--tail);
   height: var(--tail);
   background: var(--surface);
@@ -402,8 +404,9 @@
 
 .bar[data-placement='left'] .notice,
 .bar[data-placement='right'] .notice {
-  top: calc(var(--dock-padding) * -1);
+  top: 50%;
   bottom: auto;
+  transform: translateY(calc(-50% + var(--shift)));
 }
 
 .bar[data-placement='left'] .notice {
@@ -417,7 +420,7 @@
 
 .bar[data-placement='left'] .notice::after,
 .bar[data-placement='right'] .notice::after {
-  top: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  top: calc(50% - var(--shift) - var(--tail) / 2);
   bottom: auto;
 }
 
