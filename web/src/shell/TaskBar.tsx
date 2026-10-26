@@ -94,6 +94,8 @@ export function TaskBar({
   // 用键盘展开或收起时，焦点跟着移到显示出来的那一边，不留在被隐藏的按钮上
   const moveFocus = useRef<'dock' | 'capsule' | null>(null)
   const collapsed = capsule?.collapsed
+  // 浮动的 Dock 大一号，图形跟着放大
+  const glyph = capsule ? 24 : 20
   useEffect(() => {
     const target = moveFocus.current === 'dock'
       ? dock.current?.querySelector<HTMLElement>('[aria-pressed="true"]') ?? dock.current?.querySelector<HTMLElement>('button')
@@ -146,7 +148,7 @@ export function TaskBar({
             title={`${connectionLabels[connection]}，刷新`}
             onClick={() => window.location.reload()}
           >
-            {connection === 'failed' ? <RefreshCw size={28} strokeWidth={2} /> : <CircleArrowUp size={28} strokeWidth={2} />}
+            {connection === 'failed' ? <RefreshCw size={glyph + 8} strokeWidth={2} /> : <CircleArrowUp size={glyph + 8} strokeWidth={2} />}
           </button>
         ) : (
           <span className={styles.dockConnection} role="img" aria-label={connectionLabels[connection]} title={connectionLabels[connection]}>
@@ -154,7 +156,7 @@ export function TaskBar({
           </span>
         )}
         <button type="button" className={styles.item} aria-label="桌面" title="桌面" aria-pressed={home} onClick={onHome}>
-          <BrandMark size={30} inverted />
+          <BrandMark size={capsule ? 36 : 30} inverted />
         </button>
         {accessory}
         {windows.length > 0 && <span className={styles.separator} />}
@@ -209,11 +211,11 @@ export function TaskBar({
                 title="在新标签页打开"
                 onClick={() => window.open(focusedUrl, '_blank', 'noopener,noreferrer')}
               >
-                <ExternalLink size={20} strokeWidth={1.75} />
+                <ExternalLink size={glyph} strokeWidth={1.75} />
               </button>
             )}
             <button type="button" className={styles.item} aria-label="关闭当前窗口" title="关闭当前窗口" onClick={onClose}>
-              <X size={20} strokeWidth={1.75} />
+              <X size={glyph} strokeWidth={1.75} />
             </button>
           </>
         )}

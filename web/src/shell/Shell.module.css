@@ -28,7 +28,7 @@
    app 里带 z-index 的元素只在屏幕里比高低，不会盖住浮在屏幕上的 Dock */
 .shell[data-compact='true'] .screen {
   isolation: isolate;
-  --dock-overlap: calc(44px + var(--space-0-5) * 2 + var(--space-2));
+  --dock-overlap: calc(48px + var(--space-1) * 2 + var(--space-2));
 }
 
 /* 键盘挡住了底部的安全区域 */

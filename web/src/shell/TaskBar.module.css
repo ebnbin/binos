@@ -2,6 +2,8 @@
 .bar {
   --item: 44px;
   --icon: 34px;
+  --item-radius: var(--radius-lg);
+  --dock-padding: var(--space-0-5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,13 +25,13 @@
 .dock {
   display: flex;
   align-items: center;
-  gap: var(--space-0-5);
+  gap: var(--dock-padding);
   min-width: 0;
   min-height: 0;
   max-width: 100%;
   max-height: 100%;
-  padding: var(--space-0-5);
-  border-radius: calc(var(--radius-lg) + var(--space-0-5));
+  padding: var(--dock-padding);
+  border-radius: calc(var(--item-radius) + var(--dock-padding));
   background: var(--material-dock);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
 }
@@ -37,7 +39,7 @@
 /* 最宽和屏幕一样：开着的 app 多了，只在这一段里滚动，桌面、分屏和关闭按钮不动 */
 .apps {
   display: flex;
-  gap: var(--space-0-5);
+  gap: var(--dock-padding);
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -59,7 +61,7 @@
   flex: none;
   width: var(--item);
   height: var(--item);
-  border-radius: var(--radius-lg);
+  border-radius: var(--item-radius);
   color: var(--color-on-chrome-secondary);
   transition:
     background-color var(--duration-fast) var(--ease-standard),
@@ -204,6 +206,21 @@
   left: env(safe-area-inset-left);
   height: var(--dock-strip);
   padding: 0;
+  /* 浮在 app 上的 Dock 只在展开的几秒里盖住内容，可以比常驻的 Dock 大一号：56 高 */
+  --item: 48px;
+  --icon: 40px;
+  --item-radius: 14px;
+  --dock-padding: var(--space-1);
+}
+
+.bar[data-compact='true'] .glyph {
+  width: 26px;
+  height: 19px;
+}
+
+.bar[data-compact='true'] .glyph[data-portrait='true'] {
+  width: 19px;
+  height: 24px;
 }
 
 .bar[data-compact='true'] .dock {
@@ -284,19 +301,19 @@
 
 /* Dock 最前面放连接状态圆点的一小格，圆点落在 Dock 端头圆角的圆心上 */
 .dockConnection {
+  --size: 12px;
   display: grid;
   place-items: center;
   flex: none;
-  width: var(--radius-lg);
-  height: var(--radius-lg);
-  margin: calc(var(--radius-lg) / 2 - var(--space-0-5));
-  margin-inline-end: 0;
+  width: var(--size);
+  height: var(--size);
+  margin-inline-start: calc(var(--item-radius) - var(--size) / 2);
 }
 
 .bar[data-placement='left'] .dockConnection,
 .bar[data-placement='right'] .dockConnection {
-  margin: calc(var(--radius-lg) / 2 - var(--space-0-5));
-  margin-block-end: 0;
+  margin-inline-start: 0;
+  margin-block-start: calc(var(--item-radius) - var(--size) / 2);
 }
 
 /* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
