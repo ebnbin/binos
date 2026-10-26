@@ -18,6 +18,26 @@
   flex-direction: row;
 }
 
+/* 侧边的 Dock 自己占住这一侧的安全区 */
+.shell[data-bar='left'] {
+  padding-left: 0;
+}
+
+.shell[data-bar='right'] {
+  padding-right: 0;
+}
+
+/* 手机上 Dock 在底部时，底部只留安全区（没有安全区时留一小条）放 Dock 收起后的胶囊，展开的 Dock 浮在屏幕上 */
+.shell[data-compact='true'] {
+  --dock-strip: max(env(safe-area-inset-bottom), 32px);
+  padding-bottom: var(--dock-strip);
+}
+
+/* 展开的 Dock 盖住的高度：Dock 本身加上它离屏幕底边的距离 */
+.shell[data-compact='true'] .screen {
+  --dock-overlap: calc(48px + var(--space-1) * 2 + var(--space-2));
+}
+
 /* 键盘挡住了底部的安全区域 */
 .shell[data-bar='hidden'] {
   padding-bottom: 0;
@@ -31,7 +51,9 @@
   app-region: drag;
 }
 
+/* app 里带 z-index 的元素只在屏幕里比高低，不会盖住浮在屏幕上的 Dock 和它旁边的提示 */
 .screen {
+  isolation: isolate;
   position: relative;
   flex: 1;
   min-width: 0;

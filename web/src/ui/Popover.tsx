@@ -18,8 +18,8 @@ export function Popover({
   open?: boolean
   onOpenChange?: (open: boolean) => void
   className?: string
-  side?: 'top' | 'bottom'
-  align?: 'start' | 'end'
+  side?: 'top' | 'bottom' | 'left' | 'right'
+  align?: 'start' | 'center' | 'end'
 }) {
   return (
     <Primitive.Root open={open} onOpenChange={onOpenChange}>

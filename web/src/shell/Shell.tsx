@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { FloatingPlayer, MusicStatusButton } from '../apps/music/FloatingPlayer.tsx'
 import { useApplicationsLoaded } from '../apps/index.ts'
+import { useConnectionState } from '../events.ts'
 import { useElementSize } from '../ui/useElementSize.ts'
 import { useBarPlacement } from './bar-placement.ts'
-import { ConnectionStatus } from './ConnectionStatus.tsx'
+import { useDockCapsule } from './dock-capsule.ts'
 import { useShellController } from './controller/useShellController.ts'
 import { Desktop } from './Desktop.tsx'
 import styles from './Shell.module.css'
@@ -15,6 +16,20 @@ export function Shell() {
   const [main, size] = useElementSize<HTMLDivElement>()
   const controller = useShellController(size)
   const placement = useBarPlacement()
+  const compact = placement === 'bottom' && window.matchMedia('(pointer: coarse)').matches
+  const { collapsed, dock, expand, touch, onMenu, onPointerDown, onPointerMove, onPointerEnd } = useDockCapsule(compact, controller.home, controller.picking)
+  const focusedWindow = controller.windows.find(item => item.id === controller.focused)
+  const connection = useConnectionState()
+  // 需要刷新时 Dock 展开一下，露出最前面的刷新按钮，没有操作照常收起
+  const attention = connection === 'failed' || connection === 'updated' ? connection : undefined
+  const [previousAttention, setPreviousAttention] = useState(attention)
+  if (previousAttention !== attention) {
+    setPreviousAttention(attention)
+    if (attention) {
+      expand()
+      touch()
+    }
+  }
   const [musicCollapsed, setMusicCollapsed] = useState(false)
   const musicVisible = !controller.home && controller.windows.some(item => item.window.applicationId === 'music' && controller.panes.includes(item.id))
   const [previousMusicVisible, setPreviousMusicVisible] = useState(musicVisible)
@@ -24,7 +39,7 @@ export function Shell() {
   }
 
   return (
-    <div className={styles.shell} data-bar={placement}>
+    <div className={styles.shell} data-bar={placement} data-compact={compact}>
       <div className={styles.titleBar} />
       <div ref={main} className={styles.screen}>
         {loaded && size && (
@@ -56,25 +71,26 @@ export function Shell() {
       </div>
       {placement !== 'hidden' && (
         <TaskBar
+          ref={dock}
           placement={placement}
+          connection={connection}
+          capsule={compact ? { collapsed, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd, onMenu } : undefined}
           accessory={!musicVisible && <MusicStatusButton collapsed={musicCollapsed} onToggle={() => setMusicCollapsed(value => !value)} />}
           windows={controller.windows}
           groups={controller.groups}
           locked={controller.picking}
           panes={controller.panes}
           focused={controller.focused}
-          focusedSlot={controller.slot}
           home={controller.home}
-          layout={controller.layout}
           allowed={controller.allowed}
           portrait={controller.portrait}
-          onHome={controller.toggleHome}
+          onHome={controller.goHome}
           onShow={controller.show}
           onSplit={controller.split}
+          onUnsplit={controller.unsplit}
           onClose={controller.close}
         />
       )}
-      <ConnectionStatus />
     </div>
   )
 }

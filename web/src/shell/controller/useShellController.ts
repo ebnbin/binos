@@ -72,10 +72,14 @@ export function useShellController(size: Size | null) {
     if (id) focus(id, 0)
   }
 
-  const close = () => {
-    if (draft || !focused) return
-    const next = group ? group.slots.find((id) => id !== focused) ?? null : recent.find((id) => id !== focused) ?? null
-    closeWindow(focused)
+  // 关闭窗口；在分屏的一组里就整组关闭。正在显示的被关了就换到最近用过的，没有就回桌面
+  const close = (id: string) => {
+    const target = stored.groups.find((item) => item.slots.includes(id))
+    const closing = target ? target.slots.filter((slot): slot is string => slot !== null) : [id]
+    if (draft) return
+    closing.forEach(closeWindow)
+    if (!focused || !closing.includes(focused)) return
+    const next = recent.find((item) => !closing.includes(item)) ?? null
     setView((prev) => ({ ...prev, home: !next, focused: next, slot: 0 }))
   }
 
@@ -113,10 +117,20 @@ export function useShellController(size: Size | null) {
     if (focused) focus(focused, 1 - slot)
   }
 
-  const toggleHome = () => { if (!draft) setView((prev) => ({ ...prev, home: !home })) }
-  const split = () => {
-    if (draft || !focused || group) return
-    setDraft({ layout: fitLayout('1:1', allowed), slots: [focused, null] })
+  const goHome = () => { if (!draft && !home) setView((prev) => ({ ...prev, home: true })) }
+  // 从 Dock 的菜单上分屏：先把这个窗口切到前台，再选第二个 app
+  const split = (id: string) => {
+    if (draft || stored.groups.some((item) => item.slots.includes(id))) return
+    focus(id, 0)
+    setDraft({ layout: fitLayout('1:1', allowed), slots: [id, null] })
+  }
+
+  // 取消分屏：正在显示这一组时，留下聚焦的那个
+  const unsplit = (id: string) => {
+    const target = stored.groups.find((item) => item.slots.includes(id))
+    if (draft || !target) return
+    dissolveGroup(target.id)
+    if (target.id === group?.id && focused) focus(focused, 0)
   }
 
   return {
@@ -124,6 +138,6 @@ export function useShellController(size: Size | null) {
     picking: draft !== null,
     unavailableApps: windows.filter((item) => stored.groups.some((group) => group.slots.includes(item.id))).map((item) => item.window.applicationId),
     focus, chooseLayout, exitSplit, pick, swap, cancel: () => exitSplit(slot), onTitle,
-    open, show, close, toggleHome, split,
+    open, show, close, goHome, split, unsplit,
   }
 }
