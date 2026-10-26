@@ -17,7 +17,7 @@ export function Shell() {
   const controller = useShellController(size)
   const placement = useBarPlacement()
   const compact = placement === 'bottom' && window.matchMedia('(pointer: coarse)').matches
-  const { collapsed, dock, expand, touch, onMenu, onPointerDown, onPointerMove, onPointerEnd } = useDockCapsule(compact, controller.home)
+  const { collapsed, dock, expand, touch, onMenu, onPointerDown, onPointerMove, onPointerEnd } = useDockCapsule(compact, controller.home, controller.picking)
   const focusedWindow = controller.windows.find(item => item.id === controller.focused)
   const connection = useConnectionState()
   // 需要刷新时 Dock 展开一下，露出最前面的刷新按钮，没有操作照常收起

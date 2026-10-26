@@ -6,7 +6,8 @@ import type { PointerEvent } from 'react'
 const idleDelay = 3000
 const swipeDistance = 24
 
-export function useDockCapsule(enabled: boolean, home: boolean) {
+// locked：分屏时正在选第二个 app，Dock 不能用，直接收起
+export function useDockCapsule(enabled: boolean, home: boolean, locked: boolean) {
   const [expanded, setExpanded] = useState(true)
   const [activity, setActivity] = useState(0)
   const [holding, setHolding] = useState(false)
@@ -17,6 +18,9 @@ export function useDockCapsule(enabled: boolean, home: boolean) {
     // 在桌面和 app 之间切换时 Dock 先保持展开，时间到了再收起
     setPreviousHome(home)
     setExpanded(true)
+  }
+  if (locked && expanded) {
+    setExpanded(false)
   }
   const dock = useRef<HTMLElement>(null)
   const swipe = useRef<{ id: number; x: number; y: number } | null>(null)
