@@ -110,6 +110,27 @@
   opacity: 0.85;
 }
 
+/* 分屏：左右（竖屏时上下）各半 */
+.halves {
+  display: flex;
+  gap: 2px;
+  width: 18px;
+  height: 14px;
+}
+
+.halves[data-portrait='true'] {
+  flex-direction: column;
+  width: 14px;
+  height: 18px;
+}
+
+.halves i {
+  flex: 1;
+  border-radius: calc(var(--radius-xs) / 2);
+  background: currentColor;
+  opacity: 0.85;
+}
+
 /* 拖动时跟着手指的图标，不挡住下面的放置位置 */
 .ghost {
   position: fixed;

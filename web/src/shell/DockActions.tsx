@@ -27,7 +27,7 @@ export function DockActions({
   screen: Rect
   // 能分屏时的布局和方向
   split?: { layout: LayoutId; portrait: boolean }
-  // 分屏时另一侧直接放的窗口；没有就是再选一个 app
+  // 正在显示的另一个窗口：和它直接分屏，默认它在前、按住的在后；没有就必须选一侧，另一侧再选一个 app
   partner?: OpenWindow
   // 拖动中手指的位置；直接松手后是 null
   pointer: { x: number; y: number } | null
@@ -40,6 +40,11 @@ export function DockActions({
   const actions: { target: DropTarget; icon: ReactNode; label: string }[] = [
     { target: { type: 'cancel' }, icon: <Undo2 size={18} strokeWidth={2} />, label: '取消' },
     ...(group ? [{ target: { type: 'unsplit' } as DropTarget, icon: <span className={styles.single} />, label: '取消分屏' }] : []),
+    ...(split && partner ? [{
+      target: { type: 'split', at: 1 } as DropTarget,
+      icon: <span className={styles.halves} data-portrait={split.portrait}><i /><i /></span>,
+      label: `和 ${name(partner)} 分屏`,
+    }] : []),
     ...members.map((member) => ({ target: { type: 'close', id: member.id } as DropTarget, icon: <X size={18} strokeWidth={2} />, label: group ? `关闭 ${name(member)}` : '关闭' })),
     ...members.filter((member) => app(member)?.url).map((member) => ({
       target: { type: 'external', id: member.id } as DropTarget, icon: <ExternalLink size={18} strokeWidth={2} />, label: group ? `在新标签页打开 ${name(member)}` : '在新标签页打开',
@@ -80,12 +85,14 @@ export function DockActions({
     }}>
       {zones.map((rect, at) => {
         const target: DropTarget = { type: 'split', at }
-        const mine = hovered < 0 || hovered === at
-        const label = hovered < 0 ? '分屏到这里' : mine ? name(members[0]) : partner ? name(partner) : '再选一个 app'
+        // 按住的放在哪一侧：拖到的那一块；没拖到时有 partner 就按默认放在后面，否则还没定
+        const placed = hovered >= 0 ? hovered : partner ? 1 : null
+        const shown = placed === null ? null : placed === at ? members[0] : partner ?? null
+        const label = placed === null ? '分屏到这里' : shown ? name(shown) : '再选一个 app'
         return (
           <button key={at} type="button" className={styles.zone} data-drop={dropKey(target)} data-active={hovered === at}
             style={rect} onClick={() => onChoose(target)}>
-            {hovered >= 0 && (mine || partner) && app(mine ? members[0] : partner!) && <AppIcon app={app(mine ? members[0] : partner!)!} className={styles.zoneIcon} />}
+            {shown && app(shown) && <AppIcon app={app(shown)!} className={styles.zoneIcon} />}
             <span>{label}</span>
           </button>
         )
