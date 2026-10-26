@@ -2,6 +2,12 @@
 .bar {
   --item: 44px;
   --icon: 34px;
+  /* 连接状态的颜色：外框黑底上用明亮的系统色 */
+  --state-connected: var(--color-success);
+  --state-connecting: var(--color-warning);
+  --state-failed: var(--color-destructive);
+  --state-offline: var(--color-gray);
+  --state-updated: var(--color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -203,6 +209,19 @@
   left: env(safe-area-inset-left);
   height: var(--dock-strip);
   padding: 0;
+  /* 胶囊和浮在 app 上的 Dock 跟随深浅色：浅色时接近白，深色时接近黑，图形和状态颜色换成在这种底上看得清的文字色 */
+  --color-chrome: var(--color-background-elevated);
+  --color-on-chrome: var(--color-label);
+  --color-on-chrome-secondary: var(--color-label-secondary);
+  --color-chrome-border: var(--color-separator);
+  --color-dock-hover: var(--color-fill-tertiary);
+  --material-dock: var(--material-glass-thick);
+  --material-dock-edge: var(--material-glass-edge);
+  --state-connected: var(--color-success-text);
+  --state-connecting: var(--color-warning-text);
+  --state-failed: var(--color-destructive-text);
+  --state-offline: var(--color-label-secondary);
+  --state-updated: var(--color-link);
 }
 
 .bar[data-compact='true'] .dock {
@@ -212,8 +231,8 @@
   width: fit-content;
   max-height: none;
   margin-inline: auto;
-  background: linear-gradient(var(--material-dock), var(--material-dock)), color-mix(in srgb, var(--color-chrome) 72%, transparent);
-  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  background: var(--material-dock);
+  box-shadow: var(--shadow-glass), var(--shadow-overlay);
   -webkit-backdrop-filter: var(--material-blur);
   backdrop-filter: var(--material-blur);
   transform-origin: bottom center;
@@ -246,7 +265,7 @@
   margin-inline: auto;
   padding: 0 var(--space-3);
   border-radius: var(--radius-full);
-  background: var(--material-dock);
+  background: var(--color-background-elevated);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
   color: var(--color-on-chrome);
   font-size: var(--font-size-footnote);
@@ -257,14 +276,14 @@
     transform var(--duration-normal) var(--ease-standard);
 }
 
-/* 连接状态的圆点：绿色已连接，橙色闪动连接中，红色连接失败，灰色设备离线，蓝色有新版本 */
 /* 圆点和图标都落在胶囊两端圆角的圆心上：没有名字时右边按图标留边 */
 .capsule:not(:has(.capsuleTitle)) {
   padding-right: calc((var(--capsule) - var(--capsule-icon)) / 2);
 }
 
+/* 连接状态的圆点：绿色已连接，橙色闪动连接中，红色连接失败，灰色设备离线，蓝色有新版本 */
 .connection {
-  --tint: var(--color-success);
+  --tint: var(--state-connected);
   flex: none;
   width: 6px;
   height: 6px;
@@ -273,13 +292,13 @@
 }
 
 .connection[data-state='connecting'] {
-  --tint: var(--color-warning);
+  --tint: var(--state-connecting);
   animation: connecting 1s var(--ease-standard) infinite alternate;
 }
 
-.connection[data-state='failed'] { --tint: var(--color-destructive); }
-.connection[data-state='offline'] { --tint: var(--color-gray); }
-.connection[data-state='updated'] { --tint: var(--color-accent); }
+.connection[data-state='failed'] { --tint: var(--state-failed); }
+.connection[data-state='offline'] { --tint: var(--state-offline); }
+.connection[data-state='updated'] { --tint: var(--state-updated); }
 
 /* Dock 最前面放连接状态圆点的一小格，圆点落在 Dock 端头圆角的圆心上 */
 .dockConnection {
@@ -298,19 +317,13 @@
   margin-block-end: 0;
 }
 
-/* Dock 最前面的刷新按钮做成和 app 图标一样的彩色图标，颜色和胶囊上的圆点一致 */
-.attention {
-  composes: icon from './AppIcon.module.css';
-  width: var(--icon);
-  height: var(--icon);
+/* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
+.item[data-connection='failed'] {
+  color: var(--state-failed);
 }
 
-.item[data-connection='failed'] .attention {
-  --tint: var(--color-destructive);
-}
-
-.item[data-connection='updated'] .attention {
-  --tint: var(--color-accent);
+.item[data-connection='updated'] {
+  color: var(--state-updated);
 }
 
 @keyframes connecting {
