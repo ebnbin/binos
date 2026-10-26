@@ -1,0 +1,132 @@
+/* 盖住整个页面：拖动时跟着手指的图标、分屏的两块和一排操作都在这一层。直接松手后点空白处取消 */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: color-mix(in srgb, var(--color-chrome) 20%, transparent);
+  animation: appear var(--duration-normal) var(--ease-standard);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 分屏的一块：和选第二个 app 时一样的毛玻璃，拖到上面时亮起来 */
+.zone {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-window);
+  background: color-mix(in srgb, var(--color-chrome) 30%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-on-chrome) 35%, transparent);
+  color: var(--color-on-chrome);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.zone[data-active='true'] {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.zoneIcon {
+  width: 56px;
+  height: 56px;
+}
+
+/* 一排操作：和 Dock 一样的深色，放不下时换行；侧边 Dock 时竖着排 */
+.actions {
+  --surface: color-mix(in srgb, var(--color-on-chrome) 10%, var(--color-chrome));
+  position: fixed;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  max-width: calc(100vw - var(--space-6));
+  padding: var(--space-1);
+  border-radius: calc(var(--radius-lg) + var(--space-1));
+  background: var(--surface);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  color: var(--color-on-chrome);
+}
+
+.actions[data-side='true'] {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-callout);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.action[data-type='close'] > svg {
+  color: var(--color-destructive);
+}
+
+.action[data-active='true'] {
+  background: color-mix(in srgb, var(--color-on-chrome) 18%, transparent);
+}
+
+.action[data-active='true'][data-type='close'] {
+  background: color-mix(in srgb, var(--color-destructive) 35%, transparent);
+}
+
+@media (hover: hover) {
+  .action:hover {
+    background: color-mix(in srgb, var(--color-on-chrome) 12%, transparent);
+  }
+}
+
+/* 取消分屏：一整块，和分屏的两块相对 */
+.single {
+  width: 18px;
+  height: 14px;
+  border-radius: calc(var(--radius-xs) / 2);
+  background: currentColor;
+  opacity: 0.85;
+}
+
+/* 拖动时跟着手指的图标，不挡住下面的放置位置 */
+.ghost {
+  position: fixed;
+  display: flex;
+  gap: var(--space-1);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.15);
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--color-chrome) 35%, transparent));
+}
+
+.ghost > span {
+  width: 44px;
+  height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer {
+    animation: none;
+  }
+}

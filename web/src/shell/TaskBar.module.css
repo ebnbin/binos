@@ -179,26 +179,6 @@
   margin: var(--space-1) 0;
 }
 
-.glyph {
-  display: flex;
-  gap: var(--space-0-5);
-  width: 26px;
-  height: 19px;
-}
-
-.glyph[data-portrait='true'] {
-  flex-direction: column;
-  width: 19px;
-  height: 24px;
-}
-
-.glyph i {
-  border-radius: calc(var(--radius-xs) / 2);
-  background: currentColor;
-  opacity: 0.85;
-}
-
-
 .member {
   position: relative;
   display: grid;
@@ -514,51 +494,7 @@
   }
 }
 
-/* 窗口菜单：从 Dock 上弹出 */
-.menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 180px;
-  padding: var(--space-1-5);
-  border-radius: var(--radius-menu);
-}
-
-.menuLabel {
-  composes: menuLabel from '../ui/controls.module.css';
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.menuItem {
-  composes: menuItem from '../ui/controls.module.css';
-  cursor: default;
-}
-
-.menuIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 22px;
-  color: var(--color-label-secondary);
-}
-
-.menuIcon .glyph {
-  width: 18px;
-  height: 14px;
-}
-
-.menuIcon .glyph[data-portrait='true'] {
-  width: 14px;
-  height: 18px;
-}
-
-@media (hover: hover) {
-  .menuItem:hover .menuIcon {
-    color: inherit;
-  }
-}
-
-.menuItem:focus-visible .menuIcon {
-  color: inherit;
+/* 长按拖出来的那个图标，原位置淡下去 */
+.item[data-held='true'] .member {
+  opacity: 0.3;
 }

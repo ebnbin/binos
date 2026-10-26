@@ -95,7 +95,7 @@ export function Workspace({
           {preview(slot)}
         </section>
       ))}
-      {picking && <div className={styles.waitingMask} style={position(0)} />}
+      {picking && <div className={styles.waitingMask} style={position(panes.findIndex((id) => id !== null))} />}
       {exiting !== null && (
         <div className={styles.exitHint} role="status">{panes[exiting] ? '松手退到后台' : '松手取消分屏'}</div>
       )}
