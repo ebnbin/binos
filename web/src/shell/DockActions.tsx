@@ -46,7 +46,7 @@ export function DockActions({
     })),
   ]
 
-  // 从 Dock 往外依次是：一段放下就取消的空白、一排操作、分屏的两块。
+  // 从 Dock 往外依次是：一排操作、分屏的两块。
   // 操作居中对着按住的图标，放不下时往屏幕里挪；分屏的两块占剩下的屏幕
   const screen = screenElement.getBoundingClientRect()
   const bar = useRef<HTMLDivElement>(null)
@@ -56,17 +56,16 @@ export function DockActions({
     if (element) setSize({ width: element.offsetWidth, height: element.offsetHeight })
   }, [actions.length])
   const gap = 12
-  const neutral = 48
   const side = placement !== 'bottom'
   const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
   const barPosition = size && (side
     ? {
-      left: placement === 'right' ? dock.left - neutral - size.width : dock.left + dock.width + neutral,
+      left: placement === 'right' ? dock.left - gap - size.width : dock.left + dock.width + gap,
       top: clamp(origin.top + origin.height / 2 - size.height / 2, screen.top + gap, screen.top + screen.height - gap - size.height),
     }
     : {
       left: clamp(origin.left + origin.width / 2 - size.width / 2, screen.left + gap, screen.left + screen.width - gap - size.width),
-      top: Math.min(dock.top, screen.top + screen.height) - neutral - size.height,
+      top: Math.min(dock.top, screen.top + screen.height) - gap - size.height,
     })
   const area: Rect | null = barPosition && size && (side
     ? placement === 'right'
