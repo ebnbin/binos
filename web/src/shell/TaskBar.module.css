@@ -259,6 +259,8 @@
   left: env(safe-area-inset-left);
   height: var(--dock-strip);
   padding: 0;
+  /* Dock 底边到胶囊底边的距离：收起展开时内容跟着底板走这么远 */
+  --travel: calc(var(--space-2) + var(--dock-strip) / 2 + var(--capsule) / 2);
 }
 
 .bar[data-compact='true'] .dock {
@@ -272,9 +274,9 @@
   background: none;
   box-shadow: none;
   transform-origin: bottom center;
-  /* 展开时等底板长开一些再出来 */
+  /* 内容跟着底板一起移动缩放，展开时稍晚淡入，和底板一起到位 */
   transition:
-    opacity var(--duration-fast) var(--ease-standard) var(--duration-fast),
+    opacity var(--duration-normal) var(--ease-standard) var(--duration-fast),
     transform var(--duration-slow) var(--ease-standard);
 }
 
@@ -313,8 +315,8 @@
 
 .bar[data-collapsed='true'] .dock {
   opacity: 0;
-  transform: scale(0.9);
-  /* 收起时内容先走，底板再缩 */
+  /* 跟着底板落到胶囊的位置，缩到胶囊的高度：56 到 28 */
+  transform: translateY(var(--travel)) scale(0.5);
   transition:
     opacity var(--duration-fast) var(--ease-standard),
     transform var(--duration-slow) var(--ease-standard);
@@ -336,7 +338,10 @@
   color: var(--color-on-chrome);
   font-size: var(--font-size-footnote);
   font-weight: var(--font-weight-medium);
-  transition: opacity var(--duration-fast) var(--ease-standard) var(--duration-fast);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--duration-normal) var(--ease-standard) var(--duration-fast),
+    transform var(--duration-slow) var(--ease-standard);
 }
 
 /* 最前面的圆点落在左端圆角的圆心上。没有名字时最后是图标，右边留到图标的圆角整个落在胶囊的直边段里，不被右端的圆角裁到 */
@@ -497,7 +502,11 @@
 
 .bar[data-collapsed='false'] .capsule {
   opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-standard);
+  /* 跟着底板升到 Dock 的位置，长到 Dock 的高度：28 到 56 */
+  transform: translateY(calc(var(--travel) * -1)) scale(2);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
 }
 
 .capsuleIcon {
