@@ -118,15 +118,15 @@
   color: var(--color-on-chrome);
 }
 
-/* 正在显示的 app 下面有个点，离 Dock 边缘 2 */
+/* 正在显示的 app 下面有个点：离图标 2，离 Dock 边缘 4 */
 .item {
-  --offset: calc(2px - var(--dock-padding));
+  --indicator: calc(4px - var(--dock-padding));
 }
 
 .item[data-visible='true']::after {
   content: '';
   position: absolute;
-  bottom: var(--offset);
+  bottom: var(--indicator);
   width: 4px;
   height: 4px;
   border-radius: var(--radius-full);
@@ -141,11 +141,11 @@
 }
 
 .bar[data-placement='left'] .item[data-visible='true']::after {
-  right: var(--offset);
+  right: var(--indicator);
 }
 
 .bar[data-placement='right'] .item[data-visible='true']::after {
-  left: var(--offset);
+  left: var(--indicator);
 }
 
 /* 和 macOS 的 Dock 一样，用一条细竖线把桌面、app 和窗口操作分开 */
@@ -204,34 +204,60 @@
   height: var(--icon);
 }
 
-/* 分屏的一组：两个小图标放在一起，外面一圈细框 */
+/* 分屏的一组：两个图标和单个 app 一样大，挨得近一些，垫一块淡色的底，底和图标之间的边距与单个按钮里一样 */
 .item[data-group='true'] {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  width: calc(var(--item) * 1.6);
-  box-shadow: inset 0 0 0 1px var(--color-chrome-border);
+  width: auto;
+  padding: 0 calc((var(--item) - var(--icon)) / 2);
+  background: color-mix(in srgb, var(--color-on-chrome) 8%, transparent);
 }
 
-.item[data-group='true'] .member > span {
-  width: calc(var(--icon) * 0.75);
-  height: calc(var(--icon) * 0.75);
+.bar[data-placement='left'] .item[data-group='true'],
+.bar[data-placement='right'] .item[data-group='true'] {
+  flex-direction: column;
+  width: var(--item);
+  height: auto;
+  padding: calc((var(--item) - var(--icon)) / 2) 0;
+}
+
+.bar[data-placement='left'] .item[data-group='true'] .member,
+.bar[data-placement='right'] .item[data-group='true'] .member {
+  width: 100%;
+  height: auto;
 }
 
 .item[data-group='true']::after {
   display: none;
 }
 
+/* 一组里聚焦的那个 app 下面的点，和单个 app 的点位置一样 */
 .member[data-focused='true']::after {
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: var(--indicator);
   left: calc(50% - 2px);
   width: 4px;
   height: 4px;
   border-radius: var(--radius-full);
   background: var(--color-on-chrome);
+}
+
+.bar[data-placement='left'] .member[data-focused='true']::after,
+.bar[data-placement='right'] .member[data-focused='true']::after {
+  top: calc(50% - 2px);
+  bottom: auto;
+}
+
+.bar[data-placement='left'] .member[data-focused='true']::after {
+  right: var(--indicator);
+  left: auto;
+}
+
+.bar[data-placement='right'] .member[data-focused='true']::after {
+  left: var(--indicator);
 }
 
 /* 手机上 Dock 在底部时，这一条就是屏幕下面的安全区。Dock 浮在屏幕底边之上，不挤 app 的高度；收起后只剩安全区正中的一颗胶囊 */
@@ -324,9 +350,10 @@
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
 
-/* 桌面按钮下面的连接状态点，和 app 下面的点一样离 Dock 边缘 2，比它大一号 */
+/* 桌面按钮下面的连接状态点：离标志和 Dock 边缘各 2 */
 .item > .connection {
   --size: 6px;
+  --offset: calc(2px - var(--dock-padding));
   position: absolute;
   bottom: var(--offset);
   left: calc(50% - var(--size) / 2);
