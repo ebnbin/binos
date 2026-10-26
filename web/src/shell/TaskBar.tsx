@@ -153,7 +153,7 @@ export function TaskBar({
           </button>
         )}
         <button type="button" className={styles.item} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
-          <BrandMark size={40} inverted />
+          <BrandMark size={36} inverted />
           {!attention && <span className={styles.connection} data-state={connection} />}
         </button>
         {accessory}

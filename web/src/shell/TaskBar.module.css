@@ -324,18 +324,20 @@
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
 
-/* 桌面按钮下面的连接状态点，和 app 下面的点一样大、一样的位置 */
+/* 桌面按钮下面的连接状态点：标志比 app 图标小一圈（36），下面空出来的地方放得下和胶囊上一样大的点，放在标志和 Dock 边缘之间那一条的正中 */
 .item > .connection {
+  --size: 6px;
+  --offset: calc(((var(--item) - 36px) / 2 - var(--dock-padding) - var(--size)) / 2);
   position: absolute;
   bottom: var(--offset);
-  left: calc(50% - 2px);
-  width: 4px;
-  height: 4px;
+  left: calc(50% - var(--size) / 2);
+  width: var(--size);
+  height: var(--size);
 }
 
 .bar[data-placement='left'] .item > .connection,
 .bar[data-placement='right'] .item > .connection {
-  top: calc(50% - 2px);
+  top: calc(50% - var(--size) / 2);
   bottom: auto;
 }
 
