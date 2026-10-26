@@ -269,64 +269,66 @@ export function TaskBar({
         </span>
         {accessory}
         {windows.length > 0 && <span className={styles.separator} />}
-        <div className={styles.apps}>
-          {windows.filter((item) => {
-            const group = groups.find((group) => group.slots.includes(item.id))
-            return !group || group.slots[0] === item.id
-          }).map((item) => {
-            const group = groups.find((group) => group.slots.includes(item.id))
-            const members = group ? group.slots.map((id) => windows.find((win) => win.id === id)!).filter(Boolean) : [item]
-            const title = members.map((member) => member.title).join(' + ')
-            const key = group?.id ?? item.id
-            // 点一组时显示组里聚焦的那个，没有聚焦的就是第一个
-            const target = members.find((member) => member.id === focused) ?? item
-            const pressed = !home && members.some((member) => member.id === focused)
-            return (
-              <button
-                key={key}
-                type="button"
-                className={styles.item}
-                data-group={!!group}
-                data-held={active?.members[0].id === members[0].id}
-                aria-label={title}
-                title={title}
-                aria-pressed={pressed}
-                aria-haspopup="menu"
-                data-visible={!home && members.some((member) => panes.includes(member.id))}
-                onPointerDown={startPress(members, !!group)}
-                onPointerMove={movePress}
-                onPointerUp={cancelPress}
-                onPointerCancel={cancelPress}
-                onContextMenu={(event) => {
-                  event.preventDefault()
-                  cancelPress()
-                  if (!longPressed.current) open(members, !!group, event.currentTarget, null)
-                }}
-                onClick={(event) => {
-                  if (longPressed.current) {
-                    longPressed.current = false
-                    return
-                  }
-                  if (pressed) {
-                    open(members, !!group, event.currentTarget, null)
-                    return
-                  }
-                  if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
-                  onShow(target.id)
-                }}
-              >
-                {members.map((member) => {
-                  const app = findApplication(apps, member.window.applicationId)
-                  return app && (
-                    <span key={member.id} className={styles.member} data-focused={!!group && !home && member.id === focused}>
-                      <AppIcon app={app} />
-                    </span>
-                  )
-                })}
-              </button>
-            )
-          })}
-        </div>
+        {windows.length > 0 && (
+          <div className={styles.apps}>
+            {windows.filter((item) => {
+              const group = groups.find((group) => group.slots.includes(item.id))
+              return !group || group.slots[0] === item.id
+            }).map((item) => {
+              const group = groups.find((group) => group.slots.includes(item.id))
+              const members = group ? group.slots.map((id) => windows.find((win) => win.id === id)!).filter(Boolean) : [item]
+              const title = members.map((member) => member.title).join(' + ')
+              const key = group?.id ?? item.id
+              // 点一组时显示组里聚焦的那个，没有聚焦的就是第一个
+              const target = members.find((member) => member.id === focused) ?? item
+              const pressed = !home && members.some((member) => member.id === focused)
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={styles.item}
+                  data-group={!!group}
+                  data-held={active?.members[0].id === members[0].id}
+                  aria-label={title}
+                  title={title}
+                  aria-pressed={pressed}
+                  aria-haspopup="menu"
+                  data-visible={!home && members.some((member) => panes.includes(member.id))}
+                  onPointerDown={startPress(members, !!group)}
+                  onPointerMove={movePress}
+                  onPointerUp={cancelPress}
+                  onPointerCancel={cancelPress}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    cancelPress()
+                    if (!longPressed.current) open(members, !!group, event.currentTarget, null)
+                  }}
+                  onClick={(event) => {
+                    if (longPressed.current) {
+                      longPressed.current = false
+                      return
+                    }
+                    if (pressed) {
+                      open(members, !!group, event.currentTarget, null)
+                      return
+                    }
+                    if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
+                    onShow(target.id)
+                  }}
+                >
+                  {members.map((member) => {
+                    const app = findApplication(apps, member.window.applicationId)
+                    return app && (
+                      <span key={member.id} className={styles.member} data-focused={!!group && !home && member.id === focused}>
+                        <AppIcon app={app} />
+                      </span>
+                    )
+                  })}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
       {active && (
         <DockActions
