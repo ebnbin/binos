@@ -1,0 +1,77 @@
+/* 盖住整个页面：拖动时跟着手指的图标和分屏的两块在这一层 */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: color-mix(in srgb, var(--color-chrome) 20%, transparent);
+  animation: appear var(--duration-normal) var(--ease-standard);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* 排布时屏幕上的内容拿走，和外框一样是纯黑 */
+.arranging {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--color-chrome);
+  animation: appear var(--duration-normal) var(--ease-standard);
+}
+
+/* 分屏的一块：黑底上一块淡色的底，拖到上面时亮起来 */
+.zone {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-window);
+  background: color-mix(in srgb, var(--color-on-chrome) 8%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-on-chrome) 25%, transparent);
+  color: var(--color-on-chrome);
+  font-size: var(--font-size-headline);
+  font-weight: var(--font-weight-semibold);
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.zone[data-active='true'] {
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-accent);
+}
+
+.zoneIcon {
+  width: 56px;
+  height: 56px;
+}
+
+/* 拖动时跟着手指的图标，不挡住下面的放置位置 */
+.ghost {
+  position: fixed;
+  display: flex;
+  gap: var(--space-1);
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1.15);
+  filter: drop-shadow(0 8px 16px color-mix(in srgb, var(--color-chrome) 35%, transparent));
+}
+
+.ghost > span {
+  width: 44px;
+  height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer {
+    animation: none;
+  }
+}

@@ -1,14 +1,13 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent, PointerEventHandler, ReactNode, Ref } from 'react'
-import { CircleArrowUp, RefreshCw } from 'lucide-react'
+import { CircleArrowUp, ExternalLink, RefreshCw, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import type { ConnectionState } from '../events.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
+import { Popover } from '../ui/Popover.tsx'
 import { AppIcon } from './AppIcon.tsx'
 import type { BarPlacement } from './bar-placement.ts'
-import { DockActions } from './DockActions.tsx'
-import { parseDrop } from './drop-target.ts'
-import type { DropTarget } from './drop-target.ts'
+import { DockSplit } from './DockSplit.tsx'
 import { fitLayout } from './layout.ts'
 import type { LayoutId, SplitGroup } from './layout.ts'
 import type { OpenWindow } from './state/types.ts'
@@ -49,7 +48,8 @@ const connectionLabels: Record<ConnectionState, string> = {
 }
 
 // 屏幕外面的 Dock：回到桌面（下面的点是连接状态，需要刷新时旁边有提示）、开着的 app。
-// 点 app 图标只是切换过去。窗口的操作（分屏、取消分屏、在新标签页打开、关闭）：长按 app 图标后拖到要做的操作上，松手时没放在任何操作上就是取消；鼠标右键出现同样的操作，点要做的那个
+// 点 app 图标只是切换过去。长按能分屏的 app 图标后拖到屏幕的一侧分屏，没拖动就松手打开窗口菜单（取消分屏、在新标签页打开、关闭）；
+// 分屏的一组和放不下分屏时长按直接打开菜单；鼠标右键也打开菜单
 // 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
   ref,
@@ -143,88 +143,69 @@ export function TaskBar({
     return () => window.removeEventListener('resize', update)
   })
 
-  // 长按或右键 app 图标出现的操作。长按拖动时 pointer 是手指的位置；右键时是 null，点要做的操作
-  type Active = { members: OpenWindow[]; group: boolean; dock: DOMRect; screen: HTMLElement; pointer: { x: number; y: number } | null }
-  const [active, setActive] = useState<Active | null>(null)
-  const [hover, setHover] = useState<string | null>(null)
-  const open = (members: OpenWindow[], group: boolean, pointer: { x: number; y: number } | null) => {
-    const screenElement = screen()
-    if (!dock.current || !screenElement) return
-    setActive({ members, group, dock: dock.current.getBoundingClientRect(), screen: screenElement, pointer })
-    setHover(null)
-    capsule?.onMenu(true)
-  }
-  const finish = (target: DropTarget | null) => {
-    const current = active
-    setActive(null)
-    setHover(null)
-    capsule?.onMenu(false)
-    if (!current || !target) return
-    const [first] = current.members
-    if (target.type === 'unsplit') onUnsplit(first.id)
-    if (target.type === 'split') onSplit(first.id, target.at)
-    if (target.type === 'close') onClose(target.id)
-    if (target.type === 'external') {
-      // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
-      const url = findApplication(apps, windows.find((item) => item.id === target.id)?.window.applicationId ?? '')?.url
-      if (url) window.open(url, '_blank', 'noopener,noreferrer')
-    }
-  }
-  // 往下滑收起 Dock 时一起关掉
-  if (collapsed && active) {
-    setActive(null)
-  }
-
-  // 松手后要做的操作，等这一轮事件结束再做
-  const drop = useRef<string | null>(null)
-  // 拖动中：图标跟着手指，手指下面是哪个放置位置就亮哪个；松手时做那个操作，不在任何位置上就是取消
-  const dragging = active?.pointer != null
+  // 窗口菜单：同一时间只开一个。触屏上点到菜单外面时，旧菜单要等这次触摸的 click 才关，
+  // 那时可能已经长按打开了另一个，所以只关自己
+  const [menu, setMenu] = useState<string | null>(null)
+  // 长按能分屏的 app 后拖着它排布
+  type Drag = { key: string; held: OpenWindow; dock: DOMRect; screen: HTMLElement; start: { x: number; y: number }; pointer: { x: number; y: number }; moved: boolean }
+  const [drag, setDrag] = useState<Drag | null>(null)
+  const [hover, setHover] = useState<number | null>(null)
+  // 菜单开着或拖动中 Dock 不收起
+  const busy = menu !== null || drag !== null
+  const onMenu = capsule?.onMenu
   useEffect(() => {
-    if (!dragging) return
-    const targetAt = (x: number, y: number) => document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]')?.dataset.drop ?? null
+    onMenu?.(busy)
+  }, [onMenu, busy])
+  // 往下滑收起 Dock 时一起关掉
+  if (collapsed && (menu || drag)) {
+    setMenu(null)
+    setDrag(null)
+  }
+  const canSplit = (group: boolean) => !group && allowed.length > 1
+
+  // 拖动中：图标跟着手指，手指下面是哪一块就亮哪一块。松手时在某一块上就分屏到那一侧；
+  // 没拖动就松手是打开菜单；拖动了但不在任何一块上是取消
+  useEffect(() => {
+    if (!drag) return
+    const zoneAt = (x: number, y: number) => {
+      const at = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-split]')?.dataset.split
+      return at === undefined ? null : Number(at)
+    }
     const move = (event: globalThis.PointerEvent) => {
-      setActive((current) => current && current.pointer && { ...current, pointer: { x: event.clientX, y: event.clientY } })
-      setHover(targetAt(event.clientX, event.clientY))
+      const pointer = { x: event.clientX, y: event.clientY }
+      setDrag((current) => current && { ...current, pointer, moved: current.moved || Math.hypot(pointer.x - current.start.x, pointer.y - current.start.y) > longPressSlop })
+      setHover(zoneAt(pointer.x, pointer.y))
     }
     const up = (event: globalThis.PointerEvent) => {
-      drop.current = targetAt(event.clientX, event.clientY) ?? 'cancel'
-      setActive((current) => current && { ...current, pointer: null })
+      const at = zoneAt(event.clientX, event.clientY)
+      setDrag(null)
+      setHover(null)
+      if (at !== null) onSplit(drag.held.id, at)
+      else if (!drag.moved) setMenu(drag.key)
     }
     const cancel = () => {
-      drop.current = 'cancel'
-      setActive((current) => current && { ...current, pointer: null })
+      setDrag(null)
+      setHover(null)
     }
     // 拖动时不让浏览器把这次触摸当成滚动
     const stopScroll = (event: TouchEvent) => event.preventDefault()
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') cancel()
+    }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
     window.addEventListener('pointercancel', cancel)
     window.addEventListener('touchmove', stopScroll, { passive: false })
+    window.addEventListener('keydown', escape)
+    // 转屏或窗口变了，分屏的两块对不上了，取消
+    window.addEventListener('resize', cancel)
     return () => {
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', up)
       window.removeEventListener('pointercancel', cancel)
       window.removeEventListener('touchmove', stopScroll)
-    }
-  })
-  useEffect(() => {
-    if (!active || active.pointer || drop.current === null) return
-    const key = drop.current
-    drop.current = null
-    finish(parseDrop(key))
-  })
-  useEffect(() => {
-    if (!active) return
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') finish(null)
-    }
-    // 转屏或窗口变了，放置位置都对不上了，取消
-    const resize = () => finish(null)
-    window.addEventListener('keydown', escape)
-    window.addEventListener('resize', resize)
-    return () => {
       window.removeEventListener('keydown', escape)
-      window.removeEventListener('resize', resize)
+      window.removeEventListener('resize', cancel)
     }
   })
 
@@ -235,23 +216,36 @@ export function TaskBar({
     if (press.current) window.clearTimeout(press.current.timer)
     press.current = null
   }
-  const startPress = (members: OpenWindow[], group: boolean) => (event: PointerEvent) => {
+  // 长按：能分屏就拖着排布，不能分屏（分屏的一组、屏幕放不下分屏）就直接打开菜单
+  const startPress = (key: string, members: OpenWindow[], group: boolean) => (event: PointerEvent) => {
     longPressed.current = false
     cancelPress()
     if (event.button !== 0) return
-    const pointer = { x: event.clientX, y: event.clientY }
+    const start = { x: event.clientX, y: event.clientY }
     press.current = {
-      ...pointer,
+      ...start,
       timer: window.setTimeout(() => {
         press.current = null
         longPressed.current = true
-        open(members, group, pointer)
+        const screenElement = screen()
+        if (canSplit(group) && dock.current && screenElement) {
+          setMenu(null)
+          setDrag({ key, held: members[0], dock: dock.current.getBoundingClientRect(), screen: screenElement, start, pointer: start, moved: false })
+        } else {
+          setMenu(key)
+        }
       }, longPressDelay),
     }
   }
   const movePress = (event: PointerEvent) => {
     const start = press.current
     if (start && Math.hypot(event.clientX - start.x, event.clientY - start.y) > longPressSlop) cancelPress()
+  }
+  const sides = { bottom: 'top', left: 'right', right: 'left' } as const
+  const openExternal = (member: OpenWindow) => {
+    // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
+    const url = findApplication(apps, member.window.applicationId)?.url
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
   useEffect(() => {
     const target = moveFocus.current === 'dock'
@@ -265,6 +259,7 @@ export function TaskBar({
     if (home || !focused || focused === id || groups.some((group) => group.slots.includes(focused))) return undefined
     return windows.find((item) => item.id === focused)
   }
+  const appName = (member: OpenWindow) => findApplication(apps, member.window.applicationId)?.name ?? member.title
   const focusVisibleInside = (element: Element | null) => !!element?.contains(document.activeElement) && !!document.activeElement?.matches(':focus-visible')
 
   return (
@@ -333,62 +328,94 @@ export function TaskBar({
               const target = members.find((member) => member.id === focused) ?? item
               const pressed = !home && members.some((member) => member.id === focused)
               return (
-                <button
+                <Popover
                   key={key}
-                  type="button"
-                  className={styles.item}
-                  data-group={!!group}
-                  data-held={active?.members[0].id === members[0].id}
-                  aria-label={title}
-                  title={title}
-                  aria-pressed={pressed}
-                  aria-haspopup="menu"
-                  data-visible={!home && members.some((member) => panes.includes(member.id))}
-                  onPointerDown={startPress(members, !!group)}
-                  onPointerMove={movePress}
-                  onPointerUp={cancelPress}
-                  onPointerCancel={cancelPress}
-                  onContextMenu={(event) => {
-                    event.preventDefault()
-                    cancelPress()
-                    if (!longPressed.current) open(members, !!group, null)
+                  label={`${title} 的窗口操作`}
+                  className={styles.menu}
+                  side={sides[placement]}
+                  align="center"
+                  open={menu === key}
+                  onOpenChange={(open) => {
+                    if (open) setMenu(key)
+                    else if (menu === key) setMenu(null)
                   }}
-                  onClick={() => {
-                    if (longPressed.current) {
-                      longPressed.current = false
-                      return
-                    }
-                    if (pressed) return
-                    if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
-                    onShow(target.id)
-                  }}
+                  trigger={
+                    <button
+                      type="button"
+                      className={styles.item}
+                      data-group={!!group}
+                      data-held={drag?.key === key}
+                      aria-label={title}
+                      title={title}
+                      aria-pressed={pressed}
+                      data-visible={!home && members.some((member) => panes.includes(member.id))}
+                      onPointerDown={startPress(key, members, !!group)}
+                      onPointerMove={movePress}
+                      onPointerUp={cancelPress}
+                      onPointerCancel={cancelPress}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        cancelPress()
+                        if (!longPressed.current) setMenu(key)
+                      }}
+                      onClick={(event) => {
+                        // 菜单只由长按和右键打开，不交给 Popover 的触发按钮
+                        event.preventDefault()
+                        if (longPressed.current) {
+                          longPressed.current = false
+                          return
+                        }
+                        if (pressed) return
+                        if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
+                        onShow(target.id)
+                      }}
+                    >
+                      {members.map((member) => {
+                        const app = findApplication(apps, member.window.applicationId)
+                        return app && (
+                          <span key={member.id} className={styles.member} data-focused={!!group && !home && member.id === focused}>
+                            <AppIcon app={app} />
+                          </span>
+                        )
+                      })}
+                    </button>
+                  }
                 >
-                  {members.map((member) => {
-                    const app = findApplication(apps, member.window.applicationId)
-                    return app && (
-                      <span key={member.id} className={styles.member} data-focused={!!group && !home && member.id === focused}>
-                        <AppIcon app={app} />
-                      </span>
-                    )
-                  })}
-                </button>
+                  <div className={styles.menuLabel}>{title}</div>
+                  {group && (
+                    <button type="button" className={styles.menuItem} onClick={() => { setMenu(null); onUnsplit(item.id) }}>
+                      <span className={styles.menuIcon}><span className={styles.single} /></span>
+                      取消分屏
+                    </button>
+                  )}
+                  {members.filter((member) => findApplication(apps, member.window.applicationId)?.url).map((member) => (
+                    <button key={`external:${member.id}`} type="button" className={styles.menuItem} onClick={() => { setMenu(null); openExternal(member) }}>
+                      <span className={styles.menuIcon}><ExternalLink size={18} strokeWidth={1.75} /></span>
+                      {group ? `在新标签页打开 ${appName(member)}` : '在新标签页打开'}
+                    </button>
+                  ))}
+                  {members.map((member) => (
+                    <button key={`close:${member.id}`} type="button" className={styles.menuItem} onClick={() => { setMenu(null); onClose(member.id) }}>
+                      <span className={styles.menuIcon} data-type="close"><X size={18} strokeWidth={1.75} /></span>
+                      {group ? `关闭 ${appName(member)}` : '关闭'}
+                    </button>
+                  ))}
+                </Popover>
               )
             })}
           </div>
         )}
       </div>
-      {active && (
-        <DockActions
-          members={active.members}
-          group={active.group}
+      {drag && (
+        <DockSplit
+          held={drag.held}
           placement={placement}
-          dock={active.dock}
-          screen={active.screen}
-          split={!active.group && allowed.length > 1 ? { layout: fitLayout('1:1', allowed), portrait } : undefined}
-          partner={partner(active.members[0].id)}
-          pointer={active.pointer}
+          dock={drag.dock}
+          screen={drag.screen}
+          split={{ layout: fitLayout('1:1', allowed), portrait }}
+          partner={partner(drag.held.id)}
+          pointer={drag.pointer}
           hover={hover}
-          onChoose={finish}
         />
       )}
     </nav>

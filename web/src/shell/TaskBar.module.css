@@ -536,3 +536,55 @@
 .item[data-held='true'] .member {
   opacity: 0.3;
 }
+
+/* 窗口菜单：从 Dock 上弹出 */
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: var(--space-1-5);
+  border-radius: var(--radius-menu);
+}
+
+.menuLabel {
+  composes: menuLabel from '../ui/controls.module.css';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItem {
+  composes: menuItem from '../ui/controls.module.css';
+  cursor: default;
+}
+
+.menuIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  color: var(--color-label-secondary);
+}
+
+.menuIcon[data-type='close'] {
+  color: var(--color-destructive);
+}
+
+@media (hover: hover) {
+  .menuItem:hover .menuIcon:not([data-type='close']) {
+    color: inherit;
+  }
+}
+
+.menuItem:focus-visible .menuIcon:not([data-type='close']) {
+  color: inherit;
+}
+
+/* 取消分屏：一整块，和分屏的两块相对 */
+.single {
+  width: 18px;
+  height: 14px;
+  border-radius: calc(var(--radius-xs) / 2);
+  background: currentColor;
+  opacity: 0.85;
+}

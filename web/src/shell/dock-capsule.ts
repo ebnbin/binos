@@ -76,6 +76,7 @@ export function useDockCapsule(enabled: boolean, home: boolean, locked: boolean)
     expand: () => setExpanded(true),
     touch,
     onMenu: (open: boolean) => {
+      if (open === menu) return
       setMenu(open)
       if (!open) touch()
     },
