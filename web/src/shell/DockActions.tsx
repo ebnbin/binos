@@ -82,7 +82,7 @@ export function DockActions({
   const dragging = pointer !== null
   return (
     <>
-      {/* 屏幕在排布：不再显示原来的内容，分屏的两块就是排好后的样子。盖在屏幕里，浮在屏幕之上的 Dock 不被盖住 */}
+      {/* 屏幕在排布：不再显示原来的内容，只剩黑底，分屏的两块就是排好后的样子。盖在屏幕里，浮在屏幕之上的 Dock 不被盖住 */}
       {createPortal(<div className={styles.arranging} />, screenElement)}
       {createPortal(
         <div className={styles.layer} data-dragging={dragging} onPointerDown={(event) => {
