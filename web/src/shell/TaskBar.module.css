@@ -244,7 +244,7 @@
   max-width: calc(100% - var(--space-16));
   height: var(--capsule);
   margin-inline: auto;
-  padding: 0 var(--space-3) 0 calc((var(--capsule) - var(--capsule-icon)) / 2);
+  padding: 0 var(--space-3);
   border-radius: var(--radius-full);
   background: var(--material-dock);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
@@ -258,6 +258,11 @@
 }
 
 /* 连接状态的圆点：绿色已连接，橙色闪动连接中，红色连接失败，灰色设备离线，蓝色有新版本 */
+/* 圆点和图标都落在胶囊两端圆角的圆心上：没有名字时右边按图标留边 */
+.capsule:not(:has(.capsuleTitle)) {
+  padding-right: calc((var(--capsule) - var(--capsule-icon)) / 2);
+}
+
 .connection {
   --tint: var(--color-success);
   flex: none;
@@ -275,6 +280,15 @@
 .connection[data-state='failed'] { --tint: var(--color-destructive); }
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
+
+/* Dock 最前面的刷新按钮，颜色和胶囊上的圆点一致 */
+.item[data-connection='failed'] {
+  color: var(--color-destructive);
+}
+
+.item[data-connection='updated'] {
+  color: var(--color-accent);
+}
 
 @keyframes connecting {
   to {

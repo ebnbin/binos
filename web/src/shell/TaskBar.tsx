@@ -1,8 +1,7 @@
 import { useEffect, useId, useRef } from 'react'
 import type { PointerEventHandler, ReactNode, Ref } from 'react'
-import { ExternalLink, X } from 'lucide-react'
+import { CircleArrowUp, ExternalLink, RefreshCw, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
-import { useConnectionState } from '../events.ts'
 import type { ConnectionState } from '../events.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
 import { AppIcon } from './AppIcon.tsx'
@@ -31,11 +30,12 @@ const connectionLabels: Record<ConnectionState, string> = {
   updated: '有新版本',
 }
 
-// 屏幕外面的 Dock：回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
+// 屏幕外面的 Dock：连接失败或有新版本时刷新页面、回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
 // 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
   ref,
   capsule,
+  connection,
   placement,
   accessory,
   windows,
@@ -63,6 +63,7 @@ export function TaskBar({
     onPointerMove: PointerEventHandler
     onPointerEnd: () => void
   }
+  connection: ConnectionState
   placement: Exclude<BarPlacement, 'hidden'>
   accessory?: ReactNode
   windows: OpenWindow[]
@@ -84,10 +85,9 @@ export function TaskBar({
   // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
   const focusedUrl = findApplication(apps, windows.find((item) => item.id === focused)?.window.applicationId ?? '')?.url
   const canPick = !home && !locked && !groups.some((group) => focused && group.slots.includes(focused)) && allowed.length > 1
-  // 胶囊在桌面上只有 binOS 的标志，在 app 里是 app 的图标和名字，不带窗口标题里的状态。最后是表示连接状态的圆点
+  // 胶囊最前面是表示连接状态的圆点，然后在桌面上只有 binOS 的标志，在 app 里是 app 的图标和名字，不带窗口标题里的状态
   const capsuleApp = !home && capsule?.current ? findApplication(apps, capsule.current.window.applicationId) : undefined
   const capsuleName = capsuleApp?.name ?? '桌面'
-  const connection = useConnectionState()
   const dockId = useId()
   const dock = useRef<HTMLDivElement>(null)
   const capsuleButton = useRef<HTMLButtonElement>(null)
@@ -131,12 +131,24 @@ export function TaskBar({
             capsule.onExpand()
           }}
         >
+          <span className={styles.connection} data-state={connection} />
           {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={18} inverted />}
           {capsuleApp && <span className={styles.capsuleTitle}>{capsuleName}</span>}
-          <span className={styles.connection} data-state={connection} />
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
+        {(connection === 'failed' || connection === 'updated') && (
+          <button
+            type="button"
+            className={styles.item}
+            data-connection={connection}
+            aria-label={`${connectionLabels[connection]}，刷新`}
+            title={`${connectionLabels[connection]}，刷新`}
+            onClick={() => window.location.reload()}
+          >
+            {connection === 'failed' ? <RefreshCw size={20} strokeWidth={1.75} /> : <CircleArrowUp size={20} strokeWidth={1.75} />}
+          </button>
+        )}
         <button type="button" className={styles.item} aria-label="桌面" title="桌面" aria-pressed={home} onClick={onHome}>
           <BrandMark size={30} inverted />
         </button>

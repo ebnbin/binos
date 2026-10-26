@@ -72,10 +72,6 @@ export function useConnected(): boolean {
   return useSyncExternalStore(subscribeConnection, () => connected)
 }
 
-export function useUpdated(): boolean {
-  return useSyncExternalStore(subscribeConnection, () => updated)
-}
-
 // 一个圆点能表示的连接状态。设备离线时连不连得上无从判断，优先于连接的进展；连着的时候有新版本才显示有新版本
 export type ConnectionState = 'connected' | 'connecting' | 'failed' | 'offline' | 'updated'
 
