@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ExternalLink, Undo2, X } from 'lucide-react'
+import { ExternalLink, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import { AppIcon } from './AppIcon.tsx'
 import type { BarPlacement } from './bar-placement.ts'
@@ -39,13 +39,7 @@ export function DockActions({
   const app = (member: OpenWindow) => findApplication(apps, member.window.applicationId)
   const name = (member: OpenWindow) => app(member)?.name ?? member.title
   const actions: { target: DropTarget; icon: ReactNode; label: string }[] = [
-    { target: { type: 'cancel' }, icon: <Undo2 size={18} strokeWidth={2} />, label: '取消' },
     ...(group ? [{ target: { type: 'unsplit' } as DropTarget, icon: <span className={styles.single} />, label: '取消分屏' }] : []),
-    ...(split && partner ? [{
-      target: { type: 'split', at: 1 } as DropTarget,
-      icon: <span className={styles.halves} data-portrait={split.portrait}><i /><i /></span>,
-      label: `和 ${name(partner)} 分屏`,
-    }] : []),
     ...members.map((member) => ({ target: { type: 'close', id: member.id } as DropTarget, icon: <X size={18} strokeWidth={2} />, label: group ? `关闭 ${name(member)}` : '关闭' })),
     ...members.filter((member) => app(member)?.url).map((member) => ({
       target: { type: 'external', id: member.id } as DropTarget, icon: <ExternalLink size={18} strokeWidth={2} />, label: group ? `在新标签页打开 ${name(member)}` : '在新标签页打开',
