@@ -115,6 +115,24 @@ export function TaskBar({
   // 连接状态是桌面按钮下面的点；连接失败或有新版本时，Dock 展开着就在桌面按钮旁边一直显示刷新的提示，不能关
   const attention = connection === 'failed' || connection === 'updated'
   const homeLabel = `桌面，${connectionLabels[connection]}`
+  const compact = capsule !== undefined
+  // 底板在胶囊和 Dock 两种形状之间变，两头的宽度跟着内容量
+  const surface = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const target = surface.current
+    const from = capsuleButton.current
+    const to = dock.current
+    if (!target || !from || !to) return
+    const update = () => {
+      target.style.setProperty('--capsule-width', `${from.offsetWidth}px`)
+      target.style.setProperty('--dock-width', `${to.offsetWidth}px`)
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(from)
+    observer.observe(to)
+    return () => observer.disconnect()
+  }, [compact])
   const notice = useRef<HTMLButtonElement>(null)
   useLayoutEffect(() => {
     const element = notice.current
@@ -264,6 +282,7 @@ export function TaskBar({
       onPointerCancel={capsule?.onPointerEnd}
       onKeyDown={capsule?.onActivity}
     >
+      {capsule && <div ref={surface} className={styles.surface} aria-hidden />}
       {capsule && (
         <button
           ref={capsuleButton}
