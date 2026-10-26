@@ -3,7 +3,7 @@ import type { PointerEvent } from 'react'
 
 // 手机上 Dock 在底部时，平时缩成底部安全区里的一颗胶囊，把高度留给桌面和 app。
 // 展开后在 Dock 以外按下、在 Dock 上往下滑，或者一段时间没有操作就收起；在 Dock 上切换 app、手指按在 Dock 上、开着窗口菜单时不收起。外部 app 在 iframe 里，按下事件传不出来，只能等时间到
-const idleDelay = 3000
+const idleDelay = 4000
 const swipeDistance = 24
 
 // locked：分屏时正在选第二个 app，Dock 不能用，直接收起
