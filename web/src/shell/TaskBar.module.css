@@ -4,6 +4,8 @@
   --icon: 40px;
   --item-radius: 14px;
   --dock-padding: var(--space-1);
+  /* Dock 两端离屏幕边缘至少这么远，避开手机屏幕的大圆角 */
+  --dock-margin: var(--space-8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,7 +48,18 @@
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
 }
 
-/* 最宽和屏幕一样：开着的 app 多了，只在这一段里滚动，桌面、分屏和关闭按钮不动 */
+/* 两端留出 margin，放不下时 Dock 缩短，开着的 app 只在下面这一段里滚动 */
+.bar[data-placement='bottom'] .dock {
+  margin-inline: var(--dock-margin);
+}
+
+.bar[data-placement='left'] .dock,
+.bar[data-placement='right'] .dock {
+  max-height: calc(100% - var(--dock-margin) * 2);
+  margin-block: var(--dock-margin);
+}
+
+/* 开着的 app 多了，只在这一段里滚动，桌面、分屏和关闭按钮不动 */
 .apps {
   display: flex;
   gap: var(--dock-padding);
@@ -234,8 +247,9 @@
 .bar[data-compact='true'] .dock {
   position: absolute;
   bottom: calc(100% + var(--space-2));
-  inset-inline: 0;
+  inset-inline: var(--dock-margin);
   width: fit-content;
+  max-width: calc(100% - var(--dock-margin) * 2);
   max-height: none;
   margin-inline: auto;
   background: linear-gradient(var(--material-dock), var(--material-dock)), color-mix(in srgb, var(--color-chrome) 88%, transparent);
