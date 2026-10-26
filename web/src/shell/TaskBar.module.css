@@ -195,8 +195,9 @@
 
 /* 手机上 Dock 在底部时，这一条就是屏幕下面的安全区。Dock 浮在屏幕底边之上，不挤 app 的高度；收起后只剩安全区正中的一颗胶囊 */
 .bar[data-compact='true'] {
-  --capsule: 30px;
-  --capsule-icon: 18px;
+  --capsule: 28px;
+  --capsule-icon: 20px;
+  --capsule-dot: 6px;
   position: absolute;
   right: env(safe-area-inset-right);
   bottom: 0;
@@ -244,7 +245,7 @@
   max-width: calc(100% - var(--space-16));
   height: var(--capsule);
   margin-inline: auto;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-3) 0 calc((var(--capsule) - var(--capsule-dot)) / 2);
   border-radius: var(--radius-full);
   background: var(--material-dock);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
@@ -257,17 +258,17 @@
     transform var(--duration-normal) var(--ease-standard);
 }
 
-/* 圆点和图标都落在胶囊两端圆角的圆心上：没有名字时右边按图标留边 */
+/* 最前面的圆点落在左端圆角的圆心上。没有名字时最后是图标，右边留到图标的圆角整个落在胶囊的直边段里，不被右端的圆角裁到 */
 .capsule:not(:has(.capsuleTitle)) {
-  padding-right: calc((var(--capsule) - var(--capsule-icon)) / 2);
+  padding-right: var(--space-2-5);
 }
 
 /* 连接状态的圆点：绿色已连接，橙色闪动连接中，红色连接失败，灰色设备离线，蓝色有新版本 */
 .connection {
   --tint: var(--color-success);
   flex: none;
-  width: 6px;
-  height: 6px;
+  width: var(--capsule-dot, 6px);
+  height: var(--capsule-dot, 6px);
   border-radius: var(--radius-full);
   background: var(--tint);
 }

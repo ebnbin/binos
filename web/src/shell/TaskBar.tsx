@@ -132,7 +132,7 @@ export function TaskBar({
           }}
         >
           <span className={styles.connection} data-state={connection} />
-          {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={18} inverted />}
+          {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={20} inverted />}
           {capsuleApp && <span className={styles.capsuleTitle}>{capsuleName}</span>}
         </button>
       )}
