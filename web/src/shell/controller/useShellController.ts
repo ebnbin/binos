@@ -72,14 +72,14 @@ export function useShellController(size: Size | null) {
     if (id) focus(id, 0)
   }
 
+  // 关闭窗口；在分屏的一组里就整组关闭。正在显示的被关了就换到最近用过的，没有就回桌面
   const close = (id: string) => {
+    const target = stored.groups.find((item) => item.slots.includes(id))
+    const closing = target ? target.slots.filter((slot): slot is string => slot !== null) : [id]
     if (draft) return
-    if (id !== focused) {
-      closeWindow(id)
-      return
-    }
-    const next = group ? group.slots.find((id) => id !== focused) ?? null : recent.find((id) => id !== focused) ?? null
-    closeWindow(focused)
+    closing.forEach(closeWindow)
+    if (!focused || !closing.includes(focused)) return
+    const next = recent.find((item) => !closing.includes(item)) ?? null
     setView((prev) => ({ ...prev, home: !next, focused: next, slot: 0 }))
   }
 

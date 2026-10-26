@@ -52,6 +52,17 @@
   -webkit-touch-callout: none;
 }
 
+/* 分屏时正在选第二个 app，Dock 用不了，和第一个 app 一样暗下去 */
+.dock,
+.capsule {
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.bar[inert] .dock,
+.bar[inert] .capsule {
+  opacity: 0.4;
+}
+
 /* 两端留出 margin，放不下时 Dock 缩短，开着的 app 只在下面这一段里滚动 */
 .bar[data-placement='bottom'] .dock {
   margin-inline: var(--dock-margin);

@@ -206,7 +206,7 @@ export function TaskBar({
             const members = group ? group.slots.map((id) => windows.find((win) => win.id === id)!).filter(Boolean) : [item]
             const title = members.map((member) => member.title).join(' + ')
             const key = group?.id ?? item.id
-            // 一组里菜单作用于聚焦的那个，没有聚焦的就是第一个
+            // 一组里在新标签页打开作用于聚焦的那个（没有聚焦的就是第一个），关闭是整组
             const target = members.find((member) => member.id === focused) ?? item
             const targetApp = findApplication(apps, target.window.applicationId)
             const pressed = !home && members.some((member) => member.id === focused)
@@ -299,7 +299,7 @@ export function TaskBar({
                   <span className={styles.menuIcon}>
                     <X size={18} strokeWidth={1.75} />
                   </span>
-                  {group ? `关闭 ${targetApp?.name ?? ''}` : '关闭'}
+                  {group ? '全部关闭' : '关闭'}
                 </button>
               </Popover>
             )
