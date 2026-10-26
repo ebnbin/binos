@@ -18,6 +18,15 @@
   flex-direction: row;
 }
 
+/* 侧边的 Dock 自己占住这一侧的安全区 */
+.shell[data-bar='left'] {
+  padding-left: 0;
+}
+
+.shell[data-bar='right'] {
+  padding-right: 0;
+}
+
 /* 手机上 Dock 在底部时，底部只留安全区（没有安全区时留一小条）放 Dock 收起后的胶囊，展开的 Dock 浮在屏幕上 */
 .shell[data-compact='true'] {
   --dock-strip: max(env(safe-area-inset-bottom), 32px);

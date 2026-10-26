@@ -1,9 +1,9 @@
 /* Dock：外框黑底上的一块深色玻璃，里面是彩色的 app 图标，正在显示的 app 下面有个点 */
 .bar {
-  --item: 44px;
-  --icon: 34px;
-  --item-radius: var(--radius-lg);
-  --dock-padding: var(--space-0-5);
+  --item: 48px;
+  --icon: 40px;
+  --item-radius: 14px;
+  --dock-padding: var(--space-1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -13,9 +13,19 @@
   padding: var(--space-1) 0;
 }
 
+/* 手机横过来时 Dock 就放在这一侧的安全区里，安全区不够宽时才撑开一点 */
 .bar[data-placement='left'],
 .bar[data-placement='right'] {
-  padding: 0 var(--space-1);
+  --strip: calc(var(--item) + var(--dock-padding) * 2 + var(--space-1));
+  padding: 0;
+}
+
+.bar[data-placement='left'] {
+  width: max(env(safe-area-inset-left), var(--strip));
+}
+
+.bar[data-placement='right'] {
+  width: max(env(safe-area-inset-right), var(--strip));
 }
 
 .bar[data-placement='left'] {
@@ -45,6 +55,18 @@
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
+}
+
+/* 滚动的这一段会裁掉超出的部分：向两侧伸到 Dock 边缘，app 下面的点才不被裁掉 */
+.bar[data-placement='bottom'] .apps {
+  margin-block: calc(var(--dock-padding) * -1);
+  padding-block: var(--dock-padding);
+}
+
+.bar[data-placement='left'] .apps,
+.bar[data-placement='right'] .apps {
+  margin-inline: calc(var(--dock-padding) * -1);
+  padding-inline: var(--dock-padding);
 }
 
 .bar[data-placement='left'] .apps,
@@ -83,11 +105,12 @@
   color: var(--color-on-chrome);
 }
 
-/* 正在显示的 app 下面有个点 */
+/* 正在显示的 app 下面有个点，放在图标和 Dock 边缘之间那一条的正中 */
 .item[data-visible='true']::after {
+  --offset: calc(((var(--item) - var(--icon)) / 2 - var(--dock-padding)) / 2 - 2px);
   content: '';
   position: absolute;
-  bottom: 0;
+  bottom: var(--offset);
   width: 4px;
   height: 4px;
   border-radius: var(--radius-full);
@@ -102,11 +125,11 @@
 }
 
 .bar[data-placement='left'] .item[data-visible='true']::after {
-  right: 0;
+  right: var(--offset);
 }
 
 .bar[data-placement='right'] .item[data-visible='true']::after {
-  left: 0;
+  left: var(--offset);
 }
 
 /* 和 macOS 的 Dock 一样，用一条细竖线把桌面、app 和窗口操作分开 */
@@ -128,14 +151,14 @@
 .glyph {
   display: flex;
   gap: var(--space-0-5);
-  width: 22px;
-  height: 16px;
+  width: 26px;
+  height: 19px;
 }
 
 .glyph[data-portrait='true'] {
   flex-direction: column;
-  width: 16px;
-  height: 20px;
+  width: 19px;
+  height: 24px;
 }
 
 .glyph i {
@@ -206,21 +229,6 @@
   left: env(safe-area-inset-left);
   height: var(--dock-strip);
   padding: 0;
-  /* 浮在 app 上的 Dock 只在展开的几秒里盖住内容，可以比常驻的 Dock 大一号：56 高 */
-  --item: 48px;
-  --icon: 40px;
-  --item-radius: 14px;
-  --dock-padding: var(--space-1);
-}
-
-.bar[data-compact='true'] .glyph {
-  width: 26px;
-  height: 19px;
-}
-
-.bar[data-compact='true'] .glyph[data-portrait='true'] {
-  width: 19px;
-  height: 24px;
 }
 
 .bar[data-compact='true'] .dock {
