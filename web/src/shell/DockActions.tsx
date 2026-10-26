@@ -14,8 +14,8 @@ import type { DropTarget } from './drop-target.ts'
 
 type Rect = { left: number; top: number; width: number; height: number }
 
-// 长按 Dock 上的 app 图标后出现：贴着 Dock 的一排操作，能分屏时屏幕上方分成两块。
-// 拖着图标放到哪里就做什么；长按后直接松手就留着，点哪个做哪个
+// 长按或右键 Dock 上的 app 图标后出现：贴着 Dock 的一排操作，能分屏时屏幕上方分成两块。
+// 长按时拖着图标放到哪里就做什么；右键时点哪个做哪个
 export function DockActions({
   members, group, placement, origin, dock, screen, split, partner, pointer, hover, onChoose,
 }: {
@@ -29,7 +29,7 @@ export function DockActions({
   split?: { layout: LayoutId; portrait: boolean }
   // 正在显示的另一个窗口：和它直接分屏，默认它在前、按住的在后；没有就必须选一侧，另一侧再选一个 app
   partner?: OpenWindow
-  // 拖动中手指的位置；直接松手后是 null
+  // 拖动中手指的位置；右键打开时是 null
   pointer: { x: number; y: number } | null
   hover: string | null
   onChoose: (target: DropTarget) => void

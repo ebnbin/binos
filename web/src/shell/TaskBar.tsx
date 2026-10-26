@@ -49,7 +49,7 @@ const connectionLabels: Record<ConnectionState, string> = {
 }
 
 // 屏幕外面的 Dock：回到桌面（下面的点是连接状态，需要刷新时旁边有提示）、开着的 app。
-// 窗口的操作（分屏、取消分屏、在新标签页打开、关闭）：长按 app 图标后拖到要做的操作上，或者长按后松手、右键、再点一次正在显示的图标，再点要做的操作
+// 点 app 图标只是切换过去。窗口的操作（分屏、取消分屏、在新标签页打开、关闭）：长按 app 图标后拖到要做的操作上，松手时没放在任何操作上就是取消；鼠标右键出现同样的操作，点要做的那个
 // 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
   ref,
@@ -143,14 +143,14 @@ export function TaskBar({
     return () => window.removeEventListener('resize', update)
   })
 
-  // 长按 app 图标出现的操作。拖动时 pointer 是手指的位置；长按后直接松手、右键或再点一次时是 null，点要做的操作
-  type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: DOMRect; pointer: { x: number; y: number } | null; moved: boolean }
+  // 长按或右键 app 图标出现的操作。长按拖动时 pointer 是手指的位置；右键时是 null，点要做的操作
+  type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: DOMRect; pointer: { x: number; y: number } | null }
   const [active, setActive] = useState<Active | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const open = (members: OpenWindow[], group: boolean, element: Element, pointer: { x: number; y: number } | null) => {
     const screenRect = screen()
     if (!dock.current || !screenRect) return
-    setActive({ members, group, origin: element.getBoundingClientRect(), dock: dock.current.getBoundingClientRect(), screen: screenRect, pointer, moved: false })
+    setActive({ members, group, origin: element.getBoundingClientRect(), dock: dock.current.getBoundingClientRect(), screen: screenRect, pointer })
     setHover(null)
     capsule?.onMenu(true)
   }
@@ -175,26 +175,20 @@ export function TaskBar({
     setActive(null)
   }
 
-  // 松手后要做的操作，等这一轮事件结束再做；null 是没拖动，留着等点
+  // 松手后要做的操作，等这一轮事件结束再做
   const drop = useRef<string | null>(null)
-  // 拖动中：图标跟着手指，手指下面是哪个放置位置就亮哪个；松手时动过就做那个操作，没动过就留着等点
+  // 拖动中：图标跟着手指，手指下面是哪个放置位置就亮哪个；松手时做那个操作，不在任何位置上就是取消
   const dragging = active?.pointer != null
   useEffect(() => {
     if (!dragging) return
     const targetAt = (x: number, y: number) => document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop]')?.dataset.drop ?? null
     const move = (event: globalThis.PointerEvent) => {
-      setActive((current) => current && current.pointer && {
-        ...current,
-        pointer: { x: event.clientX, y: event.clientY },
-        moved: current.moved || Math.hypot(event.clientX - current.pointer.x, event.clientY - current.pointer.y) > longPressSlop,
-      })
+      setActive((current) => current && current.pointer && { ...current, pointer: { x: event.clientX, y: event.clientY } })
       setHover(targetAt(event.clientX, event.clientY))
     }
     const up = (event: globalThis.PointerEvent) => {
-      const key = targetAt(event.clientX, event.clientY)
+      drop.current = targetAt(event.clientX, event.clientY) ?? 'cancel'
       setActive((current) => current && { ...current, pointer: null })
-      if (active?.moved || key) drop.current = key ?? 'cancel'
-      else drop.current = null
     }
     const cancel = () => {
       drop.current = 'cancel'
@@ -354,15 +348,12 @@ export function TaskBar({
                     cancelPress()
                     if (!longPressed.current) open(members, !!group, event.currentTarget, null)
                   }}
-                  onClick={(event) => {
+                  onClick={() => {
                     if (longPressed.current) {
                       longPressed.current = false
                       return
                     }
-                    if (pressed) {
-                      open(members, !!group, event.currentTarget, null)
-                      return
-                    }
+                    if (pressed) return
                     if (capsule && focusVisibleInside(dock.current)) moveFocus.current = 'capsule'
                     onShow(target.id)
                   }}
