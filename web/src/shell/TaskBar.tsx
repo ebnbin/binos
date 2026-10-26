@@ -154,7 +154,7 @@ export function TaskBar({
           </span>
         )}
         <button type="button" className={styles.item} aria-label="桌面" title="桌面" aria-pressed={home} onClick={onHome}>
-          <BrandMark size={36} inverted />
+          <BrandMark size={40} inverted />
         </button>
         {accessory}
         {windows.length > 0 && <span className={styles.separator} />}
