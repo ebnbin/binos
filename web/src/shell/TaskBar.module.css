@@ -46,6 +46,10 @@
   border-radius: calc(var(--item-radius) + var(--dock-padding));
   background: var(--material-dock);
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
+  /* 长按图标打开的是 Dock 自己的菜单，不出系统的菜单和选中 */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* 两端留出 margin，放不下时 Dock 缩短，开着的 app 只在下面这一段里滚动 */
@@ -183,14 +187,6 @@
   opacity: 0.85;
 }
 
-.glyph i[data-active='false'] {
-  opacity: 0.3;
-}
-
-.glyph i[data-active='true'] {
-  opacity: 1;
-  background: var(--color-on-chrome);
-}
 
 .member {
   position: relative;
@@ -420,4 +416,53 @@
   .connection[data-state='connecting'] {
     animation: none;
   }
+}
+
+/* 窗口菜单：从 Dock 上弹出 */
+.menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: var(--space-1-5);
+  border-radius: var(--radius-menu);
+}
+
+.menuLabel {
+  composes: menuLabel from '../ui/controls.module.css';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuItem {
+  composes: menuItem from '../ui/controls.module.css';
+  cursor: default;
+}
+
+.menuIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  color: var(--color-label-secondary);
+}
+
+.menuIcon .glyph {
+  width: 18px;
+  height: 14px;
+}
+
+.menuIcon .glyph[data-portrait='true'] {
+  width: 14px;
+  height: 18px;
+}
+
+@media (hover: hover) {
+  .menuItem:hover .menuIcon {
+    color: inherit;
+  }
+}
+
+.menuItem:focus-visible .menuIcon {
+  color: inherit;
 }

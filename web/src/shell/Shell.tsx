@@ -17,7 +17,7 @@ export function Shell() {
   const controller = useShellController(size)
   const placement = useBarPlacement()
   const compact = placement === 'bottom' && window.matchMedia('(pointer: coarse)').matches
-  const { collapsed, dock, expand, touch, onPointerDown, onPointerMove, onPointerEnd } = useDockCapsule(compact, controller.home)
+  const { collapsed, dock, expand, touch, onMenu, onPointerDown, onPointerMove, onPointerEnd } = useDockCapsule(compact, controller.home)
   const focusedWindow = controller.windows.find(item => item.id === controller.focused)
   const connection = useConnectionState()
   // 需要刷新时 Dock 展开一下，露出最前面的刷新按钮，没有操作照常收起
@@ -74,21 +74,20 @@ export function Shell() {
           ref={dock}
           placement={placement}
           connection={connection}
-          capsule={compact ? { collapsed, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd } : undefined}
+          capsule={compact ? { collapsed, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd, onMenu } : undefined}
           accessory={!musicVisible && <MusicStatusButton collapsed={musicCollapsed} onToggle={() => setMusicCollapsed(value => !value)} />}
           windows={controller.windows}
           groups={controller.groups}
           locked={controller.picking}
           panes={controller.panes}
           focused={controller.focused}
-          focusedSlot={controller.slot}
           home={controller.home}
-          layout={controller.layout}
           allowed={controller.allowed}
           portrait={controller.portrait}
           onHome={controller.toggleHome}
           onShow={controller.show}
           onSplit={controller.split}
+          onUnsplit={controller.unsplit}
           onClose={controller.close}
         />
       )}
