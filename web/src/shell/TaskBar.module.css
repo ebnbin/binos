@@ -281,6 +281,23 @@
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
 
+/* Dock 最前面放连接状态圆点的一小格，圆点落在 Dock 端头圆角的圆心上 */
+.dockConnection {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--radius-lg);
+  height: var(--radius-lg);
+  margin: calc(var(--radius-lg) / 2 - var(--space-0-5));
+  margin-inline-end: 0;
+}
+
+.bar[data-placement='left'] .dockConnection,
+.bar[data-placement='right'] .dockConnection {
+  margin: calc(var(--radius-lg) / 2 - var(--space-0-5));
+  margin-block-end: 0;
+}
+
 /* Dock 最前面的刷新按钮，颜色和胶囊上的圆点一致 */
 .item[data-connection='failed'] {
   color: var(--color-destructive);
