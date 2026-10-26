@@ -73,8 +73,8 @@ export function TaskBar({
   onClose,
 }: {
   ref?: Ref<HTMLElement>
-  // 屏幕在页面上的位置，分屏的两块按它摆
-  screen: () => DOMRect | undefined
+  // 屏幕：分屏的两块按它的位置摆，按住正在显示的窗口时在它上面盖上桌面背景
+  screen: () => HTMLElement | null
   capsule?: {
     collapsed: boolean
     current?: OpenWindow
@@ -144,13 +144,13 @@ export function TaskBar({
   })
 
   // 长按或右键 app 图标出现的操作。长按拖动时 pointer 是手指的位置；右键时是 null，点要做的操作
-  type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: DOMRect; pointer: { x: number; y: number } | null }
+  type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: HTMLElement; pointer: { x: number; y: number } | null }
   const [active, setActive] = useState<Active | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const open = (members: OpenWindow[], group: boolean, element: Element, pointer: { x: number; y: number } | null) => {
-    const screenRect = screen()
-    if (!dock.current || !screenRect) return
-    setActive({ members, group, origin: element.getBoundingClientRect(), dock: dock.current.getBoundingClientRect(), screen: screenRect, pointer })
+    const screenElement = screen()
+    if (!dock.current || !screenElement) return
+    setActive({ members, group, origin: element.getBoundingClientRect(), dock: dock.current.getBoundingClientRect(), screen: screenElement, pointer })
     setHover(null)
     capsule?.onMenu(true)
   }
@@ -376,6 +376,7 @@ export function TaskBar({
         <DockActions
           members={active.members}
           group={active.group}
+          lifted={!home && active.members.some((member) => panes.includes(member.id))}
           placement={placement}
           origin={active.origin}
           dock={active.dock}

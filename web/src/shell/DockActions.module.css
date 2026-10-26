@@ -17,6 +17,15 @@
   }
 }
 
+/* 按住的窗口离开屏幕：屏幕上换成桌面背景 */
+.lifted {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--wallpaper);
+  animation: appear var(--duration-normal) var(--ease-standard);
+}
+
 /* 分屏的一块：和选第二个 app 时一样的毛玻璃，拖到上面时亮起来 */
 .zone {
   position: fixed;

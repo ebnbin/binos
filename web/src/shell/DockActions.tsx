@@ -17,14 +17,16 @@ type Rect = { left: number; top: number; width: number; height: number }
 // 长按或右键 Dock 上的 app 图标后出现：贴着 Dock 的一排操作，能分屏时屏幕上方分成两块。
 // 长按时拖着图标放到哪里就做什么；右键时点哪个做哪个
 export function DockActions({
-  members, group, placement, origin, dock, screen, split, partner, pointer, hover, onChoose,
+  members, group, lifted, placement, origin, dock, screen: screenElement, split, partner, pointer, hover, onChoose,
 }: {
   members: OpenWindow[]
   group: boolean
+  // 按住的窗口正显示在屏幕上：拿在手里就从屏幕上拿走，屏幕上只剩桌面背景
+  lifted: boolean
   placement: Exclude<BarPlacement, 'hidden'>
   origin: Rect
   dock: Rect
-  screen: Rect
+  screen: HTMLElement
   // 能分屏时的布局和方向
   split?: { layout: LayoutId; portrait: boolean }
   // 正在显示的另一个窗口：和它直接分屏，默认它在前、按住的在后；没有就必须选一侧，另一侧再选一个 app
@@ -52,6 +54,7 @@ export function DockActions({
   ]
 
   // 一排操作以按住的图标为中心，靠边时往里挪；分屏的两块在它和 Dock 以外的屏幕上
+  const screen = screenElement.getBoundingClientRect()
   const bar = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
   useLayoutEffect(() => {
@@ -79,41 +82,47 @@ export function DockActions({
   const hovered = zones.findIndex((_, at) => hover === dropKey({ type: 'split', at }))
 
   const dragging = pointer !== null
-  return createPortal(
-    <div className={styles.layer} data-dragging={dragging} onPointerDown={(event) => {
-      if (event.target === event.currentTarget) onChoose({ type: 'cancel' })
-    }}>
-      {zones.map((rect, at) => {
-        const target: DropTarget = { type: 'split', at }
-        // 按住的放在哪一侧：拖到的那一块；没拖到时有 partner 就按默认放在后面，否则还没定
-        const placed = hovered >= 0 ? hovered : partner ? 1 : null
-        const shown = placed === null ? null : placed === at ? members[0] : partner ?? null
-        const label = placed === null ? '分屏到这里' : shown ? name(shown) : '再选一个 app'
-        return (
-          <button key={at} type="button" className={styles.zone} data-drop={dropKey(target)} data-active={hovered === at}
-            style={rect} onClick={() => onChoose(target)}>
-            {shown && app(shown) && <AppIcon app={app(shown)!} className={styles.zoneIcon} />}
-            <span>{label}</span>
-          </button>
-        )
-      })}
-      <div ref={bar} className={styles.actions} data-side={side} role="menu" aria-label={`${members.map(name).join(' + ')} 的操作`}
-        style={barPosition ?? { visibility: 'hidden' }}>
-        {actions.map(({ target, icon, label }) => (
-          <button key={dropKey(target)} type="button" role="menuitem" className={styles.action} data-drop={dropKey(target)}
-            data-active={hover === dropKey(target)} data-type={target.type} onClick={() => onChoose(target)}>
-            {icon}
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
-      {pointer && (
-        <div className={styles.ghost} style={{ left: pointer.x, top: pointer.y }} data-group={group}>
-          {members.map((member) => app(member) && <AppIcon key={member.id} app={app(member)!} />)}
-        </div>
+  return (
+    <>
+      {/* 盖在屏幕里：Dock 浮在屏幕之上，不被盖住 */}
+      {lifted && createPortal(<div className={styles.lifted} />, screenElement)}
+      {createPortal(
+        <div className={styles.layer} data-dragging={dragging} onPointerDown={(event) => {
+          if (event.target === event.currentTarget) onChoose({ type: 'cancel' })
+        }}>
+          {zones.map((rect, at) => {
+            const target: DropTarget = { type: 'split', at }
+            // 按住的放在哪一侧：拖到的那一块；没拖到时有 partner 就按默认放在后面，否则还没定
+            const placed = hovered >= 0 ? hovered : partner ? 1 : null
+            const shown = placed === null ? null : placed === at ? members[0] : partner ?? null
+            const label = placed === null ? '分屏到这里' : shown ? name(shown) : '再选一个 app'
+            return (
+              <button key={at} type="button" className={styles.zone} data-drop={dropKey(target)} data-active={hovered === at}
+                style={rect} onClick={() => onChoose(target)}>
+                {shown && app(shown) && <AppIcon app={app(shown)!} className={styles.zoneIcon} />}
+                <span>{label}</span>
+              </button>
+            )
+          })}
+          <div ref={bar} className={styles.actions} data-side={side} role="menu" aria-label={`${members.map(name).join(' + ')} 的操作`}
+            style={barPosition ?? { visibility: 'hidden' }}>
+            {actions.map(({ target, icon, label }) => (
+              <button key={dropKey(target)} type="button" role="menuitem" className={styles.action} data-drop={dropKey(target)}
+                data-active={hover === dropKey(target)} data-type={target.type} onClick={() => onChoose(target)}>
+                {icon}
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+          {pointer && (
+            <div className={styles.ghost} style={{ left: pointer.x, top: pointer.y }} data-group={group}>
+              {members.map((member) => app(member) && <AppIcon key={member.id} app={app(member)!} />)}
+            </div>
+          )}
+        </div>,
+        document.body,
       )}
-    </div>,
-    document.body,
+    </>
   )
 }
 
