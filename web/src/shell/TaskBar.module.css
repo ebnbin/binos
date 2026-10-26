@@ -257,8 +257,29 @@
     transform var(--duration-normal) var(--ease-standard);
 }
 
-.capsule:not(:has(.capsuleTitle)) {
-  padding-right: calc((var(--capsule) - var(--capsule-icon)) / 2);
+/* 连接状态的圆点：绿色已连接，橙色闪动连接中，红色连接失败，灰色设备离线，蓝色有新版本 */
+.connection {
+  --tint: var(--color-success);
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--tint);
+}
+
+.connection[data-state='connecting'] {
+  --tint: var(--color-warning);
+  animation: connecting 1s var(--ease-standard) infinite alternate;
+}
+
+.connection[data-state='failed'] { --tint: var(--color-destructive); }
+.connection[data-state='offline'] { --tint: var(--color-gray); }
+.connection[data-state='updated'] { --tint: var(--color-accent); }
+
+@keyframes connecting {
+  to {
+    opacity: 0.25;
+  }
 }
 
 .capsule:active {
@@ -285,5 +306,9 @@
   .bar[data-compact='true'] .dock,
   .capsule {
     transition: none;
+  }
+
+  .connection[data-state='connecting'] {
+    animation: none;
   }
 }

@@ -2,6 +2,7 @@ import type { ChangeEvent } from '@binos/server/types'
 import { useSyncExternalStore } from 'react'
 import { eventsUrl, getVersion } from './api.ts'
 import { connectEventSource } from './eventSource.ts'
+import type { ConnectionProgress } from './eventSource.ts'
 
 // 整个页面只连一条全局通知。每次连上时订阅者收到 null，表示之前可能漏了通知，应全部重新读取
 type Listener = (event: ChangeEvent | null) => void
@@ -9,6 +10,7 @@ type Listener = (event: ChangeEvent | null) => void
 const listeners = new Set<Listener>()
 const connectionListeners = new Set<() => void>()
 let connected = true
+let progress: ConnectionProgress = 'connecting'
 // 页面打开期间上线了新版本。连接断开再连上通常就是后端重启了，这时比较版本
 let updated = false
 let version: string | undefined
@@ -47,6 +49,10 @@ function start() {
       connected = value
       notifyConnection()
     },
+    onProgress: (value) => {
+      progress = value
+      notifyConnection()
+    },
   })
 }
 
@@ -68,4 +74,32 @@ export function useConnected(): boolean {
 
 export function useUpdated(): boolean {
   return useSyncExternalStore(subscribeConnection, () => updated)
+}
+
+// 一个圆点能表示的连接状态。设备离线时连不连得上无从判断，优先于连接的进展；连着的时候有新版本才显示有新版本
+export type ConnectionState = 'connected' | 'connecting' | 'failed' | 'offline' | 'updated'
+
+function subscribeState(listener: () => void) {
+  window.addEventListener('online', listener)
+  window.addEventListener('offline', listener)
+  const unsubscribe = subscribeConnection(listener)
+  return () => {
+    window.removeEventListener('online', listener)
+    window.removeEventListener('offline', listener)
+    unsubscribe()
+  }
+}
+
+function readState(): ConnectionState {
+  if (!navigator.onLine) {
+    return 'offline'
+  }
+  if (progress !== 'open') {
+    return progress
+  }
+  return updated ? 'updated' : 'connected'
+}
+
+export function useConnectionState(): ConnectionState {
+  return useSyncExternalStore(subscribeState, readState)
 }

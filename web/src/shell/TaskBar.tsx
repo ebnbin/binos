@@ -2,6 +2,8 @@ import { useEffect, useId, useRef } from 'react'
 import type { PointerEventHandler, ReactNode, Ref } from 'react'
 import { ExternalLink, X } from 'lucide-react'
 import { findApplication, useApplications } from '../apps/index.ts'
+import { useConnectionState } from '../events.ts'
+import type { ConnectionState } from '../events.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
 import { AppIcon } from './AppIcon.tsx'
 import type { BarPlacement } from './bar-placement.ts'
@@ -19,6 +21,14 @@ function LayoutGlyph({ layout, portrait, active }: { layout: LayoutId; portrait:
       ))}
     </span>
   )
+}
+
+const connectionLabels: Record<ConnectionState, string> = {
+  connected: '已连接',
+  connecting: '连接中',
+  failed: '连接失败',
+  offline: '设备离线',
+  updated: '有新版本',
 }
 
 // 屏幕外面的 Dock：回到桌面、开着的 app、分屏布局、在新标签页打开外部 app、关闭当前窗口。分屏时，布局按钮上亮起的一块是聚焦的窗口。
@@ -74,9 +84,10 @@ export function TaskBar({
   // 外部 app 的窗口可以在新标签页打开，比如要在那里重新登录
   const focusedUrl = findApplication(apps, windows.find((item) => item.id === focused)?.window.applicationId ?? '')?.url
   const canPick = !home && !locked && !groups.some((group) => focused && group.slots.includes(focused)) && allowed.length > 1
-  // 胶囊在桌面上只有 binOS 的标志，在 app 里是 app 的图标和名字，不带窗口标题里的状态
+  // 胶囊在桌面上只有 binOS 的标志，在 app 里是 app 的图标和名字，不带窗口标题里的状态。最后是表示连接状态的圆点
   const capsuleApp = !home && capsule?.current ? findApplication(apps, capsule.current.window.applicationId) : undefined
   const capsuleName = capsuleApp?.name ?? '桌面'
+  const connection = useConnectionState()
   const dockId = useId()
   const dock = useRef<HTMLDivElement>(null)
   const capsuleButton = useRef<HTMLButtonElement>(null)
@@ -112,7 +123,7 @@ export function TaskBar({
           type="button"
           className={styles.capsule}
           inert={!collapsed}
-          aria-label={`${capsuleName}，展开 Dock`}
+          aria-label={`${capsuleName}，${connectionLabels[connection]}，展开 Dock`}
           aria-expanded={false}
           aria-controls={dockId}
           onClick={(event) => {
@@ -122,6 +133,7 @@ export function TaskBar({
         >
           {capsuleApp ? <AppIcon app={capsuleApp} className={styles.capsuleIcon} /> : <BrandMark size={18} inverted />}
           {capsuleApp && <span className={styles.capsuleTitle}>{capsuleName}</span>}
+          <span className={styles.connection} data-state={connection} />
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
