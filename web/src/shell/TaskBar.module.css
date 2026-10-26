@@ -1,7 +1,7 @@
 /* Dock：外框黑底上的一块深色玻璃，里面是彩色的 app 图标，正在显示的 app 下面有个点 */
 .bar {
   --item: 48px;
-  --icon: 40px;
+  --icon: 36px;
   --item-radius: 14px;
   --dock-padding: var(--space-1);
   /* Dock 两端离屏幕边缘至少这么远，避开手机屏幕的大圆角 */
@@ -118,9 +118,9 @@
   color: var(--color-on-chrome);
 }
 
-/* 正在显示的 app 下面有个点，放在图标和 Dock 边缘之间那一条的正中 */
+/* 正在显示的 app 下面有个点，离 Dock 边缘 2 */
 .item {
-  --offset: calc(((var(--item) - var(--icon)) / 2 - var(--dock-padding)) / 2 - 2px);
+  --offset: calc(2px - var(--dock-padding));
 }
 
 .item[data-visible='true']::after {
@@ -324,36 +324,9 @@
 .connection[data-state='offline'] { --tint: var(--color-gray); }
 .connection[data-state='updated'] { --tint: var(--color-accent); }
 
-/* 桌面按钮：标志（36）比 app 图标小，靠外侧和 app 图标对齐，朝屏幕的一侧多出 12，连接状态点（6）放在这 12 的正中 */
-.home {
-  --mark: 36px;
-  --inset: calc((var(--item) - var(--icon)) / 2);
-}
-
-.home > svg {
-  align-self: start;
-  margin-top: var(--inset);
-}
-
-.bar[data-placement='left'] .home > svg,
-.bar[data-placement='right'] .home > svg {
-  align-self: center;
-  margin-top: 0;
-}
-
-.bar[data-placement='left'] .home > svg {
-  justify-self: start;
-  margin-left: var(--inset);
-}
-
-.bar[data-placement='right'] .home > svg {
-  justify-self: end;
-  margin-right: var(--inset);
-}
-
-.home > .connection {
+/* 桌面按钮下面的连接状态点，和 app 下面的点一样离 Dock 边缘 2，比它大一号 */
+.item > .connection {
   --size: 6px;
-  --offset: calc((var(--item) - var(--dock-padding) - var(--inset) - var(--mark) - var(--size)) / 2);
   position: absolute;
   bottom: var(--offset);
   left: calc(50% - var(--size) / 2);
@@ -361,18 +334,18 @@
   height: var(--size);
 }
 
-.bar[data-placement='left'] .home > .connection,
-.bar[data-placement='right'] .home > .connection {
+.bar[data-placement='left'] .item > .connection,
+.bar[data-placement='right'] .item > .connection {
   top: calc(50% - var(--size) / 2);
   bottom: auto;
 }
 
-.bar[data-placement='left'] .home > .connection {
+.bar[data-placement='left'] .item > .connection {
   right: var(--offset);
   left: auto;
 }
 
-.bar[data-placement='right'] .home > .connection {
+.bar[data-placement='right'] .item > .connection {
   left: var(--offset);
 }
 

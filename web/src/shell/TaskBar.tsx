@@ -152,7 +152,7 @@ export function TaskBar({
             {connection === 'failed' ? <RefreshCw size={32} strokeWidth={2} /> : <CircleArrowUp size={32} strokeWidth={2} />}
           </button>
         )}
-        <button type="button" className={`${styles.item} ${styles.home}`} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
+        <button type="button" className={styles.item} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
           <BrandMark size={36} inverted />
           {!attention && <span className={styles.connection} data-state={connection} />}
         </button>
