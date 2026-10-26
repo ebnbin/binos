@@ -17,14 +17,11 @@ type Rect = { left: number; top: number; width: number; height: number }
 // 长按或右键 Dock 上的 app 图标后出现：贴着 Dock 的一排操作，能分屏时屏幕上方分成两块。
 // 长按时拖着图标放到哪里就做什么；右键时点哪个做哪个
 export function DockActions({
-  members, group, lifted, placement, origin, dock, screen: screenElement, split, partner, pointer, hover, onChoose,
+  members, group, placement, dock, screen: screenElement, split, partner, pointer, hover, onChoose,
 }: {
   members: OpenWindow[]
   group: boolean
-  // 按住的窗口正显示在屏幕上：拿在手里就从屏幕上拿走，屏幕上只剩桌面背景
-  lifted: boolean
   placement: Exclude<BarPlacement, 'hidden'>
-  origin: Rect
   dock: Rect
   screen: HTMLElement
   // 能分屏时的布局和方向
@@ -53,7 +50,8 @@ export function DockActions({
     })),
   ]
 
-  // 一排操作以按住的图标为中心，靠边时往里挪；分屏的两块在它和 Dock 以外的屏幕上
+  // 从 Dock 往外依次是：一段放下就取消的空白、分屏的两块、离 Dock 最远的一排操作。
+  // 关闭这类操作要拖得最远，往分屏拖的路上不会经过它们
   const screen = screenElement.getBoundingClientRect()
   const bar = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
@@ -62,30 +60,30 @@ export function DockActions({
     if (element) setSize({ width: element.offsetWidth, height: element.offsetHeight })
   }, [actions.length])
   const gap = 12
+  const neutral = 64
   const side = placement !== 'bottom'
-  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
   const barPosition = size && (side
     ? {
-      left: placement === 'right' ? dock.left - gap - size.width : dock.left + dock.width + gap,
-      top: clamp(origin.top + origin.height / 2 - size.height / 2, screen.top + gap, screen.top + screen.height - gap - size.height),
+      left: placement === 'right' ? screen.left + gap : screen.left + screen.width - gap - size.width,
+      top: screen.top + (screen.height - size.height) / 2,
     }
     : {
-      left: clamp(origin.left + origin.width / 2 - size.width / 2, screen.left + gap, screen.left + screen.width - gap - size.width),
-      top: Math.min(dock.top, screen.top + screen.height) - gap - size.height,
+      left: screen.left + (screen.width - size.width) / 2,
+      top: screen.top + gap,
     })
   const area: Rect | null = barPosition && size && (side
     ? placement === 'right'
-      ? { left: screen.left + gap, top: screen.top + gap, width: barPosition.left - gap - screen.left - gap, height: screen.height - gap * 2 }
-      : { left: barPosition.left + size.width + gap, top: screen.top + gap, width: screen.left + screen.width - gap - (barPosition.left + size.width + gap), height: screen.height - gap * 2 }
-    : { left: screen.left + gap, top: screen.top + gap, width: screen.width - gap * 2, height: barPosition.top - gap - screen.top - gap })
+      ? { left: barPosition.left + size.width + gap, top: screen.top + gap, width: dock.left - neutral - (barPosition.left + size.width + gap), height: screen.height - gap * 2 }
+      : { left: dock.left + dock.width + neutral, top: screen.top + gap, width: barPosition.left - gap - (dock.left + dock.width + neutral), height: screen.height - gap * 2 }
+    : { left: screen.left + gap, top: barPosition.top + size.height + gap, width: screen.width - gap * 2, height: Math.min(dock.top, screen.top + screen.height) - neutral - (barPosition.top + size.height + gap) })
   const zones = split && area ? zoneRects(area, layouts[split.layout], split.portrait) : []
   const hovered = zones.findIndex((_, at) => hover === dropKey({ type: 'split', at }))
 
   const dragging = pointer !== null
   return (
     <>
-      {/* 盖在屏幕里：Dock 浮在屏幕之上，不被盖住 */}
-      {lifted && createPortal(<div className={styles.lifted} />, screenElement)}
+      {/* 屏幕在排布：不再显示原来的内容，分屏的两块就是排好后的样子。盖在屏幕里，浮在屏幕之上的 Dock 不被盖住 */}
+      {createPortal(<div className={styles.arranging} />, screenElement)}
       {createPortal(
         <div className={styles.layer} data-dragging={dragging} onPointerDown={(event) => {
           if (event.target === event.currentTarget) onChoose({ type: 'cancel' })

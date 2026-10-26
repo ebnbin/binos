@@ -17,8 +17,8 @@
   }
 }
 
-/* 按住的窗口离开屏幕：屏幕上换成桌面背景 */
-.lifted {
+/* 操作出现时屏幕上只剩桌面背景 */
+.arranging {
   position: absolute;
   inset: 0;
   z-index: var(--z-overlay);

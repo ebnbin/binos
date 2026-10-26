@@ -144,13 +144,13 @@ export function TaskBar({
   })
 
   // 长按或右键 app 图标出现的操作。长按拖动时 pointer 是手指的位置；右键时是 null，点要做的操作
-  type Active = { members: OpenWindow[]; group: boolean; origin: DOMRect; dock: DOMRect; screen: HTMLElement; pointer: { x: number; y: number } | null }
+  type Active = { members: OpenWindow[]; group: boolean; dock: DOMRect; screen: HTMLElement; pointer: { x: number; y: number } | null }
   const [active, setActive] = useState<Active | null>(null)
   const [hover, setHover] = useState<string | null>(null)
-  const open = (members: OpenWindow[], group: boolean, element: Element, pointer: { x: number; y: number } | null) => {
+  const open = (members: OpenWindow[], group: boolean, pointer: { x: number; y: number } | null) => {
     const screenElement = screen()
     if (!dock.current || !screenElement) return
-    setActive({ members, group, origin: element.getBoundingClientRect(), dock: dock.current.getBoundingClientRect(), screen: screenElement, pointer })
+    setActive({ members, group, dock: dock.current.getBoundingClientRect(), screen: screenElement, pointer })
     setHover(null)
     capsule?.onMenu(true)
   }
@@ -218,8 +218,14 @@ export function TaskBar({
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') finish(null)
     }
+    // 转屏或窗口变了，放置位置都对不上了，取消
+    const resize = () => finish(null)
     window.addEventListener('keydown', escape)
-    return () => window.removeEventListener('keydown', escape)
+    window.addEventListener('resize', resize)
+    return () => {
+      window.removeEventListener('keydown', escape)
+      window.removeEventListener('resize', resize)
+    }
   })
 
   const press = useRef<{ timer: number; x: number; y: number } | null>(null)
@@ -233,14 +239,13 @@ export function TaskBar({
     longPressed.current = false
     cancelPress()
     if (event.button !== 0) return
-    const element = event.currentTarget
     const pointer = { x: event.clientX, y: event.clientY }
     press.current = {
       ...pointer,
       timer: window.setTimeout(() => {
         press.current = null
         longPressed.current = true
-        open(members, group, element, pointer)
+        open(members, group, pointer)
       }, longPressDelay),
     }
   }
@@ -346,7 +351,7 @@ export function TaskBar({
                   onContextMenu={(event) => {
                     event.preventDefault()
                     cancelPress()
-                    if (!longPressed.current) open(members, !!group, event.currentTarget, null)
+                    if (!longPressed.current) open(members, !!group, null)
                   }}
                   onClick={() => {
                     if (longPressed.current) {
@@ -376,9 +381,7 @@ export function TaskBar({
         <DockActions
           members={active.members}
           group={active.group}
-          lifted={!home && active.members.some((member) => panes.includes(member.id))}
           placement={placement}
-          origin={active.origin}
           dock={active.dock}
           screen={active.screen}
           split={!active.group && allowed.length > 1 ? { layout: fitLayout('1:1', allowed), portrait } : undefined}
