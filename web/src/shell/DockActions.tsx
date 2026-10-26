@@ -14,14 +14,16 @@ import type { DropTarget } from './drop-target.ts'
 
 type Rect = { left: number; top: number; width: number; height: number }
 
-// 长按或右键 Dock 上的 app 图标后出现：贴着 Dock 的一排操作，能分屏时屏幕上方分成两块。
+// 长按或右键 Dock 上的 app 图标后出现：Dock 旁边一排操作，能分屏时屏幕上剩下的地方分成两块。
 // 长按时拖着图标放到哪里就做什么；右键时点哪个做哪个
 export function DockActions({
-  members, group, placement, dock, screen: screenElement, split, partner, pointer, hover, onChoose,
+  members, group, placement, origin, dock, screen: screenElement, split, partner, pointer, hover, onChoose,
 }: {
   members: OpenWindow[]
   group: boolean
   placement: Exclude<BarPlacement, 'hidden'>
+  // 按住的图标
+  origin: Rect
   dock: Rect
   screen: HTMLElement
   // 能分屏时的布局和方向
@@ -50,8 +52,8 @@ export function DockActions({
     })),
   ]
 
-  // 从 Dock 往外依次是：一段放下就取消的空白、分屏的两块、离 Dock 最远的一排操作。
-  // 关闭这类操作要拖得最远，往分屏拖的路上不会经过它们
+  // 从 Dock 往外依次是：一段放下就取消的空白、一排操作、分屏的两块。
+  // 操作居中对着按住的图标，放不下时往屏幕里挪；分屏的两块占剩下的屏幕
   const screen = screenElement.getBoundingClientRect()
   const bar = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState<{ width: number; height: number } | null>(null)
@@ -60,22 +62,23 @@ export function DockActions({
     if (element) setSize({ width: element.offsetWidth, height: element.offsetHeight })
   }, [actions.length])
   const gap = 12
-  const neutral = 64
+  const neutral = 48
   const side = placement !== 'bottom'
+  const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
   const barPosition = size && (side
     ? {
-      left: placement === 'right' ? screen.left + gap : screen.left + screen.width - gap - size.width,
-      top: screen.top + (screen.height - size.height) / 2,
+      left: placement === 'right' ? dock.left - neutral - size.width : dock.left + dock.width + neutral,
+      top: clamp(origin.top + origin.height / 2 - size.height / 2, screen.top + gap, screen.top + screen.height - gap - size.height),
     }
     : {
-      left: screen.left + (screen.width - size.width) / 2,
-      top: screen.top + gap,
+      left: clamp(origin.left + origin.width / 2 - size.width / 2, screen.left + gap, screen.left + screen.width - gap - size.width),
+      top: Math.min(dock.top, screen.top + screen.height) - neutral - size.height,
     })
   const area: Rect | null = barPosition && size && (side
     ? placement === 'right'
-      ? { left: barPosition.left + size.width + gap, top: screen.top + gap, width: dock.left - neutral - (barPosition.left + size.width + gap), height: screen.height - gap * 2 }
-      : { left: dock.left + dock.width + neutral, top: screen.top + gap, width: barPosition.left - gap - (dock.left + dock.width + neutral), height: screen.height - gap * 2 }
-    : { left: screen.left + gap, top: barPosition.top + size.height + gap, width: screen.width - gap * 2, height: Math.min(dock.top, screen.top + screen.height) - neutral - (barPosition.top + size.height + gap) })
+      ? { left: screen.left + gap, top: screen.top + gap, width: barPosition.left - gap - (screen.left + gap), height: screen.height - gap * 2 }
+      : { left: barPosition.left + size.width + gap, top: screen.top + gap, width: screen.left + screen.width - gap - (barPosition.left + size.width + gap), height: screen.height - gap * 2 }
+    : { left: screen.left + gap, top: screen.top + gap, width: screen.width - gap * 2, height: barPosition.top - gap - (screen.top + gap) })
   const zones = split && area ? zoneRects(area, layouts[split.layout], split.portrait) : []
   const hovered = zones.findIndex((_, at) => hover === dropKey({ type: 'split', at }))
 
