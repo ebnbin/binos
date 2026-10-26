@@ -26,7 +26,7 @@ export function DockActions({
   screen: HTMLElement
   // 能分屏时的布局和方向
   split?: { layout: LayoutId; portrait: boolean }
-  // 正在显示的另一个窗口：和它直接分屏，默认它在前、按住的在后；没有就必须选一侧，另一侧再选一个 app
+  // 正在显示的另一个窗口：和它直接分屏，它默认在前；没有就是另一侧再选一个 app
   partner?: OpenWindow
   // 拖动中手指的位置；右键打开时是 null
   pointer: { x: number; y: number } | null
@@ -90,10 +90,9 @@ export function DockActions({
         }}>
           {zones.map((rect, at) => {
             const target: DropTarget = { type: 'split', at }
-            // 按住的放在哪一侧：拖到的那一块；没拖到时有 partner 就按默认放在后面，否则还没定
-            const placed = hovered >= 0 ? hovered : partner ? 1 : null
-            const shown = placed === null ? null : placed === at ? members[0] : partner ?? null
-            const label = placed === null ? '分屏到这里' : shown ? name(shown) : '再选一个 app'
+            // 按住的只在拖到的那一块上出现；正在显示的 partner 没拖动时留在前面，拖到前面时换到后面
+            const shown = hovered < 0 ? (at === 0 ? partner ?? null : null) : hovered === at ? members[0] : partner ?? null
+            const label = shown ? name(shown) : hovered < 0 ? '分屏到这里' : '再选一个 app'
             return (
               <button key={at} type="button" className={styles.zone} data-drop={dropKey(target)} data-active={hovered === at}
                 style={rect} onClick={() => onChoose(target)}>
