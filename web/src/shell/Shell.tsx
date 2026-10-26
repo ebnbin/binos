@@ -84,7 +84,7 @@ export function Shell() {
           home={controller.home}
           allowed={controller.allowed}
           portrait={controller.portrait}
-          onHome={controller.toggleHome}
+          onHome={controller.goHome}
           onShow={controller.show}
           onSplit={controller.split}
           onUnsplit={controller.unsplit}

@@ -117,7 +117,7 @@ export function useShellController(size: Size | null) {
     if (focused) focus(focused, 1 - slot)
   }
 
-  const toggleHome = () => { if (!draft) setView((prev) => ({ ...prev, home: !home })) }
+  const goHome = () => { if (!draft && !home) setView((prev) => ({ ...prev, home: true })) }
   // 从 Dock 的菜单上分屏：先把这个窗口切到前台，再选第二个 app
   const split = (id: string) => {
     if (draft || stored.groups.some((item) => item.slots.includes(id))) return
@@ -138,6 +138,6 @@ export function useShellController(size: Size | null) {
     picking: draft !== null,
     unavailableApps: windows.filter((item) => stored.groups.some((group) => group.slots.includes(item.id))).map((item) => item.window.applicationId),
     focus, chooseLayout, exitSplit, pick, swap, cancel: () => exitSplit(slot), onTitle,
-    open, show, close, toggleHome, split, unsplit,
+    open, show, close, goHome, split, unsplit,
   }
 }
