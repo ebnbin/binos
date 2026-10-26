@@ -34,7 +34,7 @@ const connectionLabels: Record<ConnectionState, string> = {
   updated: '有新版本',
 }
 
-// 屏幕外面的 Dock：连接失败或有新版本时的刷新按钮、回到桌面（下面的点是连接状态）、开着的 app。
+// 屏幕外面的 Dock：回到桌面（下面的点是连接状态，需要刷新时旁边有提示）、开着的 app。
 // 窗口的操作（分屏、取消分屏、在新标签页打开、关闭）在 app 图标的菜单里：长按、右键，或者再点一次正在显示的图标
 // 有 capsule 时 Dock 浮在屏幕底部之上，收起时只剩底部安全区里显示当前 app 或桌面的一颗胶囊
 export function TaskBar({
@@ -95,9 +95,9 @@ export function TaskBar({
   // 用键盘展开或收起时，焦点跟着移到显示出来的那一边，不留在被隐藏的按钮上
   const moveFocus = useRef<'dock' | 'capsule' | null>(null)
   const collapsed = capsule?.collapsed
-  // 需要刷新时最前面是刷新按钮；其余时候连接状态是桌面按钮下面的点
+  // 连接状态是桌面按钮下面的点；连接失败或有新版本时，Dock 展开着就在桌面按钮旁边一直显示刷新的提示，不能关
   const attention = connection === 'failed' || connection === 'updated'
-  const homeLabel = attention ? '桌面' : `桌面，${connectionLabels[connection]}`
+  const homeLabel = `桌面，${connectionLabels[connection]}`
 
   // 同一时间只开一个窗口菜单。触屏上点到菜单外面时，旧菜单要等这次触摸的 click 才关，
   // 那时可能已经长按打开了另一个，所以只关自己
@@ -179,22 +179,21 @@ export function TaskBar({
         </button>
       )}
       <div ref={dock} id={dockId} className={styles.dock} inert={collapsed}>
-        {attention && (
-          <button
-            type="button"
-            className={styles.item}
-            data-connection={connection}
-            aria-label={`${connectionLabels[connection]}，刷新`}
-            title={`${connectionLabels[connection]}，刷新`}
-            onClick={() => window.location.reload()}
-          >
-            {connection === 'failed' ? <RefreshCw size={32} strokeWidth={2} /> : <CircleArrowUp size={32} strokeWidth={2} />}
+        <span className={styles.homeSlot}>
+          <button type="button" className={styles.item} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
+            <BrandMark size={36} inverted />
+            <span className={styles.connection} data-state={connection} />
           </button>
-        )}
-        <button type="button" className={styles.item} aria-label={homeLabel} title={homeLabel} aria-pressed={home} onClick={onHome}>
-          <BrandMark size={36} inverted />
-          {!attention && <span className={styles.connection} data-state={connection} />}
-        </button>
+          {attention && (
+            <button type="button" className={styles.notice} data-connection={connection} onClick={() => window.location.reload()}>
+              {connection === 'failed' ? <RefreshCw size={20} strokeWidth={2} /> : <CircleArrowUp size={20} strokeWidth={2} />}
+              <span className={styles.noticeText}>
+                <strong>{connectionLabels[connection]}</strong>
+                <small>{connection === 'failed' ? '刷新页面重新连接' : '刷新页面使用新版本'}</small>
+              </span>
+            </button>
+          )}
+        </span>
         {accessory}
         {windows.length > 0 && <span className={styles.separator} />}
         <div className={styles.apps}>

@@ -384,12 +384,97 @@
 }
 
 /* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
-.item[data-connection='failed'] {
+/* 连接失败或有新版本时桌面按钮旁边的提示：在桌面按钮朝屏幕的一侧，和 Dock 的一端对齐，尖角指着桌面按钮 */
+.homeSlot {
+  position: relative;
+  display: flex;
+  flex: none;
+}
+
+.notice {
+  --surface: color-mix(in srgb, var(--color-on-chrome) 10%, var(--color-chrome));
+  --tail: 10px;
+  position: absolute;
+  bottom: calc(100% + var(--dock-padding) + var(--space-2));
+  left: calc(var(--dock-padding) * -1);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2-5);
+  width: max-content;
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+  border-radius: calc(var(--item-radius) + var(--dock-padding));
+  background: var(--surface);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  color: var(--color-on-chrome);
+  text-align: start;
+}
+
+.notice::after {
+  content: '';
+  position: absolute;
+  bottom: calc(var(--tail) / -2);
+  left: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  width: var(--tail);
+  height: var(--tail);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.bar[data-placement='left'] .notice,
+.bar[data-placement='right'] .notice {
+  top: calc(var(--dock-padding) * -1);
+  bottom: auto;
+}
+
+.bar[data-placement='left'] .notice {
+  left: calc(100% + var(--dock-padding) + var(--space-2));
+}
+
+.bar[data-placement='right'] .notice {
+  right: calc(100% + var(--dock-padding) + var(--space-2));
+  left: auto;
+}
+
+.bar[data-placement='left'] .notice::after,
+.bar[data-placement='right'] .notice::after {
+  top: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  bottom: auto;
+}
+
+.bar[data-placement='left'] .notice::after {
+  left: calc(var(--tail) / -2);
+}
+
+.bar[data-placement='right'] .notice::after {
+  right: calc(var(--tail) / -2);
+  left: auto;
+}
+
+.notice[data-connection='failed'] > svg {
   color: var(--color-destructive);
 }
 
-.item[data-connection='updated'] {
+.notice[data-connection='updated'] > svg {
   color: var(--color-accent);
+}
+
+.notice:active {
+  filter: brightness(0.85);
+}
+
+.noticeText {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-callout);
+}
+
+.noticeText strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.noticeText small {
+  color: var(--color-on-chrome-secondary);
+  font-size: var(--font-size-footnote);
 }
 
 @keyframes connecting {
