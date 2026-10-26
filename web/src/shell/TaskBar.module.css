@@ -298,13 +298,19 @@
   margin-block-end: 0;
 }
 
-/* Dock 最前面的刷新按钮，颜色和胶囊上的圆点一致 */
-.item[data-connection='failed'] {
-  color: var(--color-destructive);
+/* Dock 最前面的刷新按钮做成和 app 图标一样的彩色图标，颜色和胶囊上的圆点一致 */
+.attention {
+  composes: icon from './AppIcon.module.css';
+  width: var(--icon);
+  height: var(--icon);
 }
 
-.item[data-connection='updated'] {
-  color: var(--color-accent);
+.item[data-connection='failed'] .attention {
+  --tint: var(--color-destructive);
+}
+
+.item[data-connection='updated'] .attention {
+  --tint: var(--color-accent);
 }
 
 @keyframes connecting {

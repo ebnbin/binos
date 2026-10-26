@@ -146,7 +146,9 @@ export function TaskBar({
             title={`${connectionLabels[connection]}，刷新`}
             onClick={() => window.location.reload()}
           >
-            {connection === 'failed' ? <RefreshCw size={20} strokeWidth={1.75} /> : <CircleArrowUp size={20} strokeWidth={1.75} />}
+            <span className={styles.attention}>
+              {connection === 'failed' ? <RefreshCw strokeWidth={2.25} /> : <CircleArrowUp strokeWidth={2.25} />}
+            </span>
           </button>
         ) : (
           <span className={styles.dockConnection} role="img" aria-label={connectionLabels[connection]} title={connectionLabels[connection]}>
