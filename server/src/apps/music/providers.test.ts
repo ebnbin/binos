@@ -52,7 +52,7 @@ it('纯音频入口过滤视频轨、代理 Range，403 后重新解析且不暴
     { has_audio: true, has_video: false, mime_type: 'audio/mp4', content_length: 100, bitrate: 128, url: 'https://media.googlevideo.com/audio', decipher },
   ] } })
   vi.spyOn(Innertube, 'create').mockResolvedValue({ getBasicInfo, session: {} } as unknown as Innertube)
-  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(new Response(null, { status: 403 })).mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { status: 206, headers: { 'Content-Type': 'audio/mp4', 'Content-Range': 'bytes 0-2/100', 'Content-Length': '3' } }))
+  const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValueOnce(new Response(null, { status: 403 })).mockResolvedValueOnce(new Response(null, { status: 403 })).mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3]), { status: 206, headers: { 'Content-Type': 'audio/mp4', 'Content-Range': 'bytes 0-2/100', 'Content-Length': '3' } }))
   vi.stubGlobal('fetch', fetch)
   const source = await (await api('playback')).json()
   expect(source).toMatchObject({ kind: 'audio', url: expect.stringContaining('/api/apps/music/') })
@@ -61,7 +61,7 @@ it('纯音频入口过滤视频轨、代理 Range，403 后重新解析且不暴
   expect(response.status).toBe(206)
   expect(response.headers.get('Content-Range')).toBe('bytes 0-2/100')
   expect((await response.arrayBuffer()).byteLength).toBe(3)
-  expect(fetch.mock.calls[0][1]).toMatchObject({ headers: { Range: 'bytes=0-2' }, redirect: 'manual' })
+  expect(fetch.mock.calls[1][1]).toMatchObject({ headers: { Range: 'bytes=0-2' }, redirect: 'manual' })
   expect(getBasicInfo).toHaveBeenCalledTimes(2)
   expect(decipher).toHaveBeenCalledTimes(2)
 })
@@ -108,5 +108,40 @@ it('浏览器开放范围请求被拆成有限分段并连续输出，支持尾�
   expect(response.status).toBe(206)
   expect(response.headers.get('Content-Range')).toBe(`bytes 0-${length - 1}/${length}`)
   expect((await response.arrayBuffer()).byteLength).toBe(length)
-  expect(fetch).toHaveBeenCalledTimes(3)
+  expect(fetch).toHaveBeenCalledTimes(4)
+})
+
+it('分片 MP4 的 moov 时长在任意范围的音频流中都被清零，非分片文件不改', async () => {
+  const box = (type: string, ...parts: Uint8Array[]) => {
+    const body = Buffer.concat(parts)
+    const header = Buffer.alloc(8)
+    header.writeUInt32BE(body.length + 8)
+    header.write(type, 4, 'latin1')
+    return Buffer.concat([header, body])
+  }
+  const full = (version: number, fields: number[]) => {
+    const body = Buffer.alloc(4 + fields.reduce((sum, size) => sum + size, 0), 0xff)
+    body[0] = version
+    return body
+  }
+  const moov = (fragmented: boolean) => box('moov', box('mvhd', full(0, [4, 4, 4, 4, 80])), ...(fragmented ? [box('mvex', box('trex', full(0, [20])))] : []),
+    box('trak', box('tkhd', full(1, [8, 8, 4, 4, 8, 60])), box('mdia', box('mdhd', full(0, [4, 4, 4, 4, 4])))))
+  const file = Buffer.concat([box('ftyp', Buffer.from('dash')), moov(true), box('moof', Buffer.alloc(8, 0xff))])
+  const { fragmentedDurationFields } = await import('./youtubeMusic.js')
+  expect(fragmentedDurationFields(Buffer.concat([box('ftyp', Buffer.from('dash')), moov(false)]))).toEqual([])
+  const fields = fragmentedDurationFields(file)
+  expect(fields).toHaveLength(3)
+  vi.spyOn(Innertube, 'create').mockResolvedValue({ getBasicInfo: async () => ({ playability_status: { status: 'OK' }, streaming_data: { adaptive_formats: [{ has_audio: true, has_video: false, mime_type: 'audio/mp4', content_length: file.length, url: 'x', bitrate: 1, decipher: async () => 'https://media.googlevideo.com/audio' }] } }), session: {} } as unknown as Innertube)
+  vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+    const match = /^bytes=(\d+)-(\d+)$/.exec(new Headers(init?.headers).get('Range') ?? '')!
+    const start = Number(match[1]); const end = Math.min(Number(match[2]), file.length - 1)
+    return new Response(file.subarray(start, end + 1), { status: 206, headers: { 'Content-Type': 'audio/mp4', 'Content-Range': `bytes ${start}-${end}/${file.length}` } })
+  }))
+  const expected = Buffer.from(file)
+  for (const [from, to] of fields) expected.fill(0, from, to)
+  expect(expected.equals(file)).toBe(false)
+  for (const start of [0, fields[1][0] + 2]) {
+    const response = await musicApi.request(`/providers/youtube-music/stream?id=${sample.id}`, { headers: { Range: `bytes=${start}-` } })
+    expect(Buffer.from(await response.arrayBuffer()).equals(expected.subarray(start))).toBe(true)
+  }
 })

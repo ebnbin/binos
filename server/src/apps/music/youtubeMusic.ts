@@ -31,7 +31,7 @@ export function musicTracks(contents: unknown): Track[] {
 
 let session: Promise<Innertube> | undefined
 const continuations = new Map<string, { scope: string; expires: number; load(): Promise<CatalogPage> }>()
-const audio = new Map<string, { url: string; expires: number; length: number }>()
+const audio = new Map<string, { url: string; expires: number; length: number; durationFields?: Promise<[number, number][]> }>()
 function reset() { session = undefined; continuations.clear(); audio.clear() }
 function client() {
   session ??= Innertube.create({ lang: 'zh-CN', location: 'US', cookie: providerSettings('youtube-music').cookie || undefined,
@@ -87,6 +87,43 @@ async function resolveAudio(id: string, refresh = false) {
   while (audio.size >= 100) audio.delete(audio.keys().next().value!)
   audio.set(id, result)
   return result
+}
+// Apple players add the moov duration to the fragment durations of fragmented MP4, so the
+// stream reports these fields as 0 and players derive the duration from the fragments.
+export function fragmentedDurationFields(head: Uint8Array): [number, number][] {
+  const view = new DataView(head.buffer, head.byteOffset, head.byteLength)
+  const boxes = (start: number, end: number) => {
+    const found: { type: string; start: number; end: number }[] = []
+    for (let offset = start; offset + 8 <= end;) {
+      const size = view.getUint32(offset)
+      if (size < 8 || offset + size > end) break
+      found.push({ type: String.fromCharCode(...head.subarray(offset + 4, offset + 8)), start: offset, end: offset + size })
+      offset += size
+    }
+    return found
+  }
+  const moov = boxes(0, head.length).find(box => box.type === 'moov')
+  if (!moov || !boxes(moov.start + 8, moov.end).some(box => box.type === 'mvex')) return []
+  const fields: [number, number][] = []
+  const visit = (start: number, end: number) => {
+    for (const box of boxes(start, end)) {
+      if (box.type === 'trak' || box.type === 'mdia') { visit(box.start + 8, box.end); continue }
+      const wide = head[box.start + 8] === 1
+      const offset = box.type === 'mvhd' || box.type === 'mdhd' ? (wide ? 32 : 24) : box.type === 'tkhd' ? (wide ? 36 : 28) : 0
+      if (offset && box.start + offset + (wide ? 8 : 4) <= box.end) fields.push([box.start + offset, box.start + offset + (wide ? 8 : 4)])
+    }
+  }
+  visit(moov.start + 8, moov.end)
+  return fields
+}
+async function durationFields(resource: { url: string; length: number; durationFields?: Promise<[number, number][]> }) {
+  resource.durationFields ??= fetchAudio(resource.url, `bytes=0-${Math.min(65535, resource.length - 1)}`, AbortSignal.timeout(15000))
+    .then(async response => {
+      if (response.status !== 206) { await response.body?.cancel(); throw new Error('unavailable') }
+      return fragmentedDurationFields(new Uint8Array(await response.arrayBuffer()))
+    })
+    .catch(() => { resource.durationFields = undefined; return [] })
+  return resource.durationFields
 }
 async function fetchAudio(url: string, range: string | undefined, signal: AbortSignal) {
   for (let i = 0; i < 4; i++) {
@@ -167,16 +204,25 @@ export const youtubeMusic: MusicProvider = {
       }
       return { response, next: last + 1 }
     }
+    const fields = await durationFields(resource)
     // Match the media client and use bounded ranges for CDN compatibility.
     let current = await chunk(start)
     const mime = current.response.headers.get('content-type')!
     let reader = current.response.body!.getReader()
+    let position = start
     const body = new ReadableStream<Uint8Array>({
       async pull(controller) {
         try {
           while (true) {
             const result = await reader.read()
-            if (!result.done) { controller.enqueue(result.value); return }
+            if (!result.done) {
+              for (const [from, to] of fields) {
+                if (from < position + result.value.length && to > position) result.value.fill(0, Math.max(0, from - position), to - position)
+              }
+              position += result.value.length
+              controller.enqueue(result.value)
+              return
+            }
             reader.releaseLock()
             if (current.next > end) { controller.close(); return }
             current = await chunk(current.next)
