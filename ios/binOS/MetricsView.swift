@@ -23,13 +23,19 @@ struct MetricsView: View {
                 inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
                 inset(safe, in: size).stroke(.green, lineWidth: 2)
                 edgeLabels(safe, in: size)
+                // 浅色是整个范围，深色是去掉边距后的核心
                 ForEach(regions) { region in
                     let color: Color = region.kind == .division ? .yellow : .red
+                    let core = self.core(of: region)
                     Rectangle()
-                        .fill(color.opacity(region.isActive ? 0.45 : 0.15))
+                        .fill(color.opacity(region.isActive ? 0.15 : 0.06))
                         .overlay(Rectangle().stroke(color, style: StrokeStyle(lineWidth: 1, dash: region.isActive ? [] : [4, 3])))
                         .frame(width: max(region.frame.width, 2), height: max(region.frame.height, 2))
                         .offset(x: region.frame.minX, y: region.frame.minY)
+                    Rectangle()
+                        .fill(color.opacity(region.isActive ? 0.55 : 0.2))
+                        .frame(width: max(core.width, 0), height: max(core.height, 0))
+                        .offset(x: core.minX, y: core.minY)
                 }
                 ScrollView {
                     panel(size: size, safe: safe, margins: margins, corners: proxy.containerCornerInsets, radii: proxy.concentricCornerRadii, regions: regions)
@@ -102,8 +108,13 @@ struct MetricsView: View {
                 ("右下", dimensions(corners.bottomTrailing)),
             ])
             section("同心圆角", .purple, [("左上 · 右上 · 左下 · 右下", radii.map { [$0.topLeading, $0.topTrailing, $0.bottomLeading, $0.bottomTrailing].map(format).joined(separator: " · ") } ?? "无")])
-            section("保留区域", .red, regions.isEmpty ? [("", "无")] : regions.map { region in
-                ("\(region.kind == .division ? "分隔" : "遮挡")\(region.isActive ? "" : "（未生效）")", "\(format(region.frame.minX)), \(format(region.frame.minY)) · \(dimensions(region.frame.size)) · 边距 \(edges(region.margins))")
+            section("保留区域", .red, regions.isEmpty ? [("", "无")] : regions.flatMap { region in
+                let name = "\(region.kind == .division ? "分隔" : "遮挡")\(region.isActive ? "" : "（未生效）")"
+                return [
+                    ("\(name) · 范围", rect(region.frame)),
+                    ("\(name) · 核心", rect(core(of: region))),
+                    ("\(name) · 边距", edges(region.margins)),
+                ]
             })
             section("铰链", .yellow, [
                 ("状态", hinge.map { hingeStatus($0.status) } ?? "没有报告"),
@@ -131,6 +142,17 @@ struct MetricsView: View {
 
     private func format(_ value: CGFloat) -> String {
         Double(value).formatted(.number.precision(.fractionLength(0...1)))
+    }
+
+    // 范围包含边距，去掉边距才是真正被保留的部分
+    private func core(of region: ReservedRegion) -> CGRect {
+        let m = region.margins
+        let frame = region.frame
+        return CGRect(x: frame.minX + m.leading, y: frame.minY + m.top, width: frame.width - m.leading - m.trailing, height: frame.height - m.top - m.bottom)
+    }
+
+    private func rect(_ rect: CGRect) -> String {
+        "\(format(rect.minX)), \(format(rect.minY)) · \(format(rect.width)) × \(format(rect.height))"
     }
 
     private func dimensions(_ size: CGSize) -> String {
