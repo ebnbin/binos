@@ -9,18 +9,45 @@ import { promisify } from 'node:util'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { isRunning, processStartTime } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
-import { adb, avdDir, emulator, emulatorHome, iosSet, javaHome, mode, sdkDir, toolEnv } from './config.js'
+import { adb, avdDir, emulator, emulatorHome, iosSet, javaHome, legacyIosSet, mode, sdkDir, toolEnv } from './config.js'
 import { iosModel, iosModels, iosProfile } from './ios-profile.js'
 import type { IosRuntime } from './ios-profile.js'
-import type { Device, DeviceModel, Models, ObservedDevice } from './types.js'
+import type { Device, DeviceDisplay, DeviceModel, DisplayState, Models, ObservedDevice } from './types.js'
 
 const exec = promisify(execFile)
 export async function tool(command: string, args: string[], timeout = 30_000) {
   const { stdout } = await exec(command, args, { env: toolEnv, timeout, maxBuffer: 24 * 1024 * 1024 })
   return stdout.trim()
 }
-const sim = (args: string[], timeout?: number) => tool('xcrun', ['simctl', '--set', iosSet, ...args], timeout)
+const setOf = (device: Device) => device.iosSet ?? legacyIosSet
+const sim = (device: Device, args: string[], timeout?: number) => tool('xcrun', ['simctl', '--set', setOf(device), ...args], timeout)
 type SimDevice = { udid: string; name: string; state: string; isAvailable?: boolean; runtime?: string; deviceTypeIdentifier?: string }
+// simctl io enumerate 里的内置屏幕，主屏在前
+export function parseDisplays(text: string): DeviceDisplay[] {
+  const screens: Record<string, string>[] = []
+  for (const line of text.split('\n')) {
+    if (/^\s*\(\d+\) .+:$/.test(line)) screens.push({})
+    const field = /^\s*([A-Za-z ]+): (.+)$/.exec(line)
+    if (field && screens.length) screens.at(-1)![field[1]] = field[2].trim()
+  }
+  return screens.filter((screen) => screen['Screen Type'] === 'Integrated' && screen['Device Name']).map((screen) => {
+    const [width, height] = (/\{(\d+), (\d+)\}/.exec(screen['Pixel Size'] ?? '') ?? []).slice(1).map(Number)
+    return { id: screen['Device Name'], name: screen.Name ?? screen['Device Name'], width: width ?? 0, height: height ?? 0, ...(screen['Unique ID'] && { uid: screen['Unique ID'] }) }
+  }).sort((a, b) => Number(b.id === 'primary') - Number(a.id === 'primary') || a.id.localeCompare(b.id))
+}
+// 设备登记了设备集时只在那里找；创建中断的设备可能在任一设备集里
+async function locate(device: Device) {
+  let first
+  for (const set of device.iosSet ? [device.iosSet] : [iosSet, legacyIosSet]) {
+    if (!existsSync(set)) continue
+    const located = { ...device, iosSet: set }
+    const devices = parseIos(await sim(located, ['list', 'devices', '--json']))
+    const result = { device: located, devices, found: devices.find((item) => item.name === device.name && (!device.target || item.udid === device.target)) }
+    if (result.found) return result
+    first ??= result
+  }
+  return first ?? { device, devices: [], found: undefined }
+}
 const parseIos = (text: string) => Object.entries((JSON.parse(text) as { devices: Record<string, SimDevice[]> }).devices).flatMap(([runtime, devices]) => devices.map((device) => ({ ...device, runtime })))
 
 export async function discover(): Promise<{ observed: ObservedDevice[]; discoveryErrors: string[] }> {
@@ -41,7 +68,9 @@ export async function discover(): Promise<{ observed: ObservedDevice[]; discover
 const mockModels: DeviceModel[] = [
   { platform: 'ios', id: 'mock-iphone', name: 'iPhone', family: 'iPhone', systems: ['preview'], default: true },
   { platform: 'ios', id: 'mock-ipad', name: 'iPad', family: 'iPad', systems: ['preview'] },
+  { platform: 'ios', id: 'mock-fold', name: '折叠屏', family: 'iPhone', systems: ['preview'] },
 ]
+const mockDisplays = (model?: string): DeviceDisplay[] => [{ id: 'primary', name: 'LCD', width: 390, height: 780 }, ...(model === 'mock-fold' ? [{ id: 'primary-1', name: 'LCD-1', width: 560, height: 780 }] : [])]
 export async function models(): Promise<DeviceModel[]> {
   if (mode === 'mock') return mockModels
   const installed = JSON.parse(await tool('xcrun', ['simctl', 'list', 'runtimes', '--json'])) as { runtimes: IosRuntime[] }
@@ -67,9 +96,9 @@ export async function health(device: Device) {
     await ownedAndroid(device)
     if (await tool(adb, ['-s', device.target, 'shell', 'getprop', 'sys.boot_completed'], 10_000) !== '1') throw new Error('Android 尚未完成启动')
   } else {
-    const found = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.udid === device.target && item.name === device.name)
+    const found = parseIos(await sim(device, ['list', 'devices', '--json'])).find((item) => item.udid === device.target && item.name === device.name)
     if (!found || found.state !== 'Booted') throw new Error('iOS 设备尚未启动或不存在')
-    await sim(['getenv', device.target, 'SIMULATOR_UDID'], 10_000)
+    await sim(device, ['getenv', device.target, 'SIMULATOR_UDID'], 10_000)
   }
 }
 
@@ -159,22 +188,22 @@ async function bootAndroid(device: Device, wipe: boolean) {
 export async function reset(device: Device) {
   if (mode === 'mock') { await sleep(100); return }
   if (device.platform === 'ios') {
-    const found = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.udid === device.target && item.name === device.name)
+    const found = parseIos(await sim(device, ['list', 'devices', '--json'])).find((item) => item.udid === device.target && item.name === device.name)
     if (!found) throw new Error('受管理的 iOS 设备不存在')
     for (let attempt = 0; attempt < 30; attempt++) {
-      const current = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.udid === device.target)
+      const current = parseIos(await sim(device, ['list', 'devices', '--json'])).find((item) => item.udid === device.target)
       if (current?.state === 'Shutdown') break
-      try { await sim(['shutdown', device.target], 60_000) }
+      try { await sim(device, ['shutdown', device.target], 60_000) }
       catch (error) { if (attempt === 29) throw error }
       await sleep(1000)
     }
-    await sim(['erase', device.target], 120_000)
-    try { await sim(['boot', device.target], 60_000) }
+    await sim(device, ['erase', device.target], 120_000)
+    try { await sim(device, ['boot', device.target], 60_000) }
     catch (error) {
-      const current = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.udid === device.target)
+      const current = parseIos(await sim(device, ['list', 'devices', '--json'])).find((item) => item.udid === device.target)
       if (current?.state !== 'Booted' && current?.state !== 'Booting') throw error
     }
-    await sim(['bootstatus', device.target, '-b'], 300_000)
+    await sim(device, ['bootstatus', device.target, '-b'], 300_000)
   } else {
     await stopAndroid(device)
     await bootAndroid(device, true)
@@ -183,15 +212,16 @@ export async function reset(device: Device) {
 }
 
 export async function create(device: Device): Promise<Device> {
-  if (mode === 'mock') { await sleep(50); return { ...device, target: device.target || device.id, system: device.platform === 'ios' ? 'iOS-preview' : 'android-preview', ...(device.model && { modelName: mockModels.find((model) => model.id === device.model)?.name }) } }
+  if (mode === 'mock') { await sleep(50); return { ...device, target: device.target || device.id, system: device.platform === 'ios' ? 'iOS-preview' : 'android-preview', ...(device.model && { modelName: mockModels.find((model) => model.id === device.model)?.name }), ...(device.platform === 'ios' && { displays: mockDisplays(device.model) }) } }
   if (device.platform === 'ios') {
     await mkdir(iosSet, { recursive: true })
-    const found = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.name === device.name)
-    if (found) device = { ...device, target: found.udid, system: found.runtime, model: found.deviceTypeIdentifier ?? device.model }
+    const located = await locate(device)
+    if (located.found) device = { ...located.device, target: located.found.udid, system: located.found.runtime, model: located.found.deviceTypeIdentifier ?? device.model }
     else {
-      const installed = JSON.parse(await sim(['list', 'runtimes', '--json'])) as { runtimes: IosRuntime[] }
+      device = { ...device, iosSet }
+      const installed = JSON.parse(await sim(device, ['list', 'runtimes', '--json'])) as { runtimes: IosRuntime[] }
       const profile = iosProfile(installed.runtimes, device.model ?? process.env.BINOS_IOS_DEVICE_TYPE, process.env.BINOS_IOS_RUNTIME)
-      const target = await sim(['create', device.name, profile.deviceType, profile.runtime], 120_000)
+      const target = await sim(device, ['create', device.name, profile.deviceType, profile.runtime], 120_000)
       device = { ...device, target, system: profile.runtime, model: profile.deviceType, modelName: profile.name }
     }
   } else {
@@ -211,25 +241,26 @@ export async function create(device: Device): Promise<Device> {
     device = { ...device, system: parts[1] }
   }
   await reset(device)
+  if (device.platform === 'ios') device = { ...device, displays: parseDisplays(await sim(device, ['io', device.target, 'enumerate'], 30_000)) }
   return device
 }
 export async function destroy(device: Device) {
   if (mode === 'mock') { await sleep(50); return }
   if (device.name !== `binos-${device.id}` || !/^(android|ios)-[a-z0-9-]+$/.test(device.id)) throw new Error('设备归属无效，拒绝销毁')
   if (device.platform === 'ios') {
-    const devices = parseIos(await sim(['list', 'devices', '--json']))
-    const found = devices.find((item) => item.name === device.name && (!device.target || item.udid === device.target))
+    const { device: located, devices, found } = await locate(device)
+    device = located
     if (!found) {
       if (device.target && devices.some((item) => item.udid === device.target)) throw new Error('iOS 设备名称与归属不匹配，保留容量')
       return
     }
     if (found.state !== 'Shutdown') {
-      try { await sim(['shutdown', found.udid], 60_000) }
+      try { await sim(device, ['shutdown', found.udid], 60_000) }
       catch (error) {
-        if (parseIos(await sim(['list', 'devices', '--json'])).some((item) => item.udid === found.udid && item.state !== 'Shutdown')) throw error
+        if (parseIos(await sim(device, ['list', 'devices', '--json'])).some((item) => item.udid === found.udid && item.state !== 'Shutdown')) throw error
       }
     }
-    await sim(['delete', found.udid], 120_000)
+    await sim(device, ['delete', found.udid], 120_000)
   } else {
     await stopAndroid(device)
     const directory = path.join(avdDir, `${device.name}.avd`)
@@ -238,7 +269,20 @@ export async function destroy(device: Device) {
     await rm(androidTemp(device), { recursive: true, force: true })
   }
 }
-export async function screenshot(device: Device) {
+// devicectl 只认默认设备集里的设备，早先设备集里的设备查不到状态
+export async function displayStates(device: Device): Promise<DisplayState[]> {
+  const displays = device.displays ?? []
+  if (mode === 'mock') return displays.map((display, index) => ({ ...display, active: index === 0 }))
+  if (device.platform !== 'ios' || device.iosSet !== iosSet || !displays.length) return displays
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'binos-device-displays-'))
+  try {
+    const file = path.join(directory, 'displays.json')
+    await tool('xcrun', ['devicectl', 'device', 'info', 'displays', '--device', device.target, '--quiet', '--json-output', file])
+    const reported = (JSON.parse(await readFile(file, 'utf8')) as { result: { displays: { uniqueId: string; active: boolean }[] } }).result.displays
+    return displays.map((display) => ({ ...display, active: reported.find((item) => item.uniqueId === display.uid)?.active ?? false }))
+  } finally { await rm(directory, { recursive: true, force: true }) }
+}
+export async function screenshot(device: Device, display?: string) {
   if (mode === 'mock') {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="390" height="780"><rect width="390" height="780" rx="32" fill="#f3f2ef"/><text x="195" y="350" text-anchor="middle" font-family="sans-serif" font-size="28">binOS Devices</text><text x="195" y="395" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#777">模拟设备 · 预览</text></svg>'
     return { image: Buffer.from(svg).toString('base64'), mime: 'image/svg+xml', at: Date.now() }
@@ -252,7 +296,7 @@ export async function screenshot(device: Device) {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'binos-device-capture-'))
     try {
       const file = path.join(directory, 'screen.png')
-      await sim(['io', device.target, 'screenshot', '--type=png', file])
+      await sim(device, ['io', device.target, 'screenshot', '--type=png', ...(display ? [`--display=${display}`] : []), file])
       if ((await stat(file)).size > 24 * 1024 * 1024) throw new Error('截图超过 24 MiB')
       png = await readFile(file)
     } finally { await rm(directory, { recursive: true, force: true }) }
@@ -263,7 +307,7 @@ export async function screenshot(device: Device) {
 export function deviceEnv(devices: Device[]) {
   const android = devices.find((device) => device.platform === 'android')
   const ios = devices.find((device) => device.platform === 'ios')
-  return { ANDROID_HOME: sdkDir, ANDROID_AVD_HOME: avdDir, BINOS_IOS_DEVICE_SET: iosSet,
+  return { ANDROID_HOME: sdkDir, ANDROID_AVD_HOME: avdDir, BINOS_IOS_DEVICE_SET: ios ? setOf(ios) : iosSet,
     ...(javaHome && { JAVA_HOME: javaHome }),
     PATH: [javaHome && path.join(javaHome, 'bin'), path.join(sdkDir, 'platform-tools'), path.join(sdkDir, 'emulator'), process.env.PATH].filter(Boolean).join(path.delimiter),
     ...(android && { ANDROID_SERIAL: android.target, BINOS_ANDROID_AVD: android.name }), ...(ios && { BINOS_IOS_UDID: ios.target }) }

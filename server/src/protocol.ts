@@ -8,7 +8,7 @@ import type { BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settin
 import type { codeApi } from './apps/code/api.js'
 import type { CodeUsage, MessageBody, Project, RepositoryBody, SearchResults, SessionEdit, SessionRef, SessionSummary } from './apps/code/types.js'
 import type { devicesApi, DevicesSnapshot } from './apps/devices/api.js'
-import type { DeviceModel, LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
+import type { DeviceModel, DisplayState, LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
 import type { filesApi } from './apps/files/api.js'
 import type { Directory, FileName, FileResults, FileTransfer, FileTrash } from './apps/files/types.js'
 import type { kitaAppApi } from './apps/kita/api.js'
@@ -112,7 +112,8 @@ export type Http = {
   'DELETE /api/apps/devices/leases/:id': {}
   'DELETE /api/apps/devices/queue/:requestId': {}
   'DELETE /api/apps/devices/:id': {}
-  // Last-Modified 是截图的时间
+  'GET /api/apps/devices/:id/displays': { response: DisplayState[] }
+  // Last-Modified 是截图的时间；?display= 是屏幕，不填时截正在显示内容的屏幕
   'GET /api/apps/devices/:id/screenshot': { file: 'image/*' }
 
   'GET /api/apps/files': { response: Directory }

@@ -19,6 +19,10 @@ process.env.BINOS_ROOT = root
 process.env.BINOS_DEVICES_MODE = 'real'
 const { screenshot, reset, create, destroy } = await import('./platform.js')
 const png = Buffer.from('89504e470d0a1a0a', 'hex')
+// simctl io enumerate 的屏幕部分：内屏排在主屏前面，另有不是内置屏幕的 CarPlay
+const screens = ['(3) LCD-1:', 'Screen ID: 3', 'Name: LCD-1', 'Device Name: primary-1', 'Screen Type: Integrated', 'Pixel Size: {2007, 2853}',
+  '(4) Wireless:', 'Name: Wireless', 'Device Name: wireless0', 'Screen Type: CarPlay', 'Pixel Size: {720, 480}',
+  '(1) LCD:', 'Name: LCD', 'Device Name: primary', 'Screen Type: Integrated', 'Pixel Size: {1398, 2034}'].map((line) => `    ${line}`).join('\n')
 execute.mockImplementation(async (command, args) => {
   if (command === 'ps') return { stdout: '' }
   if (command.endsWith('/adb') && args[0] === 'devices') return { stdout: controls.androidConnected ? 'List of devices attached\nemulator-5560\tdevice\n' : 'List of devices attached\n' }
@@ -28,6 +32,7 @@ execute.mockImplementation(async (command, args) => {
   if (args.includes('erase') || args.includes('bootstatus')) return { stdout: '' }
   if (args.includes('boot')) { controls.iosState = 'Booted'; return { stdout: '' } }
   if (args.includes('getenv')) return { stdout: 'ios-id' }
+  if (args.includes('enumerate')) return { stdout: `Connected Screens:\n${screens}` }
   if (args.includes('screenshot')) { controls.capture = args.at(-1)!; writeFileSync(controls.capture, controls.empty ? Buffer.alloc(0) : png); return { stdout: '' } }
   if (args.includes('name')) return { stdout: `${controls.other ? 'AnotherDevice' : 'Android'}\r\nOK\r\n` }
   if (args.includes('getprop')) return { stdout: '1' }
@@ -37,15 +42,16 @@ execute.mockImplementation(async (command, args) => {
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 describe('平台操作', () => {
-  it('中断创建后按专属名称找回 iOS，重试不重复创建，销毁始终限定专属设备集', async () => {
+  it('中断创建后按专属名称找回 iOS，重试不重复创建，销毁限定设备所在的设备集；登记内置屏幕，主屏在前', async () => {
     const device = { id: 'ios-12345678', platform: 'ios' as const, name: 'binos-ios-12345678', target: '', status: 'creating' as const }
     controls.iosName = device.name
     const before = execute.mock.calls.length
     const recovered = await create(device)
     expect(recovered.target).toBe('ios-id')
+    expect(recovered.displays).toEqual([{ id: 'primary', name: 'LCD', width: 1398, height: 2034 }, { id: 'primary-1', name: 'LCD-1', width: 2007, height: 2853 }])
     expect(execute.mock.calls.slice(before).some(([, args]) => args.includes('create'))).toBe(false)
     await destroy(recovered)
-    expect(execute.mock.calls.slice(before).filter(([command]) => command === 'xcrun').every(([, args]) => args[0] === 'simctl' && args[1] === '--set')).toBe(true)
+    expect(execute.mock.calls.slice(before).filter(([command]) => command === 'xcrun').every(([, args]) => args[0] === 'simctl' && args[1] === '--set' && args[2] === recovered.iosSet)).toBe(true)
     controls.iosName = 'iPhone'
   })
   it('销毁拒绝错误归属；端口被其他模拟器使用时不删除目录', async () => {

@@ -4,7 +4,7 @@ import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
 import type { Device, DeviceModel, Platform } from '@binos/server/apps/devices/types'
 import type { WindowContext } from '../types.ts'
 import { onChange } from '../../events.ts'
-import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, readModels, releaseDevices } from './api.ts'
+import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, readDisplays, readModels, releaseDevices } from './api.ts'
 import { Select } from '../../ui/Select.tsx'
 import styles from './DevicesApp.module.css'
 
@@ -110,19 +110,24 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
 }
 function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: DevicesSnapshot; ctx: WindowContext; busy: boolean; act: (operation: () => Promise<unknown>) => Promise<void> }) {
   const [confirmDestroy, setConfirmDestroy] = useState(false)
-  const [capture, setCapture] = useState<Awaited<ReturnType<typeof captureDevice>>>()
-  useEffect(() => () => { if (capture) URL.revokeObjectURL(capture.url) }, [capture])
+  // 每块屏幕一张截图，没有登记屏幕的设备只有一张
+  const [captures, setCaptures] = useState<{ name?: string; url: string; at: number }[]>()
+  useEffect(() => () => captures?.forEach((capture) => URL.revokeObjectURL(capture.url)), [captures])
   const lease = data.leases.find((item) => item.devices.includes(device.id))
   const session = lease && data.owners[lease.owner]
   return (
     <article className={styles.card}>
       <div className={styles.cardTitle}><span className={styles.cardIcon}><DeviceMobileIcon size={18} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{[device.modelName, device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')].filter(Boolean).join(' · ')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
-      {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><DeviceMobileIcon size={40} weight="light" /><span>按需查看设备画面</span></div>}
-      {capture && <p className={styles.caption}>截图于 {moment(capture.at)} · 非实时画面</p>}
+      {captures ? <div className={styles.screenshots}>{captures.map((capture) => <figure key={capture.url}><img className={styles.screenshot} src={capture.url} alt={`${device.name} ${capture.name ?? ''}屏幕截图`} />{capture.name && <figcaption className={styles.caption}>{capture.name}</figcaption>}</figure>)}</div> : <div className={styles.placeholder}><DeviceMobileIcon size={40} weight="light" /><span>按需查看设备画面</span></div>}
+      {captures && <p className={styles.caption}>截图于 {moment(captures[0].at)} · 非实时画面</p>}
       <dl className={styles.details}><div><dt>设备</dt><dd>{device.id}</dd></div><div><dt>占用</dt><dd>{session && ctx.openApplication ? <button className={styles.link} onClick={() => ctx.openApplication?.('code', `/${session.session}`)}>{session.title || `会话 ${session.session}`}</button> : lease ? ownerName(lease.owner) : '无'}</dd></div>{lease && <><div><dt>用途</dt><dd>{lease.reason || '未填写'}</dd></div><div><dt>开始</dt><dd>{moment(lease.createdAt)}</dd></div></>}</dl>
       {device.error && <p className={styles.error}>{device.error}</p>}
       <div className={styles.actions}>
-        <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => setCapture(await captureDevice(device.id)))}><CameraIcon size={14} />截图</button>
+        <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => {
+          // 多屏设备每块屏幕各截一张，标出正在显示内容的屏幕
+          const displays = (device.displays?.length ?? 0) > 1 ? await readDisplays(device.id) : [undefined]
+          setCaptures(await Promise.all(displays.map(async (display) => ({ ...(display && { name: `${display.name} · ${display.width}×${display.height}${display.active ? ' · 正在显示' : ''}` }), ...await captureDevice(device.id, display?.id) }))))
+        })}><CameraIcon size={14} />截图</button>
         {device.status !== 'destroying' && <button className={styles.destructive} disabled={busy} onClick={() => {
           if (!confirmDestroy) { setConfirmDestroy(true); return }
           void act(() => destroyDevice(device.id))

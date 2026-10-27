@@ -14,7 +14,9 @@ export const sdkDir = process.env.ANDROID_HOME ?? path.join(os.homedir(), 'Libra
 export const adb = path.join(sdkDir, 'platform-tools', 'adb')
 export const emulator = path.join(sdkDir, 'emulator', 'emulator')
 export const avdDir = path.join(dataDir, 'avd')
-export const iosSet = path.join(dataDir, 'ios')
+// 新的 iOS 设备在 Xcode 的默认设备集里，xcodebuild、devicectl 和 Device Hub 都能使用；早先的设备在服务自己的设备集里
+export const iosSet = path.join(os.homedir(), 'Library', 'Developer', 'CoreSimulator', 'Devices')
+export const legacyIosSet = path.join(dataDir, 'ios')
 export const emulatorHome = path.join(dataDir, 'emulator')
 export const toolEnv = { ...process.env, ANDROID_HOME: sdkDir, ANDROID_AVD_HOME: avdDir }
 

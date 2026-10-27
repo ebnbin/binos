@@ -5,7 +5,7 @@ import path from 'node:path'
 import { processStartTime, isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { build, dataDir, mode, statePath } from './config.js'
-import { create, destroy, deviceEnv, discover, health, message, models, reset, resolveModels, screenshot } from './platform.js'
+import { create, destroy, deviceEnv, discover, displayStates, health, message, models, reset, resolveModels, screenshot } from './platform.js'
 import { cancel, event, policy, release, requestLease, requireLease, schedule, transition } from './state.js'
 import { emptyState } from './types.js'
 import type { Device, LeaseResult, Request, Snapshot, State } from './types.js'
@@ -18,7 +18,8 @@ export class Manager {
   private saved = ''
   private jobs = new Map<string, Job>()
   private busy = new Map<string, Run>()
-  private captures = new Map<string, { generation?: string; time: number; result: ReturnType<typeof screenshot> }>()
+  // 每台设备按屏幕缓存截图
+  private captures = new Map<string, Map<string, { generation?: string; time: number; result: ReturnType<typeof screenshot> }>>()
   private observed: Snapshot['observed'] = []
   private discoveryErrors: string[] = []
   private lastHealth = 0
@@ -57,6 +58,8 @@ export class Manager {
         for (const device of this.state.devices) if (device.status === 'free') transition(device, Date.now() - (device.idleSince ?? 0) >= policy.deviceIdle ? 'destroying' : 'cleaning')
       }
       this.state.bootTime = boot
+      // 早先设备集里的 iOS 设备闲置时回收，之后按需在默认设备集里新建
+      for (const device of this.state.devices) if (device.platform === 'ios' && !device.iosSet && device.status === 'free') transition(device, 'destroying')
     }
     for (const file of readdirSync(this.runDir)) {
       const record = path.join(this.runDir, file)
@@ -154,7 +157,7 @@ export class Manager {
         this.state.devices = this.state.devices.filter((item) => item.id !== device.id)
         event(this.state, '设备已销毁，容量已释放', Date.now(), device.id)
       } else {
-        if (result) Object.assign(device, { target: result.target, system: result.system, model: result.model, modelName: result.modelName })
+        if (result) Object.assign(device, { target: result.target, system: result.system, model: result.model, modelName: result.modelName, iosSet: result.iosSet, displays: result.displays })
         transition(device, operation === 'reset' ? 'free' : 'reserved')
         if (operation === 'reset') device.idleSince ??= Date.now()
         delete device.error
@@ -278,24 +281,28 @@ export class Manager {
         this.tick()
         return { ok: true }
       }
+      case 'displays': return displayStates(this.ready(request))
       case 'screenshot': {
-        const device = this.device(request.device)
-        if (request.owner || request.lease) {
-          const lease = requireLease(this.state, request.owner!, request.lease!)
-          if (!lease.devices.includes(device.id)) throw new Error('设备不属于当前租约')
-        }
-        if (!['free', 'reserved', 'leased'].includes(device.status) || device.error) throw new Error('设备尚未就绪或正在回收')
-        const previous = this.captures.get(device.id)
+        const device = this.ready(request)
+        if (request.display && !device.displays?.some((display) => display.id === request.display)) throw new Error(`设备没有这块屏幕：${request.display}`)
+        let display = request.display
+        // 不指定时截正在显示内容的屏幕，查不到时截主屏；没有登记屏幕的设备交给工具的默认屏幕
+        if (!display && device.displays && device.displays.length > 1) display = (await displayStates(device).catch(() => [])).find((item) => item.active)?.id
+        display ??= device.displays?.[0]?.id
+        const captures = this.captures.get(device.id) ?? new Map()
+        this.captures.set(device.id, captures)
+        const key = display ?? ''
+        const previous = captures.get(key)
         const generation = device.generation
         if (previous && previous.generation === generation && now - previous.time < 5000) return previous.result
-        const result = screenshot(device).then((capture) => {
+        const result = screenshot(device, display).then((capture) => {
           if (device.generation !== generation) throw new Error('设备状态已改变，请重新截图')
           if (request.owner) requireLease(this.state, request.owner, request.lease!)
           return capture
         })
         const entry = { generation, time: now, result }
-        this.captures.set(device.id, entry)
-        result.then(() => { entry.time = Date.now() }, () => { if (this.captures.get(device.id) === entry) this.captures.delete(device.id) })
+        captures.set(key, entry)
+        result.then(() => { entry.time = Date.now() }, () => { if (captures.get(key) === entry) captures.delete(key) })
         return result
       }
       case 'run': return this.run(request)
@@ -303,6 +310,16 @@ export class Manager {
         if (this.busy.size || this.jobs.size) throw new Error('正在执行命令或设备操作，暂不能停止服务')
         return { ok: true }
     }
+  }
+  // 截图和查询屏幕的设备：带租约时必须属于这份租约
+  private ready(request: { device: string; owner?: string; lease?: string }) {
+    const device = this.device(request.device)
+    if (request.owner || request.lease) {
+      const lease = requireLease(this.state, request.owner!, request.lease!)
+      if (!lease.devices.includes(device.id)) throw new Error('设备不属于当前租约')
+    }
+    if (!['free', 'reserved', 'leased'].includes(device.status) || device.error) throw new Error('设备尚未就绪或正在回收')
+    return device
   }
   async shutdown() {
     this.stopping = true

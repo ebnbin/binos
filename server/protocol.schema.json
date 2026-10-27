@@ -1000,6 +1000,21 @@
           "type": "object",
           "additionalProperties": false
         },
+        "GET /api/apps/devices/:id/displays": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/DisplayState"
+              }
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
         "GET /api/apps/devices/:id/screenshot": {
           "type": "object",
           "properties": {
@@ -1517,6 +1532,7 @@
         "DELETE /api/apps/devices/leases/:id",
         "DELETE /api/apps/devices/queue/:requestId",
         "DELETE /api/apps/devices/:id",
+        "GET /api/apps/devices/:id/displays",
         "GET /api/apps/devices/:id/screenshot",
         "GET /api/apps/files",
         "GET /api/apps/files/download",
@@ -4134,6 +4150,15 @@
         "modelName": {
           "type": "string"
         },
+        "iosSet": {
+          "type": "string"
+        },
+        "displays": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DeviceDisplay"
+          }
+        },
         "status": {
           "$ref": "#/definitions/DeviceStatus"
         },
@@ -4162,6 +4187,33 @@
         "name",
         "target",
         "status"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceDisplay": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "uid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "width",
+        "height"
       ],
       "additionalProperties": false
     },
@@ -4394,6 +4446,36 @@
         "requestId"
       ],
       "additionalProperties": false
+    },
+    "DisplayState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        },
+        "uid": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "height",
+        "id",
+        "name",
+        "width"
+      ]
     },
     "Directory": {
       "type": "object",
