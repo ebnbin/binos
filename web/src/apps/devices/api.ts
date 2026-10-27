@@ -1,5 +1,5 @@
 import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
-import type { DeviceModel, LeaseResult, Models, Platform } from '@binos/server/apps/devices/types'
+import type { DeviceModel, DisplayState, LeaseResult, Models, Platform } from '@binos/server/apps/devices/types'
 import { errorMessage } from '../../api.ts'
 
 const base = '/api/apps/devices'
@@ -14,10 +14,11 @@ export const readModels = () => request<DeviceModel[]>('/models')
 export const acquireDevices = (platforms: Platform[], reason: string, models?: Models, requestId: string = crypto.randomUUID()) => request<LeaseResult>('/leases', { platforms, reason, models, requestId })
 export const releaseDevices = (id: string) => request(`/leases/${encodeURIComponent(id)}`, undefined, 'DELETE')
 export const cancelDevices = (requestId: string) => request(`/queue/${encodeURIComponent(requestId)}`, undefined, 'DELETE')
+export const readDisplays = (id: string) => request<DisplayState[]>(`/${encodeURIComponent(id)}/displays`)
 export const destroyDevice = (id: string) => request(`/${encodeURIComponent(id)}`, undefined, 'DELETE')
-// 截图的地址（页面不用时要 revoke）和截图的时间
-export async function captureDevice(id: string): Promise<{ url: string; at: number }> {
-  const response = await fetch(`${base}/${encodeURIComponent(id)}/screenshot`)
+// 截图的地址（页面不用时要 revoke）和截图的时间；display 是设备的哪块屏幕
+export async function captureDevice(id: string, display?: string): Promise<{ url: string; at: number }> {
+  const response = await fetch(`${base}/${encodeURIComponent(id)}/screenshot${display ? `?display=${encodeURIComponent(display)}` : ''}`)
   if (!response.ok) throw new Error(await errorMessage(response, '截图失败'))
   return { url: URL.createObjectURL(await response.blob()), at: Date.parse(response.headers.get('Last-Modified') ?? '') || Date.now() }
 }

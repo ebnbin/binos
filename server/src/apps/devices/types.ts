@@ -1,4 +1,8 @@
 export type Platform = 'android' | 'ios'
+// 设备的屏幕：id 是截图时指定的屏幕，宽高是像素，uid 用来和 devicectl 报告的屏幕对应
+export type DeviceDisplay = { id: string; name: string; width: number; height: number; uid?: string }
+// 屏幕现在的状态：active 是正在显示内容的屏幕；无法查询时没有 active
+export type DisplayState = DeviceDisplay & { active?: boolean }
 export type DeviceStatus = 'creating' | 'checking' | 'free' | 'reserved' | 'leased' | 'cleaning' | 'destroying' | 'broken'
 export type Device = {
   id: string
@@ -9,6 +13,9 @@ export type Device = {
   // 机型标识和名称，创建时确定
   model?: string
   modelName?: string
+  // iOS 设备所在的设备集
+  iosSet?: string
+  displays?: DeviceDisplay[]
   status: DeviceStatus
   generation?: string
   idleSince?: number
@@ -32,7 +39,8 @@ export type Request =
   | { action: 'renew' | 'release'; owner: string; lease: string }
   | { action: 'cancel'; owner: string; requestId: string }
   | { action: 'control'; device: string; operation: 'destroy' }
-  | { action: 'screenshot'; device: string; owner?: string; lease?: string }
+  | { action: 'screenshot'; device: string; display?: string; owner?: string; lease?: string }
+  | { action: 'displays'; device: string; owner?: string; lease?: string }
   | { action: 'run'; owner: string; lease: string; command: string[]; cwd: string; timeout: number }
 // 可以申请的机型：id 是申请时用的标识，systems 是可选的系统版本，从新到旧
 export type DeviceModel = { platform: Platform; id: string; name: string; family: string; systems: string[]; default?: true }

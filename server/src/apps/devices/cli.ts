@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { deviceRequest } from './client.js'
 import { platforms } from './protocol.js'
-import type { DeviceModel, DeviceScreenshot, LeaseResult, Models, Snapshot } from './types.js'
+import type { DeviceModel, DeviceScreenshot, DisplayState, LeaseResult, Models, Snapshot } from './types.js'
 
 const argv = process.argv.slice(2)
 const command = argv.shift()
@@ -22,9 +22,11 @@ const usage = `用法：binos devices <命令>
   cancel --request <申请编号>            取消等待中的申请
   env --lease <id>                      输出设备环境变量 JSON
   run --lease <id> [--timeout 秒] -- <命令> [参数]
-  screenshot <设备ID> --lease <id> --output <文件>
+  displays <设备ID> --lease <id>         设备的屏幕和正在显示内容的屏幕
+  screenshot <设备ID> --lease <id> --output <文件> [--display 屏幕|all]
 身份默认使用 BINOS_THREAD_ID，手动操作加 --session <身份>。
 机型写 models 里的名称或标识，例如 --ios-model 'iPhone Duo'；不指定时用默认机型或可以复用的任意机型。
+截图默认截正在显示内容的屏幕，--display 指定屏幕，--display all 每块屏幕各截一张。
 设备按需创建，总容量 4 台；双端就绪后整组交付。闲置一小时后销毁。
 同一会话持有设备时不能追加申请，改变平台或机型必须先归还。
 测试实例使用模拟设备，不接管已有模拟器。
@@ -69,12 +71,22 @@ try {
       if (!requestId) throw new Error('需要 --request <申请编号>')
       print(await deviceRequest({ action: 'cancel', owner: identity(), requestId })); break
     }
+    case 'displays': print(await deviceRequest<DisplayState[]>({ action: 'displays', device: argv[0], owner: identity(), lease: lease() })); break
     case 'screenshot': {
-      const result = await deviceRequest<DeviceScreenshot>({ action: 'screenshot', device: argv[0], owner: identity(), lease: lease() })
       const output = flag('output')
       if (!output) throw new Error('需要 --output <截图文件>')
-      writeFileSync(output, Buffer.from(result.image, 'base64'))
-      print({ output, mime: result.mime, at: result.at })
+      const wanted = flag('display')
+      const device = wanted === 'all' ? (await deviceRequest<Snapshot>({ action: 'status' })).devices.find((item) => item.id === argv[0]) : undefined
+      const displays = wanted === 'all' ? device?.displays?.map((display) => display.id) ?? [undefined] : [wanted]
+      const results = []
+      for (const display of displays) {
+        const result = await deviceRequest<DeviceScreenshot>({ action: 'screenshot', device: argv[0], ...(display && { display }), owner: identity(), lease: lease() })
+        // 截多块屏幕时，文件名后面加上屏幕
+        const file = displays.length > 1 ? output.replace(/(\.[^./]+)?$/, `-${display}$1`) : output
+        writeFileSync(file, Buffer.from(result.image, 'base64'))
+        results.push({ output: file, ...(display && { display }), mime: result.mime, at: result.at })
+      }
+      print(results.length === 1 ? results[0] : results)
       break
     }
     case 'run': {

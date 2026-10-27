@@ -10,7 +10,7 @@
 
 需要已安装的 Xcode、iOS runtime、Android SDK platform-tools、emulator 和系统镜像。不需要来源 AVD，也不自动安装 SDK 或镜像。默认 Android 镜像为 `system-images;android-36;google_apis_playstore;arm64-v8a`，iOS 不指定机型时优先使用 iPhone 18 Pro，未安装该机型对应 runtime 时选择可用 iPhone；指定机型时用支持它的最新可用 runtime。显式指定的机型和 runtime 必须兼容，否则返回明确错误。服务启动环境可设置 `ANDROID_HOME`、`BINOS_ANDROID_IMAGE`、`BINOS_IOS_DEVICE_TYPE` 和 `BINOS_IOS_RUNTIME`，改变后需重启服务。
 
-真实设备使用专属 Android AVD 目录和 iOS device set，默认无窗口。Android 各实例使用独立临时目录和 HCI 端口，网络服务保持默认实例编号以匹配模拟器客户端的发现文件，进程身份包含 PID 与启动时间。已有模拟器只读发现，不参与分配或销毁。
+真实设备使用专属 Android AVD 目录，默认无窗口。iOS 设备建在 Xcode 的默认设备集里，名称是 `binos-<设备ID>`，`xcodebuild`、`devicectl` 和 Device Hub 都能直接使用；服务只按登记的名称和 UDID 操作自己的设备。早先建在服务自己设备集（数据目录下的 `ios/`）里的设备在服务启动时如果闲置就回收，使用中的照常使用到归还。Android 各实例使用独立临时目录和 HCI 端口，网络服务保持默认实例编号以匹配模拟器客户端的发现文件，进程身份包含 PID 与启动时间。已有模拟器只读发现，不参与分配或销毁。
 
 `BINOS_TEST_INSTANCE=1` 的开发与 PR 预览默认使用模拟设备，执行完整调度流程但不操作实际模拟器。真实模式为 `BINOS_DEVICES_MODE=real`；同一数据目录不能混用模式。
 
@@ -32,11 +32,20 @@ binos devices release --lease <租约ID>
 
 会话身份来自 `BINOS_THREAD_ID`；终端手动使用时加 `--session <身份>`。等待响应包含申请编号、位置和准备状态，退出码为 2；失败响应保留申请编号和原因，退出码为 1。可用 `acquire --request <申请编号>` 重试，或 `cancel --request <申请编号>` 取消等待、准备、失败或尚未领取的申请。已结束申请编号保留 24 小时，拒绝迟到的重复请求。旧租约的重复归还不影响新租约。
 
-`run` 注入 `ANDROID_SERIAL`、`ANDROID_HOME`、`ANDROID_AVD_HOME`、`BINOS_IOS_UDID` 和 `BINOS_IOS_DEVICE_SET`。iOS 必须显式指定设备集与 UDID：
+`run` 注入 `ANDROID_SERIAL`、`ANDROID_HOME`、`ANDROID_AVD_HOME`、`BINOS_IOS_UDID` 和 `BINOS_IOS_DEVICE_SET`（设备所在的设备集）。iOS 命令显式指定设备集与 UDID：
 
 ```sh
 xcrun simctl --set "$BINOS_IOS_DEVICE_SET" install "$BINOS_IOS_UDID" /path/to/App.app
+xcodebuild test -project App.xcodeproj -scheme App -destination "id=$BINOS_IOS_UDID"
+xcrun devicectl device orientation set --device "$BINOS_IOS_UDID" landscapeLeft
+xcrun devicectl device appResize start --device "$BINOS_IOS_UDID" --preferred-size 800x600
 ```
+
+点按、滑动、输入文字和硬件按键用 UI 测试（XCUIAutomation）完成。
+
+## 屏幕
+
+设备创建时登记内置屏幕（`displays`）：`id` 是 `simctl io enumerate` 里的屏幕设备名，主屏 `primary` 在前，带名称和像素尺寸。iPhone Duo 有外屏 `primary` 和内屏 `primary-1`，模拟器启动后是合上的状态，内屏不亮。`displays` 查询每块屏幕现在是否在显示内容（通过 `devicectl`，早先设备集里的设备没有这项）。`screenshot` 默认截正在显示内容的屏幕，查不到时截主屏；`--display <屏幕>` 截指定的屏幕，`--display all` 每块屏幕各截一张，文件名后加屏幕 id。开合没有命令行接口，需要在 Device Hub 里操作。
 
 命令最长运行 30 分钟，执行期间保活且不能普通归还；每个输出流上限 1 MiB。无命令运行时，租约 15 分钟未续期会回收；有人等待时连续占用上限为 1 小时。长间隔使用 `renew --lease <ID>`。等待申请 3 分钟失联会取消；整组就绪后的领取期限为 3 分钟，与准备耗时分开计算。状态查询和截图不续租。
 

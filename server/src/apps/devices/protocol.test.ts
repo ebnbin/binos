@@ -9,6 +9,7 @@ describe('设备请求校验', () => {
     expect(() => parseRequest({ action: 'run', owner: 'a', lease: 'id', cwd: '/tmp', command: ['echo'], timeout: 999999999 })).toThrow('命令超时范围')
     expect(() => parseRequest({ action: 'run', owner: 'a', lease: 'id', cwd: '/tmp', command: [null], timeout: 1000 })).toThrow('无效命令')
     expect(() => parseRequest({ action: 'screenshot', device: 'id', owner: 'a' })).toThrow('缺少有效')
+    expect(() => parseRequest({ action: 'screenshot', device: 'id', display: '' })).toThrow('缺少有效')
     expect(() => parseRequest({ action: 'acquire', owner: 'a', reason: '', platforms: ['ios'], models: { android: 'pixel' } })).toThrow('机型必须')
   })
 })

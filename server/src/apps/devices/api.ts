@@ -3,7 +3,7 @@ import { badRequest, errorHandler, forbidden } from '../../errors.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
 import { parseRequest } from './protocol.js'
-import type { DeviceModel, DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
+import type { DeviceModel, DeviceScreenshot, DisplayState, LeaseResult, Snapshot } from './types.js'
 
 function valid(value: Record<string, unknown>) {
   try {
@@ -56,8 +56,11 @@ export const devicesApi = new Hono()
     return c.body(null, 204)
   })
   // 图片本身，Last-Modified 是截图的时间
+  .get('/:id/displays', async (c) => c.json(await adminDeviceRequest<DisplayState[]>({ action: 'displays', device: c.req.param('id') })))
+  // ?display= 是设备的哪块屏幕，不填时截正在显示内容的屏幕
   .get('/:id/screenshot', async (c) => {
-    const { image, mime, at } = await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id') })
+    const display = c.req.query('display')
+    const { image, mime, at } = await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id'), ...(display && { display }) })
     return c.body(Buffer.from(image, 'base64'), 200, { 'Content-Type': mime, 'Last-Modified': new Date(at).toUTCString() })
   })
 export type DevicesApi = typeof devicesApi

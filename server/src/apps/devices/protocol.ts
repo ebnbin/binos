@@ -1,6 +1,6 @@
 import type { Platform, Request } from './types.js'
 
-const actions = new Set(['status', 'discover', 'models', 'stop', 'acquire', 'renew', 'release', 'cancel', 'control', 'screenshot', 'run'])
+const actions = new Set(['status', 'discover', 'models', 'stop', 'acquire', 'renew', 'release', 'cancel', 'control', 'screenshot', 'displays', 'run'])
 export function parseRequest(value: unknown): Request {
   if (!value || typeof value !== 'object') throw new Error('请求必须是对象')
   const v = value as Record<string, unknown>
@@ -20,7 +20,8 @@ export function parseRequest(value: unknown): Request {
     }
   }
   if (v.action === 'control') { need('device'); if (v.operation !== 'destroy') throw new Error('未知维护操作') }
-  if (v.action === 'screenshot') { need('device'); if (v.owner !== undefined || v.lease !== undefined) need('owner', 'lease') }
+  if (v.action === 'displays') { need('device'); if (v.owner !== undefined || v.lease !== undefined) need('owner', 'lease') }
+  if (v.action === 'screenshot') { need('device'); if (v.owner !== undefined || v.lease !== undefined) need('owner', 'lease'); if (v.display !== undefined) need('display') }
   if (v.action === 'run') {
     if (!Array.isArray(v.command) || !v.command.length || v.command.length > 200 || !v.command.every((part) => typeof part === 'string' && part.length < 16_384 && !part.includes('\0'))) throw new Error('无效命令')
     if (!text('cwd', 4096) || !(v.cwd as string).startsWith('/')) throw new Error('需要绝对工作目录')
