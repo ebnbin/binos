@@ -3,7 +3,7 @@ import { badRequest, errorHandler, forbidden } from '../../errors.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
 import { parseRequest } from './protocol.js'
-import type { DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
+import type { DeviceModel, DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
 
 function valid(value: Record<string, unknown>) {
   try {
@@ -29,6 +29,7 @@ export const devicesApi = new Hono()
   .onError(errorHandler([409, 'conflict']))
   .get('/', async (c) => c.json(await snapshot(false)))
   .post('/discover', async (c) => c.json(await snapshot(true)))
+  .get('/models', async (c) => c.json(await deviceRequest<DeviceModel[]>({ action: 'models' })))
   .post('/leases', async (c) => {
     const body = await c.req.json() as Record<string, unknown>
     const request = valid({ ...body, action: 'acquire', owner: 'manual' })

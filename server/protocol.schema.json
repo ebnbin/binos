@@ -935,6 +935,21 @@
           ],
           "additionalProperties": false
         },
+        "GET /api/apps/devices/models": {
+          "type": "object",
+          "properties": {
+            "response": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/DeviceModel"
+              }
+            }
+          },
+          "required": [
+            "response"
+          ],
+          "additionalProperties": false
+        },
         "POST /api/apps/devices/leases": {
           "type": "object",
           "properties": {
@@ -949,6 +964,9 @@
                   "items": {
                     "$ref": "#/definitions/Platform"
                   }
+                },
+                "models": {
+                  "$ref": "#/definitions/Models"
                 },
                 "requestId": {
                   "type": "string"
@@ -1494,6 +1512,7 @@
         "POST /api/apps/code/sessions/:id/stop",
         "GET /api/apps/devices",
         "POST /api/apps/devices/discover",
+        "GET /api/apps/devices/models",
         "POST /api/apps/devices/leases",
         "DELETE /api/apps/devices/leases/:id",
         "DELETE /api/apps/devices/queue/:requestId",
@@ -4109,6 +4128,12 @@
         "system": {
           "type": "string"
         },
+        "model": {
+          "type": "string"
+        },
+        "modelName": {
+          "type": "string"
+        },
         "status": {
           "$ref": "#/definitions/DeviceStatus"
         },
@@ -4178,6 +4203,9 @@
             "$ref": "#/definitions/Platform"
           }
         },
+        "models": {
+          "$ref": "#/definitions/Models"
+        },
         "devices": {
           "type": "array",
           "items": {
@@ -4203,6 +4231,18 @@
       ],
       "additionalProperties": false
     },
+    "Models": {
+      "type": "object",
+      "properties": {
+        "android": {
+          "type": "string"
+        },
+        "ios": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "Waiting": {
       "type": "object",
       "properties": {
@@ -4220,6 +4260,9 @@
           "items": {
             "$ref": "#/definitions/Platform"
           }
+        },
+        "models": {
+          "$ref": "#/definitions/Models"
         },
         "devices": {
           "type": "array",
@@ -4279,6 +4322,41 @@
       "required": [
         "time",
         "text"
+      ],
+      "additionalProperties": false
+    },
+    "DeviceModel": {
+      "type": "object",
+      "properties": {
+        "platform": {
+          "$ref": "#/definitions/Platform"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "family": {
+          "type": "string"
+        },
+        "systems": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "default": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "platform",
+        "id",
+        "name",
+        "family",
+        "systems"
       ],
       "additionalProperties": false
     },

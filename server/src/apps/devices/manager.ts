@@ -5,7 +5,7 @@ import path from 'node:path'
 import { processStartTime, isRunning } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { build, dataDir, mode, statePath } from './config.js'
-import { create, destroy, deviceEnv, discover, health, message, reset, screenshot } from './platform.js'
+import { create, destroy, deviceEnv, discover, health, message, models, reset, resolveModels, screenshot } from './platform.js'
 import { cancel, event, policy, release, requestLease, requireLease, schedule, transition } from './state.js'
 import { emptyState } from './types.js'
 import type { Device, LeaseResult, Request, Snapshot, State } from './types.js'
@@ -154,7 +154,7 @@ export class Manager {
         this.state.devices = this.state.devices.filter((item) => item.id !== device.id)
         event(this.state, '设备已销毁，容量已释放', Date.now(), device.id)
       } else {
-        if (result) { device.target = result.target; device.system = result.system }
+        if (result) Object.assign(device, { target: result.target, system: result.system, model: result.model, modelName: result.modelName })
         transition(device, operation === 'reset' ? 'free' : 'reserved')
         if (operation === 'reset') device.idleSince ??= Date.now()
         delete device.error
@@ -235,10 +235,13 @@ export class Manager {
         this.discoveryErrors = result.discoveryErrors
         return this.snapshot()
       }
-      case 'acquire':
-        requestLease(this.state, request.owner, request.reason, request.platforms, now, request.requestId)
+      case 'models': return models()
+      case 'acquire': {
+        const resolved = request.models && Object.keys(request.models).length ? await resolveModels(request.models) : undefined
+        requestLease(this.state, request.owner, request.reason, request.platforms, now, request.requestId, resolved)
         this.tick()
         return this.result(request.owner)
+      }
       case 'renew': {
         const lease = requireLease(this.state, request.owner, request.lease)
         lease.lastSeen = now

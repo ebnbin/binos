@@ -125,6 +125,22 @@ describe('动态设备池', () => {
     schedule(state, policy.idle + policy.deviceIdle + 3)
     expect(state.devices[0].status).toBe('destroying')
   })
+  it('指定机型只复用同一机型的闲置设备，没有时腾出容量按机型创建', () => {
+    const state = emptyState()
+    state.devices = [{ ...device('i1', 'ios'), model: 'phone' }, { ...device('i2', 'ios'), model: 'tablet' }, device('a1', 'android', 'leased'), device('a2', 'android', 'leased')]
+    requestLease(state, 'x', '', ['ios'], 0, undefined, { ios: 'tablet' })
+    schedule(state, 0)
+    expect(state.queue[0].devices).toEqual(['i2'])
+    requestLease(state, 'y', '', ['ios'], 0, undefined, { ios: 'fold' })
+    schedule(state, 0)
+    expect(state.devices.find((d) => d.id === 'i1')!.status).toBe('destroying')
+    state.devices = state.devices.filter((d) => d.id !== 'i1')
+    schedule(state, 1)
+    expect(state.devices.find((d) => d.status === 'creating')?.model).toBe('fold')
+    expect(() => requestLease(state, 'y', '', ['ios'], 2, undefined, { ios: 'phone' })).toThrow('不同机型')
+    expect(() => requestLease(state, 'y', '', ['ios'], 2)).toThrow('不同机型')
+    invariants(state)
+  })
   it('未领取的整组与失联准备申请按时回收', () => {
     const state = emptyState()
     request(state, 'x', ['android', 'ios'])

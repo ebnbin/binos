@@ -4,22 +4,27 @@
 
 ## 设备池
 
-正式实例初始为空，总容量为 4 台，不固定平台比例。申请支持 Android、iOS 和双端。已有健康闲置设备会先检查再复用；容量不足时销毁不匹配的闲置设备，腾出位置创建。全局按申请顺序安排容量，已开始准备的组不会被后续请求抢走。双端全部 ready 后才生成一份可领取租约。
+正式实例初始为空，总容量为 4 台，不固定平台比例。申请支持 Android、iOS 和双端，可以按平台指定机型。已有健康闲置设备会先检查再复用，指定了机型时只复用同一机型；容量不足时销毁不匹配的闲置设备，腾出位置创建。全局按申请顺序安排容量，已开始准备的组不会被后续请求抢走。双端全部 ready 后才生成一份可领取租约。
 
 创建、检查、预留、使用、清理、销毁和故障设备都占容量。创建意图先落盘，销毁确认成功才释放名额。归还后清理应用及数据，再保持启动供复用；闲置一小时后关闭并删除专属设备。状态读取、截图、健康检查和服务重启不延长闲置时间。
 
-需要已安装的 Xcode、iOS runtime、Android SDK platform-tools、emulator 和系统镜像。不需要来源 AVD，也不自动安装 SDK 或镜像。默认 Android 镜像为 `system-images;android-36;google_apis_playstore;arm64-v8a`，iOS 优先使用 iPhone 18 Pro，选择本机支持该机型的最新可用 runtime；未安装该机型对应 runtime 时选择可用 iPhone。显式指定的机型和 runtime 必须兼容，否则返回明确错误。服务启动环境可设置 `ANDROID_HOME`、`BINOS_ANDROID_IMAGE`、`BINOS_IOS_DEVICE_TYPE` 和 `BINOS_IOS_RUNTIME`，改变后需重启服务。
+需要已安装的 Xcode、iOS runtime、Android SDK platform-tools、emulator 和系统镜像。不需要来源 AVD，也不自动安装 SDK 或镜像。默认 Android 镜像为 `system-images;android-36;google_apis_playstore;arm64-v8a`，iOS 不指定机型时优先使用 iPhone 18 Pro，未安装该机型对应 runtime 时选择可用 iPhone；指定机型时用支持它的最新可用 runtime。显式指定的机型和 runtime 必须兼容，否则返回明确错误。服务启动环境可设置 `ANDROID_HOME`、`BINOS_ANDROID_IMAGE`、`BINOS_IOS_DEVICE_TYPE` 和 `BINOS_IOS_RUNTIME`，改变后需重启服务。
 
 真实设备使用专属 Android AVD 目录和 iOS device set，默认无窗口。Android 各实例使用独立临时目录和 HCI 端口，网络服务保持默认实例编号以匹配模拟器客户端的发现文件，进程身份包含 PID 与启动时间。已有模拟器只读发现，不参与分配或销毁。
 
 `BINOS_TEST_INSTANCE=1` 的开发与 PR 预览默认使用模拟设备，执行完整调度流程但不操作实际模拟器。真实模式为 `BINOS_DEVICES_MODE=real`；同一数据目录不能混用模式。
 
+## 机型
+
+`binos devices models` 列出本机可以申请的机型：iOS 是可用 runtime 支持的所有模拟器机型，带名称、标识、设备族和可选的系统版本，不指定时用的那个标为 `default`。申请时用 `--ios-model` 填名称（不区分大小写）或标识，服务换成标识后记在申请上，本机没有的机型直接报错。设备创建时记下实际的机型标识和名称。Android 的硬件配置目前固定，指定 Android 机型会返回错误。
+
 ## 会话使用
 
-每个 session 只能有一份申请，选择 `android`、`ios` 或 `both`；修改组合必须先归还或取消。相同组合重试返回原申请，不能增加设备或改变队列位置。
+每个 session 只能有一份申请，选择 `android`、`ios` 或 `both`，可以另外指定机型；修改平台或机型必须先归还或取消。相同组合重试返回原申请，不能增加设备或改变队列位置。
 
 ```sh
 binos devices acquire --platform both --reason '双端验证' --wait 60
+binos devices acquire --platform ios --ios-model 'iPhone Duo' --reason '折叠屏布局' --wait 60
 binos devices run --lease <租约ID> -- <命令> [参数]
 binos devices screenshot <设备ID> --lease <租约ID> --output /tmp/screen.png
 binos devices release --lease <租约ID>

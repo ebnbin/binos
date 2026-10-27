@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { deviceRequest } from './client.js'
 import { platforms } from './protocol.js'
-import type { DeviceScreenshot, LeaseResult, Snapshot } from './types.js'
+import type { DeviceModel, DeviceScreenshot, LeaseResult, Models, Snapshot } from './types.js'
 
 const argv = process.argv.slice(2)
 const command = argv.shift()
@@ -14,13 +14,38 @@ const owner = flag('session') ?? process.env.BINOS_THREAD_ID
 const identity = () => { if (!owner) throw new Error('需要 BINOS_THREAD_ID 或 --session <身份>'); return owner }
 const lease = () => { const value = flag('lease'); if (!value) throw new Error('需要 --lease <申请返回的租约 ID>'); return value }
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2))
+const usage = `用法：binos devices <命令>
+  status | discover | log              查看设备池、只读发现已有模拟器、操作记录
+  models                               列出可以申请的机型和系统版本
+  acquire --platform android|ios|both [--ios-model 机型] [--android-model 机型] [--reason 用途] [--wait 秒] [--request 申请编号]
+  renew | release --lease <id>          续租或释放，归还后自动清理
+  cancel --request <申请编号>            取消等待中的申请
+  env --lease <id>                      输出设备环境变量 JSON
+  run --lease <id> [--timeout 秒] -- <命令> [参数]
+  screenshot <设备ID> --lease <id> --output <文件>
+身份默认使用 BINOS_THREAD_ID，手动操作加 --session <身份>。
+机型写 models 里的名称或标识，例如 --ios-model 'iPhone Duo'；不指定时用默认机型或可以复用的任意机型。
+设备按需创建，总容量 4 台；双端就绪后整组交付。闲置一小时后销毁。
+同一会话持有设备时不能追加申请，改变平台或机型必须先归还。
+测试实例使用模拟设备，不接管已有模拟器。
+受管理命令自动保活，最长 30 分钟；其他操作间隔较长时使用 renew。`
 
 try {
-  switch (command) {
+  // 任何命令带 --help 都只显示用法
+  const action = options.includes('--help') ? 'help' : command
+  switch (action) {
     case 'status': print(await deviceRequest({ action: 'status' })); break
     case 'discover': print(await deviceRequest({ action: 'discover' })); break
+    case 'models': print(await deviceRequest<DeviceModel[]>({ action: 'models' })); break
     case 'acquire': {
       const selected = platforms(flag('platform') ?? 'both')
+      const models: Models = {}
+      for (const platform of ['android', 'ios'] as const) {
+        const model = flag(`${platform}-model`)
+        if (!model) continue
+        if (!selected.includes(platform)) throw new Error(`指定了 --${platform}-model，申请的平台里需要有 ${platform}`)
+        models[platform] = model
+      }
       const seconds = Number(flag('wait') ?? 0)
       if (!Number.isFinite(seconds) || seconds < 0 || seconds > 600) throw new Error('--wait 范围为 0 到 600 秒')
       const until = Date.now() + seconds * 1000
@@ -28,7 +53,7 @@ try {
       let result: LeaseResult
       let pending = true
       do {
-        result = await deviceRequest<LeaseResult>({ action: 'acquire', owner: identity(), reason: flag('reason') ?? '', platforms: selected, requestId })
+        result = await deviceRequest<LeaseResult>({ action: 'acquire', owner: identity(), reason: flag('reason') ?? '', platforms: selected, ...(Object.keys(models).length && { models }), requestId })
         requestId = result.requestId
         if (result.error || result.lease || Date.now() >= until) break
         await sleep(2000)
@@ -38,7 +63,7 @@ try {
       if (!result.lease) process.exitCode = result.error ? 1 : 2
       break
     }
-    case 'renew': case 'release': print(await deviceRequest({ action: command, owner: identity(), lease: lease() })); break
+    case 'renew': case 'release': print(await deviceRequest({ action, owner: identity(), lease: lease() })); break
     case 'cancel': {
       const requestId = flag('request')
       if (!requestId) throw new Error('需要 --request <申请编号>')
@@ -68,19 +93,7 @@ try {
     }
     case 'log': { const status = await deviceRequest<Snapshot>({ action: 'status' }); print(status.events); break }
     case undefined: case 'help': case '--help':
-      console.log(`用法：binos devices <命令>
-  status | discover | log              查看设备池、只读发现已有模拟器、操作记录
-  acquire --platform android|ios|both [--reason 用途] [--wait 秒] [--request 申请编号]
-  renew | release --lease <id>          续租或释放，归还后自动清理
-  cancel --request <申请编号>            取消等待中的申请
-  env --lease <id>                      输出设备环境变量 JSON
-  run --lease <id> [--timeout 秒] -- <命令> [参数]
-  screenshot <设备ID> --lease <id> --output <文件>
-身份默认使用 BINOS_THREAD_ID，手动操作加 --session <身份>。
-设备按需创建，总容量 4 台；双端就绪后整组交付。闲置一小时后销毁。
-同一会话持有设备时不能追加申请，改变平台必须先归还。
-测试实例使用模拟设备，不接管已有模拟器。
-受管理命令自动保活，最长 30 分钟；其他操作间隔较长时使用 renew。`)
+      console.log(usage)
       break
     default: throw new Error(`未知设备命令：${command}`)
   }

@@ -1,5 +1,5 @@
 import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
-import type { LeaseResult, Platform } from '@binos/server/apps/devices/types'
+import type { DeviceModel, LeaseResult, Models, Platform } from '@binos/server/apps/devices/types'
 import { errorMessage } from '../../api.ts'
 
 const base = '/api/apps/devices'
@@ -10,7 +10,8 @@ async function request<T>(path: string, body?: unknown, method = body === undefi
 }
 export const readDevices = () => request<DevicesSnapshot>('')
 export const discoverDevices = () => request<DevicesSnapshot>('/discover', {})
-export const acquireDevices = (platforms: Platform[], reason: string, requestId: string = crypto.randomUUID()) => request<LeaseResult>('/leases', { platforms, reason, requestId })
+export const readModels = () => request<DeviceModel[]>('/models')
+export const acquireDevices = (platforms: Platform[], reason: string, models?: Models, requestId: string = crypto.randomUUID()) => request<LeaseResult>('/leases', { platforms, reason, models, requestId })
 export const releaseDevices = (id: string) => request(`/leases/${encodeURIComponent(id)}`, undefined, 'DELETE')
 export const cancelDevices = (requestId: string) => request(`/queue/${encodeURIComponent(requestId)}`, undefined, 'DELETE')
 export const destroyDevice = (id: string) => request(`/${encodeURIComponent(id)}`, undefined, 'DELETE')

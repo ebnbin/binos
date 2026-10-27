@@ -10,9 +10,9 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { isRunning, processStartTime } from '../../process.js'
 import type { ProcessIdentity } from '../../process.js'
 import { adb, avdDir, emulator, emulatorHome, iosSet, javaHome, mode, sdkDir, toolEnv } from './config.js'
-import { iosProfile } from './ios-profile.js'
+import { iosModel, iosModels, iosProfile } from './ios-profile.js'
 import type { IosRuntime } from './ios-profile.js'
-import type { Device, ObservedDevice } from './types.js'
+import type { Device, DeviceModel, Models, ObservedDevice } from './types.js'
 
 const exec = promisify(execFile)
 export async function tool(command: string, args: string[], timeout = 30_000) {
@@ -20,7 +20,7 @@ export async function tool(command: string, args: string[], timeout = 30_000) {
   return stdout.trim()
 }
 const sim = (args: string[], timeout?: number) => tool('xcrun', ['simctl', '--set', iosSet, ...args], timeout)
-type SimDevice = { udid: string; name: string; state: string; isAvailable?: boolean; runtime?: string }
+type SimDevice = { udid: string; name: string; state: string; isAvailable?: boolean; runtime?: string; deviceTypeIdentifier?: string }
 const parseIos = (text: string) => Object.entries((JSON.parse(text) as { devices: Record<string, SimDevice[]> }).devices).flatMap(([runtime, devices]) => devices.map((device) => ({ ...device, runtime })))
 
 export async function discover(): Promise<{ observed: ObservedDevice[]; discoveryErrors: string[] }> {
@@ -37,6 +37,21 @@ export async function discover(): Promise<{ observed: ObservedDevice[]; discover
     observed: sources.flatMap<ObservedDevice>((result) => result.status === 'fulfilled' ? result.value : []),
     discoveryErrors: sources.flatMap((result, index) => result.status === 'rejected' ? [`${index === 0 ? 'iOS' : 'Android'} 查询失败：${message(result.reason)}`] : []),
   }
+}
+const mockModels: DeviceModel[] = [
+  { platform: 'ios', id: 'mock-iphone', name: 'iPhone', family: 'iPhone', systems: ['preview'], default: true },
+  { platform: 'ios', id: 'mock-ipad', name: 'iPad', family: 'iPad', systems: ['preview'] },
+]
+export async function models(): Promise<DeviceModel[]> {
+  if (mode === 'mock') return mockModels
+  const installed = JSON.parse(await tool('xcrun', ['simctl', 'list', 'runtimes', '--json'])) as { runtimes: IosRuntime[] }
+  return iosModels(installed.runtimes, process.env.BINOS_IOS_DEVICE_TYPE, process.env.BINOS_IOS_RUNTIME)
+}
+// 把申请里的机型名称换成标识，本机没有的机型直接报错
+export async function resolveModels(requested: Models): Promise<Models> {
+  if (requested.android) throw new Error('Android 暂不支持指定机型')
+  if (!requested.ios) return requested
+  return { ios: iosModel(await models(), requested.ios).id }
 }
 export const message = (error: unknown) => error instanceof Error ? error.message.slice(0, 600) : String(error).slice(0, 600)
 
@@ -168,16 +183,16 @@ export async function reset(device: Device) {
 }
 
 export async function create(device: Device): Promise<Device> {
-  if (mode === 'mock') { await sleep(50); return { ...device, target: device.target || device.id, system: device.platform === 'ios' ? 'iOS-preview' : 'android-preview' } }
+  if (mode === 'mock') { await sleep(50); return { ...device, target: device.target || device.id, system: device.platform === 'ios' ? 'iOS-preview' : 'android-preview', ...(device.model && { modelName: mockModels.find((model) => model.id === device.model)?.name }) } }
   if (device.platform === 'ios') {
     await mkdir(iosSet, { recursive: true })
     const found = parseIos(await sim(['list', 'devices', '--json'])).find((item) => item.name === device.name)
-    if (found) device = { ...device, target: found.udid, system: found.runtime }
+    if (found) device = { ...device, target: found.udid, system: found.runtime, model: found.deviceTypeIdentifier ?? device.model }
     else {
       const installed = JSON.parse(await sim(['list', 'runtimes', '--json'])) as { runtimes: IosRuntime[] }
-      const profile = iosProfile(installed.runtimes, process.env.BINOS_IOS_DEVICE_TYPE, process.env.BINOS_IOS_RUNTIME)
+      const profile = iosProfile(installed.runtimes, device.model ?? process.env.BINOS_IOS_DEVICE_TYPE, process.env.BINOS_IOS_RUNTIME)
       const target = await sim(['create', device.name, profile.deviceType, profile.runtime], 120_000)
-      device = { ...device, target, system: profile.runtime }
+      device = { ...device, target, system: profile.runtime, model: profile.deviceType, modelName: profile.name }
     }
   } else {
     const image = process.env.BINOS_ANDROID_IMAGE ?? 'system-images;android-36;google_apis_playstore;arm64-v8a'
