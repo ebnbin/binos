@@ -4,7 +4,9 @@ import SwiftUI
 // 竖向栏只在明确支持的设备上有：iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条
 extension SystemGeometry {
     init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, hinge: DeviceHinge.Status?) {
-        let occlusions = proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
+        // iPad 的屏幕上没有挖孔，前置硬件都在边框里，但系统会在摄像头那条边报告一条遮挡区域，所以不用。
+        // 窗口可调整大小时左上角的窗口控制按钮也会占位，没有算进去
+        let occlusions = SystemDevice.current == .pad ? [] : proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
         let verticalBar = SystemDevice.current == .duo && hinge == .closed
         self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii, verticalBar: verticalBar)
     }
