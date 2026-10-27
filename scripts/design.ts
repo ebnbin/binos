@@ -5,8 +5,7 @@ const repoDir = path.resolve(import.meta.dirname, '..')
 export const logoPath = path.join(repoDir, 'design', 'logo.svg')
 export const iosIconDir = path.join(repoDir, 'ios', 'binOS', 'AppIcon.icon')
 
-// iOS 的 App 图标是 Icon Composer 文档：背景填母版方块的颜色，前景是去掉方块的字形，Liquid Glass 的效果由系统加在字形上。
-// Xcode 编译图标时不跟随软链接，所以生成后提交进仓库
+// Liquid Glass 的效果加在前景图层上，所以方块做成背景色，字形单独一层。Xcode 编译图标时不跟随软链接，所以生成后提交进仓库
 export function iosAppIcon(source: string): Record<string, string> {
   const svg = source.replace(/<!--[\s\S]*?-->/g, '').trim()
   const hex = /<rect\b[^>]*\bfill="#([0-9a-f]{3}|[0-9a-f]{6})"/i.exec(svg)?.[1]

@@ -1,4 +1,3 @@
-/* 母版是黑底白字，界面里换成跟随深浅色的颜色 */
 .mark {
   --ink: var(--color-label);
   --on-ink: var(--color-background);
