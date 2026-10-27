@@ -3,6 +3,7 @@ import SwiftUI
 // 系统给这个窗口的所有尺寸：画在窗口上，数值列在安全区里。白底，挖孔和保留区域一眼能看出来
 struct MetricsView: View {
     @AppStorage("essentials") private var essentials = true
+    @AppStorage("systemArea") private var systemArea = false
     @State private var window = WindowMetrics()
     @State private var hinge: DeviceHinge?
     @Environment(\.displayScale) private var displayScale
@@ -15,37 +16,68 @@ struct MetricsView: View {
             let safe = proxy.safeAreaInsets
             let margins = proxy.contentMargins(for: .container)
             let regions = [ReservedRegion.Kind.occlusion, .division].flatMap { proxy.reservedRegions(kind: $0, options: .includeInactive) }
-            ZStack(alignment: .topLeading) {
-                Color.white
-                if let radii = proxy.concentricCornerRadii {
-                    UnevenRoundedRectangle(cornerRadii: radii).stroke(.purple, lineWidth: 2)
-                }
-                corners(proxy.containerCornerInsets, in: size)
-                if !essentials {
-                    inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-                    inset(safe, in: size).stroke(.green, lineWidth: 2)
-                    edgeLabels(safe, in: size)
-                }
-                ForEach(regions) { region in
-                    let color: Color = region.kind == .division ? .cyan : .red
-                    Rectangle()
-                        .fill(color.opacity(region.isActive ? 0.45 : 0.15))
-                        .overlay(Rectangle().stroke(color, style: StrokeStyle(lineWidth: 1, dash: region.isActive ? [] : [4, 3])))
-                        .frame(width: max(region.frame.width, 2), height: max(region.frame.height, 2))
-                        .offset(x: region.frame.minX, y: region.frame.minY)
-                }
-                ScrollView {
-                    panel(size: size, safe: safe, margins: margins, corners: proxy.containerCornerInsets, radii: proxy.concentricCornerRadii, regions: regions)
+            if systemArea {
+                let layout = SystemLayout(size: size, safeArea: safe, occlusions: regions.filter { $0.kind == .occlusion && $0.isActive }.map(\.frame), cornerRadii: proxy.concentricCornerRadii)
+                ZStack(alignment: .topLeading) {
+                    Color.black
+                    area(layout.content, .white)
+                    if let dock = layout.dock {
+                        area(dock, .blue)
+                    }
+                    toggle("显示系统区域", $systemArea)
                         .padding(16)
+                        .frame(width: layout.content.rect.width)
+                        .offset(x: layout.content.rect.minX, y: layout.content.rect.minY)
                 }
-                .frame(width: max(size.width - safe.leading - safe.trailing, 0), height: max(size.height - safe.top - safe.bottom, 0))
-                .offset(x: safe.leading, y: safe.top)
+            } else {
+                ZStack(alignment: .topLeading) {
+                    Color.white
+                    if let radii = proxy.concentricCornerRadii {
+                        UnevenRoundedRectangle(cornerRadii: radii).stroke(.purple, lineWidth: 2)
+                    }
+                    corners(proxy.containerCornerInsets, in: size)
+                    if !essentials {
+                        inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                        inset(safe, in: size).stroke(.green, lineWidth: 2)
+                        edgeLabels(safe, in: size)
+                    }
+                    ForEach(regions) { region in
+                        let color: Color = region.kind == .division ? .cyan : .red
+                        Rectangle()
+                            .fill(color.opacity(region.isActive ? 0.45 : 0.15))
+                            .overlay(Rectangle().stroke(color, style: StrokeStyle(lineWidth: 1, dash: region.isActive ? [] : [4, 3])))
+                            .frame(width: max(region.frame.width, 2), height: max(region.frame.height, 2))
+                            .offset(x: region.frame.minX, y: region.frame.minY)
+                    }
+                    ScrollView {
+                        panel(size: size, safe: safe, margins: margins, corners: proxy.containerCornerInsets, radii: proxy.concentricCornerRadii, regions: regions)
+                            .padding(16)
+                    }
+                    .frame(width: max(size.width - safe.leading - safe.trailing, 0), height: max(size.height - safe.top - safe.bottom, 0))
+                    .offset(x: safe.leading, y: safe.top)
+                }
             }
         }
         .ignoresSafeArea()
         .environment(\.colorScheme, .light)
         .background(WindowProbe(metrics: $window))
         .onHingeChange { _, context in hinge = context.hinge }
+    }
+
+    private func area(_ area: SystemLayout.Area, _ color: Color) -> some View {
+        RoundedRectangle(cornerRadius: area.radius)
+            .fill(color)
+            .frame(width: area.rect.width, height: area.rect.height)
+            .offset(x: area.rect.minX, y: area.rect.minY)
+    }
+
+    // 开关在文字左边：右上角常常是灵动岛的保留区域
+    private func toggle(_ title: String, _ isOn: Binding<Bool>) -> some View {
+        HStack {
+            Toggle(title, isOn: isOn).labelsHidden().fixedSize()
+            Text(title).font(.subheadline.bold())
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func inset(_ insets: EdgeInsets, in size: CGSize) -> Path {
@@ -80,12 +112,8 @@ struct MetricsView: View {
     private func panel(size: CGSize, safe: EdgeInsets, margins: EdgeInsets, corners: RectangleCornerInsets, radii: RectangleCornerRadii?, regions: [ReservedRegion]) -> some View {
         // 宽的窗口分成多列，横屏和展开时不用滚动也能看全
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 24, alignment: .top)], alignment: .leading, spacing: 16) {
-            // 开关放在左边：右上角是灵动岛的保留区域
-            HStack {
-                Toggle("只看常用信息", isOn: $essentials).labelsHidden().fixedSize()
-                Text("只看常用信息").font(.subheadline.bold())
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            toggle("只看常用信息", $essentials)
+            toggle("显示系统区域", $systemArea)
             section("窗口", .primary, [
                 ("尺寸", "\(dimensions(size)) pt"),
                 ("像素", "\(dimensions(CGSize(width: size.width * displayScale, height: size.height * displayScale))) px"),
