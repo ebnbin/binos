@@ -142,6 +142,7 @@ struct MetricsView: View {
                 ("正在调整大小", window.resizing ? "是" : "否"),
             ]))
             section("屏幕", .primary, [
+                ("型号", SystemDevice.modelIdentifier),
                 ("尺寸", window.screenSize.map { "\(dimensions($0)) pt" } ?? "未知"),
                 ("物理像素", window.nativeSize.map { "\(dimensions($0)) px" } ?? "未知"),
                 ("缩放", [window.scale, window.nativeScale].compactMap { $0 }.map(format).joined(separator: " · 原生 ")),
