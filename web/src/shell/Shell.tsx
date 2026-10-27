@@ -72,6 +72,7 @@ export function Shell() {
       {placement !== 'hidden' && (
         <TaskBar
           ref={dock}
+          screen={() => main.current}
           placement={placement}
           connection={connection}
           capsule={compact ? { collapsed, current: focusedWindow, onExpand: expand, onActivity: touch, onPointerDown, onPointerMove, onPointerEnd, onMenu } : undefined}

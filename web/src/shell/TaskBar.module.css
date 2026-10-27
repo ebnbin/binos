@@ -59,7 +59,8 @@
 }
 
 .bar[inert] .dock,
-.bar[inert] .capsule {
+.bar[inert] .capsule,
+.bar[inert] .surface {
   opacity: 0.4;
 }
 
@@ -179,26 +180,6 @@
   margin: var(--space-1) 0;
 }
 
-.glyph {
-  display: flex;
-  gap: var(--space-0-5);
-  width: 26px;
-  height: 19px;
-}
-
-.glyph[data-portrait='true'] {
-  flex-direction: column;
-  width: 19px;
-  height: 24px;
-}
-
-.glyph i {
-  border-radius: calc(var(--radius-xs) / 2);
-  background: currentColor;
-  opacity: 0.85;
-}
-
-
 .member {
   position: relative;
   display: grid;
@@ -278,6 +259,8 @@
   left: env(safe-area-inset-left);
   height: var(--dock-strip);
   padding: 0;
+  /* Dock 底边到胶囊底边的距离：收起展开时内容跟着底板走这么远 */
+  --travel: calc(var(--space-2) + var(--dock-strip) / 2 + var(--capsule) / 2);
 }
 
 .bar[data-compact='true'] .dock {
@@ -288,14 +271,40 @@
   max-width: calc(100% - var(--dock-margin) * 2);
   max-height: none;
   margin-inline: auto;
+  background: none;
+  box-shadow: none;
+  transform-origin: bottom center;
+  /* 内容跟着底板一起移动缩放，展开时稍晚淡入，和底板一起到位 */
+  transition:
+    opacity var(--duration-normal) var(--ease-standard) var(--duration-fast),
+    transform var(--duration-slow) var(--ease-standard);
+}
+
+/* 胶囊和展开的 Dock 共用这一块底板：收起展开时它在两种形状之间变过去，里面的内容只是淡出淡入，看起来是同一个东西在变 */
+.surface {
+  position: absolute;
+  bottom: calc((100% - var(--capsule)) / 2);
+  left: 50%;
+  width: var(--capsule-width, var(--capsule));
+  height: var(--capsule);
+  border-radius: calc(var(--capsule) / 2);
   background: linear-gradient(var(--material-dock), var(--material-dock)), color-mix(in srgb, var(--color-chrome) 88%, transparent);
-  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
+  transform: translateX(-50%);
   -webkit-backdrop-filter: var(--material-blur);
   backdrop-filter: var(--material-blur);
-  transform-origin: bottom center;
-  transition:
-    opacity var(--duration-normal) var(--ease-standard),
-    transform var(--duration-normal) var(--ease-standard);
+  pointer-events: none;
+  transition-property: bottom, width, height, border-radius, box-shadow, opacity;
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-standard);
+}
+
+.bar[data-collapsed='false'] .surface {
+  bottom: calc(100% + var(--space-2));
+  width: var(--dock-width);
+  height: calc(var(--item) + var(--dock-padding) * 2);
+  border-radius: calc(var(--item-radius) + var(--dock-padding));
+  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
 }
 
 /* 往下滑收起 Dock，只把横向的拖动留给浏览器滚动 app 那一段 */
@@ -306,7 +315,11 @@
 
 .bar[data-collapsed='true'] .dock {
   opacity: 0;
-  transform: translateY(var(--space-6)) scale(0.6);
+  /* 跟着底板落到胶囊的位置，缩到胶囊的高度：56 到 28 */
+  transform: translateY(var(--travel)) scale(0.5);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
 }
 
 .capsule {
@@ -322,15 +335,13 @@
   margin-inline: auto;
   padding: 0 var(--space-3) 0 calc((var(--capsule) - var(--capsule-dot)) / 2);
   border-radius: var(--radius-full);
-  background: var(--material-dock);
-  box-shadow: inset 0 0 0 0.5px var(--material-dock-edge);
   color: var(--color-on-chrome);
   font-size: var(--font-size-footnote);
   font-weight: var(--font-weight-medium);
   transform-origin: bottom center;
   transition:
-    opacity var(--duration-normal) var(--ease-standard),
-    transform var(--duration-normal) var(--ease-standard);
+    opacity var(--duration-normal) var(--ease-standard) var(--duration-fast),
+    transform var(--duration-slow) var(--ease-standard);
 }
 
 /* 最前面的圆点落在左端圆角的圆心上。没有名字时最后是图标，右边留到图标的圆角整个落在胶囊的直边段里，不被右端的圆角裁到 */
@@ -383,8 +394,7 @@
   left: var(--offset);
 }
 
-/* Dock 最前面的刷新按钮：和 app 图标差不多大的线条图标，颜色和圆点一致 */
-/* 连接失败或有新版本时桌面按钮旁边的提示：在桌面按钮朝屏幕的一侧，和 Dock 的一端对齐，尖角指着桌面按钮 */
+/* 连接失败或有新版本时桌面按钮旁边的提示：在桌面按钮朝屏幕的一侧，居中对着它，超出页面时往里挪 --shift，尖角始终指着桌面按钮 */
 .homeSlot {
   position: relative;
   display: flex;
@@ -394,9 +404,10 @@
 .notice {
   --surface: color-mix(in srgb, var(--color-on-chrome) 10%, var(--color-chrome));
   --tail: 10px;
+  --shift: 0px;
   position: absolute;
   bottom: calc(100% + var(--dock-padding) + var(--space-2));
-  left: calc(var(--dock-padding) * -1);
+  left: 50%;
   display: flex;
   align-items: center;
   gap: var(--space-2-5);
@@ -407,13 +418,14 @@
   box-shadow: inset 0 0 0 0.5px var(--material-dock-edge), var(--shadow-overlay);
   color: var(--color-on-chrome);
   text-align: start;
+  transform: translateX(calc(-50% + var(--shift)));
 }
 
 .notice::after {
   content: '';
   position: absolute;
   bottom: calc(var(--tail) / -2);
-  left: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  left: calc(50% - var(--shift) - var(--tail) / 2);
   width: var(--tail);
   height: var(--tail);
   background: var(--surface);
@@ -422,8 +434,9 @@
 
 .bar[data-placement='left'] .notice,
 .bar[data-placement='right'] .notice {
-  top: calc(var(--dock-padding) * -1);
+  top: 50%;
   bottom: auto;
+  transform: translateY(calc(-50% + var(--shift)));
 }
 
 .bar[data-placement='left'] .notice {
@@ -437,7 +450,7 @@
 
 .bar[data-placement='left'] .notice::after,
 .bar[data-placement='right'] .notice::after {
-  top: calc(var(--dock-padding) + var(--item) / 2 - var(--tail) / 2);
+  top: calc(50% - var(--shift) - var(--tail) / 2);
   bottom: auto;
 }
 
@@ -489,7 +502,11 @@
 
 .bar[data-collapsed='false'] .capsule {
   opacity: 0;
-  transform: translateY(calc(var(--space-2) * -1)) scale(1.4);
+  /* 跟着底板升到 Dock 的位置，长到 Dock 的高度：28 到 56 */
+  transform: translateY(calc(var(--travel) * -1)) scale(2);
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
 }
 
 .capsuleIcon {
@@ -505,7 +522,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bar[data-compact='true'] .dock,
-  .capsule {
+  .capsule,
+  .surface {
     transition: none;
   }
 
@@ -514,51 +532,7 @@
   }
 }
 
-/* 窗口菜单：从 Dock 上弹出 */
-.menu {
-  display: flex;
-  flex-direction: column;
-  min-width: 180px;
-  padding: var(--space-1-5);
-  border-radius: var(--radius-menu);
-}
-
-.menuLabel {
-  composes: menuLabel from '../ui/controls.module.css';
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.menuItem {
-  composes: menuItem from '../ui/controls.module.css';
-  cursor: default;
-}
-
-.menuIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 22px;
-  color: var(--color-label-secondary);
-}
-
-.menuIcon .glyph {
-  width: 18px;
-  height: 14px;
-}
-
-.menuIcon .glyph[data-portrait='true'] {
-  width: 14px;
-  height: 18px;
-}
-
-@media (hover: hover) {
-  .menuItem:hover .menuIcon {
-    color: inherit;
-  }
-}
-
-.menuItem:focus-visible .menuIcon {
-  color: inherit;
+/* 长按拖出来的那个图标，原位置淡下去 */
+.item[data-held='true'] .member {
+  opacity: 0.3;
 }

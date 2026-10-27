@@ -72,18 +72,19 @@ export function useShellController(size: Size | null) {
     if (id) focus(id, 0)
   }
 
-  // 关闭窗口；在分屏的一组里就整组关闭。正在显示的被关了就换到最近用过的，没有就回桌面
+  // 关闭一个窗口，它所在的分屏随之解散。正在显示的被关了就换到同组的另一个，不在分屏里就换到最近用过的，都没有就回桌面
   const close = (id: string) => {
-    const target = stored.groups.find((item) => item.slots.includes(id))
-    const closing = target ? target.slots.filter((slot): slot is string => slot !== null) : [id]
     if (draft) return
-    closing.forEach(closeWindow)
-    if (!focused || !closing.includes(focused)) return
-    const next = recent.find((item) => !closing.includes(item)) ?? null
+    const target = stored.groups.find((item) => item.slots.includes(id))
+    closeWindow(id)
+    if (id !== focused) return
+    const next = target ? target.slots.find((item) => item !== id) ?? null : recent.find((item) => item !== id) ?? null
     setView((prev) => ({ ...prev, home: !next, focused: next, slot: 0 }))
   }
 
-  if (draft && (!allowed.includes(draft.layout) || !stored.windows[draft.slots[0]!])) setDraft(null)
+  // 选第二个 app 时，一侧是已经放好的窗口，另一侧空着
+  const anchor = draft?.slots.find((id) => id !== null)
+  if (draft && (!allowed.includes(draft.layout) || !anchor || !stored.windows[anchor])) setDraft(null)
 
   // 浏览器返回时，恢复那条记录的窗口和路由
   useEffect(() => {
@@ -101,14 +102,15 @@ export function useShellController(size: Size | null) {
   })
 
   const pick = (appId: string) => {
-    if (!draft || !draft.slots[0]) return
+    if (!draft || !anchor) return
     const existing = windows.find((item) => item.window.applicationId === appId)
     if (existing && stored.groups.some((item) => item.slots.includes(existing.id))) return
     const id = ensureApplicationWindow(apps, appId)
-    if (!id) return
-    createGroup({ layout: draft.layout, slots: [draft.slots[0], id] })
+    if (!id || id === anchor) return
+    const at = draft.slots.indexOf(null)
+    createGroup({ layout: draft.layout, slots: draft.slots.map((slot) => slot ?? id) })
     setDraft(null)
-    focus(id, 1)
+    focus(id, at)
   }
 
   const swap = () => {
@@ -118,11 +120,15 @@ export function useShellController(size: Size | null) {
   }
 
   const goHome = () => { if (!draft && !home) setView((prev) => ({ ...prev, home: true })) }
-  // 从 Dock 的菜单上分屏：先把这个窗口切到前台，再选第二个 app
-  const split = (id: string) => {
+  // 从 Dock 上把窗口拖到分屏的一侧。正在显示另一个不在分屏里的窗口时，和它直接组成分屏；否则另一侧选第二个 app
+  const split = (id: string, at: number) => {
     if (draft || stored.groups.some((item) => item.slots.includes(id))) return
-    focus(id, 0)
-    setDraft({ layout: fitLayout('1:1', allowed), slots: [id, null] })
+    const layout = fitLayout('1:1', allowed, at)
+    const partner = !home && focused && focused !== id && !group ? focused : null
+    const slots = at === 0 ? [id, partner] : [partner, id]
+    if (partner) createGroup({ layout, slots })
+    else setDraft({ layout, slots })
+    focus(id, at)
   }
 
   // 取消分屏：正在显示这一组时，留下聚焦的那个

@@ -85,7 +85,8 @@ export function useDockCapsule(enabled: boolean, home: boolean, locked: boolean)
     },
     onPointerMove: (event: PointerEvent) => {
       const start = swipe.current
-      if (!start || start.id !== event.pointerId) return
+      // 长按图标拖动时往下拖不算收起
+      if (!start || start.id !== event.pointerId || menu) return
       const dy = event.clientY - start.y
       if (dy > swipeDistance && dy > Math.abs(event.clientX - start.x)) {
         swipe.current = null
