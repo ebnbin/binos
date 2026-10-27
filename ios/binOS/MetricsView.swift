@@ -24,10 +24,17 @@ struct MetricsView: View {
                     if let dock = layout.dock {
                         area(dock, .blue)
                     }
-                    toggle("显示系统区域", $systemArea)
-                        .padding(16)
-                        .frame(width: layout.content.rect.width)
-                        .offset(x: layout.content.rect.minX, y: layout.content.rect.minY)
+                    VStack(alignment: .leading, spacing: 8) {
+                        toggle("显示系统区域", $systemArea)
+                        Text("内容区 \(describe(layout.content))")
+                        if let dock = layout.dock {
+                            Text("Dock 区 \(describe(dock))")
+                        }
+                    }
+                    .font(.footnote.monospacedDigit())
+                    .padding(16)
+                    .frame(width: layout.content.rect.width)
+                    .offset(x: layout.content.rect.minX, y: layout.content.rect.minY)
                 }
             } else {
                 ZStack(alignment: .topLeading) {
@@ -65,10 +72,18 @@ struct MetricsView: View {
     }
 
     private func area(_ area: SystemLayout.Area, _ color: Color) -> some View {
-        RoundedRectangle(cornerRadius: area.radius)
+        UnevenRoundedRectangle(cornerRadii: area.radii)
             .fill(color)
             .frame(width: area.rect.width, height: area.rect.height)
             .offset(x: area.rect.minX, y: area.rect.minY)
+    }
+
+    // 四个角一样时只写一个半径，否则写出带圆角的那几个角
+    private func describe(_ area: SystemLayout.Area) -> String {
+        let r = area.radii
+        let corners = [("左上", r.topLeading), ("右上", r.topTrailing), ("左下", r.bottomLeading), ("右下", r.bottomTrailing)]
+        let radius = Set(corners.map(\.1)).count == 1 ? format(r.topLeading) : corners.filter { $0.1 > 0 }.map { "\($0.0) \(format($0.1))" }.joined(separator: " · ")
+        return "\(dimensions(area.rect.size)) · 圆角 \(radius)"
     }
 
     // 开关在文字左边：右上角常常是灵动岛的保留区域

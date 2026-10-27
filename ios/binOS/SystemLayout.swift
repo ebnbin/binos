@@ -5,7 +5,7 @@ import SwiftUI
 struct SystemLayout: Equatable {
     struct Area: Equatable {
         var rect: CGRect
-        var radius: CGFloat
+        var radii: RectangleCornerRadii
     }
 
     var content: Area
@@ -24,7 +24,8 @@ struct SystemLayout: Equatable {
         }
         let top = cuts[.top] ?? 0, leading = cuts[.leading] ?? 0, bottom = cuts[.bottom] ?? 0, trailing = cuts[.trailing] ?? 0
         let contentRect = CGRect(x: leading, y: top, width: max(size.width - leading - trailing, 0), height: max(size.height - top - bottom, 0))
-        content = Area(rect: contentRect, radius: Self.radius(for: contentRect, in: size, radii: cornerRadii))
+        let radius = Self.touchedCorners(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
+        content = Area(rect: contentRect, radii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
 
         // 最宽的那条，去掉两头的遮挡和垂直方向上的裁切
         let widest = cuts.filter { $0.value >= Self.dockThickness }.max { $0.value < $1.value }
@@ -45,16 +46,16 @@ struct SystemLayout: Equatable {
                     else { strip = CGRect(x: strip.minX, y: strip.minY, width: frame.minX - strip.minX, height: strip.height) }
                 }
             }
-            return Area(rect: strip, radius: Self.radius(for: strip, in: size, radii: cornerRadii))
+            return Area(rect: strip, radii: Self.fit(Self.cornerRadii(of: strip, in: size, radii: cornerRadii), in: strip))
         }
     }
 
-    // 只贴一条边就裁那条边；贴着角落时裁沿长边的那条；贴着三条边以上（比如整条边的长条）裁最薄的那条；都不贴时裁最近的边
+    // 只贴一条边就裁那条边；贴着角落时裁左右两侧的那条，灵动岛扩展时总是沿界面的竖直方向变长；
+    // 贴着三条边以上（比如整条边的长条）裁最薄的那条；都不贴时裁最近的边
     private static func edge(for frame: CGRect, in size: CGSize) -> Edge {
         let touching = Edge.allCases.filter { distance(of: frame, to: $0, in: size) < 0.5 }
         if touching.count == 2, !touching.contains(.top) || !touching.contains(.bottom), !touching.contains(.leading) || !touching.contains(.trailing) {
-            let portrait = size.height >= size.width
-            return touching.first { portrait ? ($0 == .leading || $0 == .trailing) : ($0 == .top || $0 == .bottom) } ?? touching[0]
+            return touching.first { $0 == .leading || $0 == .trailing } ?? touching[0]
         }
         if touching.isEmpty { return Edge.allCases.min { distance(of: frame, to: $0, in: size) < distance(of: frame, to: $1, in: size) }! }
         return touching.min { thickness(of: frame, from: $0, in: size) < thickness(of: frame, from: $1, in: size) }!
@@ -78,12 +79,30 @@ struct SystemLayout: Equatable {
         }
     }
 
-    // 四个角用同一个半径：碰到的屏幕角里最大的物理圆角，不超过短边的一半
-    private static func radius(for rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> CGFloat {
-        guard let radii else { return 0 }
+    // 区域的每个角碰到屏幕角时用那个角的物理圆角，否则是直角
+    private static func cornerRadii(of rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> RectangleCornerRadii {
+        guard let radii else { return RectangleCornerRadii() }
         let left = rect.minX < 0.5, right = rect.maxX > size.width - 0.5, top = rect.minY < 0.5, bottom = rect.maxY > size.height - 0.5
-        let touched = [(top && left, radii.topLeading), (top && right, radii.topTrailing), (bottom && left, radii.bottomLeading), (bottom && right, radii.bottomTrailing)]
-        let radius = touched.filter(\.0).map(\.1).max() ?? 0
-        return min(radius, min(rect.width, rect.height) / 2)
+        return RectangleCornerRadii(
+            topLeading: top && left ? radii.topLeading : 0,
+            bottomLeading: bottom && left ? radii.bottomLeading : 0,
+            bottomTrailing: bottom && right ? radii.bottomTrailing : 0,
+            topTrailing: top && right ? radii.topTrailing : 0
+        )
+    }
+
+    private static func touchedCorners(of rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> [CGFloat] {
+        let corners = cornerRadii(of: rect, in: size, radii: radii)
+        return [corners.topLeading, corners.bottomLeading, corners.bottomTrailing, corners.topTrailing].filter { $0 > 0 }
+    }
+
+    // 同一条边上两个角的半径之和不超过边长，超过时按比例缩小
+    private static func fit(_ radii: RectangleCornerRadii, in rect: CGRect) -> RectangleCornerRadii {
+        let sums = [
+            (radii.topLeading + radii.topTrailing, rect.width), (radii.bottomLeading + radii.bottomTrailing, rect.width),
+            (radii.topLeading + radii.bottomLeading, rect.height), (radii.topTrailing + radii.bottomTrailing, rect.height),
+        ]
+        let scale = sums.map { $0.0 > $0.1 && $0.0 > 0 ? $0.1 / $0.0 : 1 }.min() ?? 1
+        return RectangleCornerRadii(topLeading: radii.topLeading * scale, bottomLeading: radii.bottomLeading * scale, bottomTrailing: radii.bottomTrailing * scale, topTrailing: radii.topTrailing * scale)
     }
 }
