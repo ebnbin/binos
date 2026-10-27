@@ -1,20 +1,18 @@
 import SwiftUI
 
-// 内容区：从窗口里裁掉安全区和生效的遮挡区域所在的整条边，剩下一块完整的矩形。
-// 裁下来的长条够宽时作为竖向栏。分隔区域（折痕）不参与
+// 内容区：从窗口里裁掉安全区和生效的遮挡区域所在的整条边，剩下一块完整的矩形。分隔区域（折痕）不参与。
+// 竖向栏只在明确支持的设备上有：iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条
 extension SystemGeometry {
-    // 低于这个宽度的长条不可用
-    static let minimumVerticalBarWidth: CGFloat = 80
-
-    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat) {
+    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, hinge: DeviceHinge.Status?) {
         let occlusions = proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
-        self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii)
+        let verticalBar = SystemDevice.current == .duo && hinge == .closed
+        self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii, verticalBar: verticalBar)
     }
 
-    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?) {
+    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, verticalBar wantsVerticalBar: Bool) {
         let bounds = CGRect(origin: .zero, size: size)
         var cuts = [Edge.top: safeArea.top, .leading: safeArea.leading, .bottom: safeArea.bottom, .trailing: safeArea.trailing]
-        let obstacles = occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty }
+        let obstacles = Self.merged(occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty })
         for frame in obstacles {
             let edge = Self.edge(for: frame, in: size)
             cuts[edge] = max(cuts[edge] ?? 0, Self.thickness(of: frame, from: edge, in: size))
@@ -25,28 +23,30 @@ extension SystemGeometry {
         let radius = Self.touchedCorners(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
         let content = SystemArea(frame: contentRect, cornerRadii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
 
-        // 最宽的那条，去掉两头的遮挡和垂直方向上的裁切
-        let widest = cuts.filter { $0.value >= Self.minimumVerticalBarWidth }.max { $0.value < $1.value }
-        let verticalBar = widest.map { edge, thickness in
-            var strip: CGRect = switch edge {
-            case .leading: CGRect(x: 0, y: top, width: thickness, height: size.height - top - bottom)
-            case .trailing: CGRect(x: size.width - thickness, y: top, width: thickness, height: size.height - top - bottom)
-            case .top: CGRect(x: leading, y: 0, width: size.width - leading - trailing, height: thickness)
-            case .bottom: CGRect(x: leading, y: size.height - thickness, width: size.width - leading - trailing, height: thickness)
-            }
+        // 左右两侧裁得更宽的那条，去掉两头的遮挡和上下的裁切
+        let side = [(Edge.leading, leading), (.trailing, trailing)].filter { $0.1 > 0 }.max { $0.1 < $1.1 }
+        let verticalBar = wantsVerticalBar ? side.map { edge, thickness in
+            var strip = CGRect(x: edge == .leading ? 0 : size.width - thickness, y: top, width: thickness, height: size.height - top - bottom)
             for frame in obstacles where frame.intersects(strip) {
-                let vertical = edge == .leading || edge == .trailing
-                if vertical {
-                    if frame.midY < strip.midY { strip = CGRect(x: strip.minX, y: frame.maxY, width: strip.width, height: strip.maxY - frame.maxY) }
-                    else { strip = CGRect(x: strip.minX, y: strip.minY, width: strip.width, height: frame.minY - strip.minY) }
-                } else {
-                    if frame.midX < strip.midX { strip = CGRect(x: frame.maxX, y: strip.minY, width: strip.maxX - frame.maxX, height: strip.height) }
-                    else { strip = CGRect(x: strip.minX, y: strip.minY, width: frame.minX - strip.minX, height: strip.height) }
-                }
+                if frame.midY < strip.midY { strip = CGRect(x: strip.minX, y: frame.maxY, width: strip.width, height: strip.maxY - frame.maxY) }
+                else { strip = CGRect(x: strip.minX, y: strip.minY, width: strip.width, height: frame.minY - strip.minY) }
             }
             return SystemArea(frame: strip, cornerRadii: Self.fit(Self.cornerRadii(of: strip, in: size, radii: cornerRadii), in: strip))
-        }
+        } : nil
         self.init(window: size, screen: screen, scale: scale, content: content, verticalBar: verticalBar)
+    }
+
+    // 互相重叠的遮挡合成一块：摄像头落在灵动岛的区域里时，不再单独决定裁哪条边
+    private static func merged(_ frames: [CGRect]) -> [CGRect] {
+        var result: [CGRect] = []
+        for frame in frames {
+            var current = frame
+            while let index = result.firstIndex(where: { $0.intersects(current) }) {
+                current = current.union(result.remove(at: index))
+            }
+            result.append(current)
+        }
+        return result
     }
 
     // 只贴一条边就裁那条边；贴着角落时裁左右两侧的那条，灵动岛扩展时总是沿界面的竖直方向变长；

@@ -35,12 +35,14 @@ extension View {
 private struct SystemGeometryProvider: ViewModifier {
     @Environment(\.displayScale) private var scale
     @State private var screen = CGSize.zero
+    @State private var hinge: DeviceHinge.Status?
 
     func body(content: Content) -> some View {
         GeometryReader { proxy in
-            content.environment(\.systemGeometry, SystemGeometry(proxy: proxy, screen: screen, scale: scale))
+            content.environment(\.systemGeometry, SystemGeometry(proxy: proxy, screen: screen, scale: scale, hinge: hinge))
         }
         .ignoresSafeArea()
+        .onHingeChange { _, context in hinge = context.hinge?.status }
         .background(ScreenReader(size: $screen))
     }
 }
