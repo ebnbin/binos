@@ -7,7 +7,7 @@ import { BinosMonitor } from './BinosMonitor.tsx'
 import { HostMonitor } from './HostMonitor.tsx'
 import { moment } from './format.ts'
 import { systemRequest, useMonitor } from './monitor.ts'
-import styles from './MonitorIcon.module.css'
+import styles from './Monitor.module.css'
 
 export function SystemApp({ ctx }: { ctx: WindowContext }) {
   const { status, error, lastSuccess, now } = useMonitor()
