@@ -1,0 +1,25 @@
+.mark {
+  --ink: var(--color-label);
+  --on-ink: var(--color-background);
+  display: inline-block;
+  flex: none;
+}
+
+.mark[data-inverted] {
+  --ink: var(--color-on-chrome);
+  --on-ink: var(--color-chrome);
+}
+
+.mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mark rect {
+  fill: var(--ink);
+}
+
+.mark [stroke] {
+  stroke: var(--on-ink);
+}
