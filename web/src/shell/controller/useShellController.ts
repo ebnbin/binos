@@ -23,7 +23,7 @@ export function useShellController(size: Size | null) {
   const windows: OpenWindow[] = Object.entries(stored.windows)
     .map(([id, win]) => {
       const appName = findApplication(apps, win.applicationId)?.name ?? win.applicationId
-      return { id, window: win, title: titles[id] ? `${appName} · ${titles[id]}` : appName }
+      return { id, window: win, name: appName, title: titles[id] ? `${appName} · ${titles[id]}` : appName }
     })
     .sort((a, b) => appOrder(apps, a.window.applicationId) - appOrder(apps, b.window.applicationId))
   const ids = windows.map((item) => item.id)

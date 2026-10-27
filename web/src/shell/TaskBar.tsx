@@ -203,7 +203,7 @@ export function TaskBar({
           }).map((item) => {
             const group = groups.find((group) => group.slots.includes(item.id))
             const members = group ? group.slots.map((id) => windows.find((win) => win.id === id)!).filter(Boolean) : [item]
-            const title = members.map((member) => member.title).join(' + ')
+            const title = members.map((member) => member.name).join(' + ')
             const key = group?.id ?? item.id
             // 一组里在新标签页打开作用于聚焦的那个（没有聚焦的就是第一个），关闭是整组
             const target = members.find((member) => member.id === focused) ?? item
