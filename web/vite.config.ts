@@ -1,8 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { Resvg } from '@resvg/resvg-js'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
-import { logoSvg } from './src/logo.ts'
+import { logoVariant } from './src/logo.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -28,10 +29,11 @@ export default defineConfig({
   },
 })
 
-// 图标和 manifest 都由 src/logo.ts 生成：开发时直接提供，构建时输出到 dist
+// 图标和 manifest 都由 design/logo.svg 生成：开发时直接提供，构建时输出到 dist
 function appFiles(): Plugin {
+  const source = readFileSync(new URL('../design/logo.svg', import.meta.url), 'utf8')
   const png = (rounded: boolean, size: number) =>
-    new Resvg(logoSvg({ ink: '#000', on: '#fff', rounded }), { fitTo: { mode: 'width', value: size } }).render().asPng()
+    new Resvg(logoVariant(source, { rounded }), { fitTo: { mode: 'width', value: size } }).render().asPng()
   const manifest = {
     id: '/',
     name: 'binOS',
@@ -53,7 +55,7 @@ function appFiles(): Plugin {
   let files: Map<string, { type: string; body: string | Uint8Array }> | undefined
   const generate = () =>
     (files ??= new Map<string, { type: string; body: string | Uint8Array }>([
-      ['favicon.svg', { type: 'image/svg+xml', body: logoSvg({ ink: '#000', on: '#fff', rounded: true, dark: true }) }],
+      ['favicon.svg', { type: 'image/svg+xml', body: logoVariant(source, { rounded: true, dark: true }) }],
       // 系统会给这两种加圆角，所以是全方形；apple-touch-icon 的透明部分会变成黑色
       ['apple-touch-icon.png', { type: 'image/png', body: png(false, 180) }],
       ['icon-maskable.png', { type: 'image/png', body: png(false, 512) }],

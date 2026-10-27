@@ -13,6 +13,7 @@
     "deployed": "node scripts/deployed.ts",
     "preview": "node scripts/preview.ts",
     "protocol": "node scripts/protocol.ts",
+    "design": "node scripts/design.ts",
     "postinstall": "node scripts/prepare-pty.ts"
   },
   "devDependencies": {
