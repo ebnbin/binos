@@ -1,7 +1,8 @@
 import SwiftUI
 
-// 系统给这个窗口的所有尺寸：画在窗口上，数值列在安全区里
+// 系统给这个窗口的所有尺寸：画在窗口上，数值列在安全区里。白底，挖孔和保留区域一眼能看出来
 struct MetricsView: View {
+    @AppStorage("essentials") private var essentials = true
     @State private var window = WindowMetrics()
     @State private var hinge: DeviceHinge?
     @Environment(\.displayScale) private var displayScale
@@ -15,27 +16,23 @@ struct MetricsView: View {
             let margins = proxy.contentMargins(for: .container)
             let regions = [ReservedRegion.Kind.occlusion, .division].flatMap { proxy.reservedRegions(kind: $0, options: .includeInactive) }
             ZStack(alignment: .topLeading) {
-                Color(.systemBackground)
+                Color.white
                 if let radii = proxy.concentricCornerRadii {
                     UnevenRoundedRectangle(cornerRadii: radii).stroke(.purple, lineWidth: 2)
                 }
                 corners(proxy.containerCornerInsets, in: size)
-                inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-                inset(safe, in: size).stroke(.green, lineWidth: 2)
-                edgeLabels(safe, in: size)
-                // 浅色是整个范围，深色是去掉边距后的核心
+                if !essentials {
+                    inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                    inset(safe, in: size).stroke(.green, lineWidth: 2)
+                    edgeLabels(safe, in: size)
+                }
                 ForEach(regions) { region in
-                    let color: Color = region.kind == .division ? .yellow : .red
-                    let core = self.core(of: region)
+                    let color: Color = region.kind == .division ? .cyan : .red
                     Rectangle()
-                        .fill(color.opacity(region.isActive ? 0.15 : 0.06))
+                        .fill(color.opacity(region.isActive ? 0.45 : 0.15))
                         .overlay(Rectangle().stroke(color, style: StrokeStyle(lineWidth: 1, dash: region.isActive ? [] : [4, 3])))
                         .frame(width: max(region.frame.width, 2), height: max(region.frame.height, 2))
                         .offset(x: region.frame.minX, y: region.frame.minY)
-                    Rectangle()
-                        .fill(color.opacity(region.isActive ? 0.55 : 0.2))
-                        .frame(width: max(core.width, 0), height: max(core.height, 0))
-                        .offset(x: core.minX, y: core.minY)
                 }
                 ScrollView {
                     panel(size: size, safe: safe, margins: margins, corners: proxy.containerCornerInsets, radii: proxy.concentricCornerRadii, regions: regions)
@@ -46,6 +43,7 @@ struct MetricsView: View {
             }
         }
         .ignoresSafeArea()
+        .environment(\.colorScheme, .light)
         .background(WindowProbe(metrics: $window))
         .onHingeChange { _, context in hinge = context.hinge }
     }
@@ -82,25 +80,34 @@ struct MetricsView: View {
     private func panel(size: CGSize, safe: EdgeInsets, margins: EdgeInsets, corners: RectangleCornerInsets, radii: RectangleCornerRadii?, regions: [ReservedRegion]) -> some View {
         // 宽的窗口分成多列，横屏和展开时不用滚动也能看全
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 24, alignment: .top)], alignment: .leading, spacing: 16) {
+            // 开关放在左边：右上角是灵动岛的保留区域
+            HStack {
+                Toggle("只看常用信息", isOn: $essentials).labelsHidden().fixedSize()
+                Text("只看常用信息").font(.subheadline.bold())
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             section("窗口", .primary, [
                 ("尺寸", "\(dimensions(size)) pt"),
                 ("像素", "\(dimensions(CGSize(width: size.width * displayScale, height: size.height * displayScale))) px"),
-                ("尺寸类型", "宽 \(sizeClass(horizontalSizeClass)) · 高 \(sizeClass(verticalSizeClass))"),
                 ("界面方向", window.orientation.map(orientation) ?? "未知"),
+            ] + (essentials ? [] : [
+                ("尺寸类型", "宽 \(sizeClass(horizontalSizeClass)) · 高 \(sizeClass(verticalSizeClass))"),
                 ("app 锁定方向", window.orientationLocked ? "是" : "否"),
                 ("正在调整大小", window.resizing ? "是" : "否"),
-            ])
+            ]))
             section("屏幕", .primary, [
                 ("尺寸", window.screenSize.map { "\(dimensions($0)) pt" } ?? "未知"),
                 ("物理像素", window.nativeSize.map { "\(dimensions($0)) px" } ?? "未知"),
                 ("缩放", [window.scale, window.nativeScale].compactMap { $0 }.map(format).joined(separator: " · 原生 ")),
             ])
-            section("安全区", .green, [("上 · 左 · 下 · 右", edges(safe))])
-            section("内容边距", .blue, [("上 · 左 · 下 · 右", edges(margins))])
-            section("系统布局边距", .primary, [
-                ("上 · 左 · 下 · 右", window.layoutMargins.map { edges(EdgeInsets(top: $0.top, leading: $0.leading, bottom: $0.bottom, trailing: $0.trailing)) } ?? "未知"),
-                ("可读内容宽度", window.readableWidth.map { "\(format($0)) pt" } ?? "未知"),
-            ])
+            if !essentials {
+                section("安全区", .green, [("上 · 左 · 下 · 右", edges(safe))])
+                section("内容边距", .blue, [("上 · 左 · 下 · 右", edges(margins))])
+                section("系统布局边距", .primary, [
+                    ("上 · 左 · 下 · 右", window.layoutMargins.map { edges(EdgeInsets(top: $0.top, leading: $0.leading, bottom: $0.bottom, trailing: $0.trailing)) } ?? "未知"),
+                    ("可读内容宽度", window.readableWidth.map { "\(format($0)) pt" } ?? "未知"),
+                ])
+            }
             section("角落避让", .orange, [
                 ("左上", dimensions(corners.topLeading)),
                 ("右上", dimensions(corners.topTrailing)),
@@ -108,15 +115,10 @@ struct MetricsView: View {
                 ("右下", dimensions(corners.bottomTrailing)),
             ])
             section("同心圆角", .purple, [("左上 · 右上 · 左下 · 右下", radii.map { [$0.topLeading, $0.topTrailing, $0.bottomLeading, $0.bottomTrailing].map(format).joined(separator: " · ") } ?? "无")])
-            section("保留区域", .red, regions.isEmpty ? [("", "无")] : regions.flatMap { region in
-                let name = "\(region.kind == .division ? "分隔" : "遮挡")\(region.isActive ? "" : "（未生效）")"
-                return [
-                    ("\(name) · 范围", rect(region.frame)),
-                    ("\(name) · 核心", rect(core(of: region))),
-                    ("\(name) · 边距", edges(region.margins)),
-                ]
+            section("保留区域", .red, regions.isEmpty ? [("", "无")] : regions.map { region in
+                ("\(region.kind == .division ? "分隔" : "遮挡")\(region.isActive ? "" : "（未生效）")", "\(format(region.frame.minX)), \(format(region.frame.minY)) · \(dimensions(region.frame.size)) · 边距 \(edges(region.margins))")
             })
-            section("铰链", .yellow, [
+            section("铰链", .cyan, [
                 ("状态", hinge.map { hingeStatus($0.status) } ?? "没有报告"),
                 ("角度", hinge.map { "\(format($0.angle.degrees))°" } ?? "没有报告"),
             ])
@@ -142,17 +144,6 @@ struct MetricsView: View {
 
     private func format(_ value: CGFloat) -> String {
         Double(value).formatted(.number.precision(.fractionLength(0...1)))
-    }
-
-    // 范围包含边距，去掉边距才是真正被保留的部分
-    private func core(of region: ReservedRegion) -> CGRect {
-        let m = region.margins
-        let frame = region.frame
-        return CGRect(x: frame.minX + m.leading, y: frame.minY + m.top, width: frame.width - m.leading - m.trailing, height: frame.height - m.top - m.bottom)
-    }
-
-    private func rect(_ rect: CGRect) -> String {
-        "\(format(rect.minX)), \(format(rect.minY)) · \(format(rect.width)) × \(format(rect.height))"
     }
 
     private func dimensions(_ size: CGSize) -> String {
