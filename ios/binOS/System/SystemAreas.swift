@@ -12,7 +12,7 @@ extension SystemGeometry {
     init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, verticalBar wantsVerticalBar: Bool) {
         let bounds = CGRect(origin: .zero, size: size)
         var cuts = [Edge.top: safeArea.top, .leading: safeArea.leading, .bottom: safeArea.bottom, .trailing: safeArea.trailing]
-        let obstacles = occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty }
+        let obstacles = Self.merged(occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty })
         for frame in obstacles {
             let edge = Self.edge(for: frame, in: size)
             cuts[edge] = max(cuts[edge] ?? 0, Self.thickness(of: frame, from: edge, in: size))
@@ -34,6 +34,19 @@ extension SystemGeometry {
             return SystemArea(frame: strip, cornerRadii: Self.fit(Self.cornerRadii(of: strip, in: size, radii: cornerRadii), in: strip))
         } : nil
         self.init(window: size, screen: screen, scale: scale, content: content, verticalBar: verticalBar)
+    }
+
+    // 互相重叠的遮挡合成一块：摄像头落在灵动岛的区域里时，不再单独决定裁哪条边
+    private static func merged(_ frames: [CGRect]) -> [CGRect] {
+        var result: [CGRect] = []
+        for frame in frames {
+            var current = frame
+            while let index = result.firstIndex(where: { $0.intersects(current) }) {
+                current = current.union(result.remove(at: index))
+            }
+            result.append(current)
+        }
+        return result
     }
 
     // 只贴一条边就裁那条边；贴着角落时裁左右两侧的那条，灵动岛扩展时总是沿界面的竖直方向变长；
