@@ -1,10 +1,10 @@
 import { ArrowSquareOutIcon, ArrowsClockwiseIcon, CameraIcon, DeviceMobileIcon, TrashIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
-import type { Device, Platform } from '@binos/server/apps/devices/types'
+import type { Device, DeviceModel, Platform } from '@binos/server/apps/devices/types'
 import type { WindowContext } from '../types.ts'
 import { onChange } from '../../events.ts'
-import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, releaseDevices } from './api.ts'
+import { acquireDevices, cancelDevices, captureDevice, destroyDevice, discoverDevices, readDevices, readModels, releaseDevices } from './api.ts'
 import { Select } from '../../ui/Select.tsx'
 import styles from './DevicesApp.module.css'
 
@@ -16,10 +16,13 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [platform, setPlatform] = useState('both')
+  const [models, setModels] = useState<DeviceModel[]>([])
+  const [iosModel, setIosModel] = useState('')
   const [reason, setReason] = useState('手动验证')
   const latest = useRef(0)
   const { setTitle } = ctx
   useEffect(() => setTitle('设备'), [setTitle])
+  useEffect(() => { void readModels().then(setModels).catch(() => {}) }, [])
   const load = useCallback(async () => {
     const version = ++latest.current
     try { const result = await readDevices(); if (latest.current === version) { setData(result); setError('') } }
@@ -44,17 +47,18 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
   const pendingRequest = (manualRequest?.phase === 'failed' ? undefined : manualRequest) ?? (own && !own.claimed ? own : undefined)
   const pendingPlatforms = pendingRequest?.platforms.join(',')
   const pendingReason = pendingRequest?.reason
+  const pendingModels = pendingRequest?.models && JSON.stringify(pendingRequest.models)
   const pendingId = manualRequest?.id ?? own?.requestId
   const pendingLease = own && !own.claimed ? own.id : undefined
   useEffect(() => {
     if (!pendingPlatforms) return
     const refresh = () => {
-      void acquireDevices(pendingPlatforms.split(',') as Platform[], pendingReason ?? '', pendingId).then(load).catch(() => {})
+      void acquireDevices(pendingPlatforms.split(',') as Platform[], pendingReason ?? '', pendingModels && JSON.parse(pendingModels), pendingId).then(load).catch(() => {})
     }
     const initial = setTimeout(refresh, 0)
     const timer = setInterval(refresh, 30_000)
     return () => { clearTimeout(initial); clearInterval(timer) }
-  }, [pendingPlatforms, pendingReason, pendingLease, pendingId, load])
+  }, [pendingPlatforms, pendingReason, pendingModels, pendingLease, pendingId, load])
 
   return (
     <div className={styles.app}>
@@ -72,8 +76,9 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
           <div><strong>{data.queue.filter(item => item.phase !== 'failed').length}</strong><span>排队会话</span></div>
         </section>
         <h2 className={styles.groupHeader}>申请设备</h2>
-        <form className={styles.acquire} onSubmit={(event) => { event.preventDefault(); void act(() => acquireDevices(platform === 'both' ? ['android', 'ios'] : [platform as Platform], reason)) }}>
+        <form className={styles.acquire} onSubmit={(event) => { event.preventDefault(); void act(() => acquireDevices(platform === 'both' ? ['android', 'ios'] : [platform as Platform], reason, platform !== 'android' && iosModel ? { ios: iosModel } : undefined)) }}>
           <Select label="申请平台" value={platform} onValueChange={setPlatform} disabled={busy || Boolean(own) || waiting} options={[{ value: 'both', label: 'Android + iOS' }, { value: 'android', label: 'Android' }, { value: 'ios', label: 'iOS' }]} />
+          {platform !== 'android' && models.length > 0 && <Select label="iOS 机型" value={iosModel} onValueChange={setIosModel} disabled={busy || Boolean(own) || waiting} options={[{ value: '', label: `默认（${models.find((model) => model.default)?.name ?? '自动'}）` }, ...models.map((model) => ({ value: model.id, label: model.name }))]} />}
           <input className={styles.field} aria-label="使用用途" value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="使用用途" disabled={busy || Boolean(own) || waiting} />
           {own ? <button type="button" className={styles.button} disabled={busy} onClick={() => void act(() => releaseDevices(own.id))}>归还我的设备</button> : waiting ? <button type="button" className={styles.button} disabled={busy} onClick={() => void act(() => cancelDevices(manualRequest!.id))}>取消申请</button> : <button type="submit" className={styles.prominent} disabled={busy}>申请设备</button>}
         </form>
@@ -111,7 +116,7 @@ function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: De
   const session = lease && data.owners[lease.owner]
   return (
     <article className={styles.card}>
-      <div className={styles.cardTitle}><span className={styles.cardIcon}><DeviceMobileIcon size={18} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
+      <div className={styles.cardTitle}><span className={styles.cardIcon}><DeviceMobileIcon size={18} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{[device.modelName, device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')].filter(Boolean).join(' · ')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
       {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><DeviceMobileIcon size={40} weight="light" /><span>按需查看设备画面</span></div>}
       {capture && <p className={styles.caption}>截图于 {moment(capture.at)} · 非实时画面</p>}
       <dl className={styles.details}><div><dt>设备</dt><dd>{device.id}</dd></div><div><dt>占用</dt><dd>{session && ctx.openApplication ? <button className={styles.link} onClick={() => ctx.openApplication?.('code', `/${session.session}`)}>{session.title || `会话 ${session.session}`}</button> : lease ? ownerName(lease.owner) : '无'}</dd></div>{lease && <><div><dt>用途</dt><dd>{lease.reason || '未填写'}</dd></div><div><dt>开始</dt><dd>{moment(lease.createdAt)}</dd></div></>}</dl>

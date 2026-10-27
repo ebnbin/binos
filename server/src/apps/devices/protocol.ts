@@ -1,6 +1,6 @@
 import type { Platform, Request } from './types.js'
 
-const actions = new Set(['status', 'discover', 'stop', 'acquire', 'renew', 'release', 'cancel', 'control', 'screenshot', 'run'])
+const actions = new Set(['status', 'discover', 'models', 'stop', 'acquire', 'renew', 'release', 'cancel', 'control', 'screenshot', 'run'])
 export function parseRequest(value: unknown): Request {
   if (!value || typeof value !== 'object') throw new Error('请求必须是对象')
   const v = value as Record<string, unknown>
@@ -14,6 +14,10 @@ export function parseRequest(value: unknown): Request {
     if (v.requestId !== undefined && !text('requestId')) throw new Error('无效申请编号')
     if (!Array.isArray(v.platforms) || v.platforms.length < 1 || v.platforms.length > 2 || new Set(v.platforms).size !== v.platforms.length || !v.platforms.every((p) => p === 'android' || p === 'ios')) throw new Error('平台必须是 android、ios 或双端')
     if (typeof v.reason !== 'string' || v.reason.length > 500) throw new Error('用途不能超过 500 个字符')
+    if (v.models !== undefined) {
+      const models = v.models as Record<string, unknown>
+      if (!models || typeof models !== 'object' || Array.isArray(models) || !Object.entries(models).every(([platform, model]) => (v.platforms as string[]).includes(platform) && typeof model === 'string' && model.length > 0 && model.length <= 256)) throw new Error('机型必须按申请的平台填写机型名称或标识')
+    }
   }
   if (v.action === 'control') { need('device'); if (v.operation !== 'destroy') throw new Error('未知维护操作') }
   if (v.action === 'screenshot') { need('device'); if (v.owner !== undefined || v.lease !== undefined) need('owner', 'lease') }

@@ -8,7 +8,7 @@ import type { BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settin
 import type { codeApi } from './apps/code/api.js'
 import type { CodeUsage, MessageBody, Project, RepositoryBody, SearchResults, SessionEdit, SessionRef, SessionSummary } from './apps/code/types.js'
 import type { devicesApi, DevicesSnapshot } from './apps/devices/api.js'
-import type { LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
+import type { DeviceModel, LeaseResult, Request as DeviceRequest } from './apps/devices/types.js'
 import type { filesApi } from './apps/files/api.js'
 import type { Directory, FileName, FileResults, FileTransfer, FileTrash } from './apps/files/types.js'
 import type { kitaAppApi } from './apps/kita/api.js'
@@ -107,7 +107,8 @@ export type Http = {
 
   'GET /api/apps/devices': { response: DevicesSnapshot }
   'POST /api/apps/devices/discover': { response: DevicesSnapshot }
-  'POST /api/apps/devices/leases': { request: Pick<Extract<DeviceRequest, { action: 'acquire' }>, 'reason' | 'platforms' | 'requestId'>; response: LeaseResult }
+  'GET /api/apps/devices/models': { response: DeviceModel[] }
+  'POST /api/apps/devices/leases': { request: Pick<Extract<DeviceRequest, { action: 'acquire' }>, 'reason' | 'platforms' | 'models' | 'requestId'>; response: LeaseResult }
   'DELETE /api/apps/devices/leases/:id': {}
   'DELETE /api/apps/devices/queue/:requestId': {}
   'DELETE /api/apps/devices/:id': {}
