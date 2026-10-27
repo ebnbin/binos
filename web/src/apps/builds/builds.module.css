@@ -371,3 +371,18 @@
     transition: none;
   }
 }
+
+/* 设备的 UDID：可以整段选中复制 */
+.udid {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.udid code {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-footnote);
+  overflow-wrap: anywhere;
+  user-select: all;
+}

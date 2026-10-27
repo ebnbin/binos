@@ -22,6 +22,14 @@ runner 独立于管理服务和后端，管理服务重启后接续读取运行�
 
 构建脚本以当前 macOS 用户权限运行，只应构建自己信任的代码。worktree 提供源码隔离，不是权限沙箱。证书、密钥不写入仓库或构建产物。
 
+## iOS 安装设备
+
+「构建」页面列出登记过的 iOS 设备，标出每台在不在本机最新的 `app.binos` Ad Hoc 描述文件里（从 `~/Library/Developer/Xcode/UserData/Provisioning Profiles` 读取，排除开发描述文件），在里面的才能无线安装。
+
+在要登记的 iPhone 或 iPad 上点「登记这台设备」：已登录用户签发 30 分钟有效的令牌，Safari 下载 `https://downloads.binos.app/enroll/<令牌>/binOS.mobileconfig`。它是描述文件服务（Profile Service），安装时设备把 UDID、型号标识、系统构建版本号和设备名签名后 POST 到 `/enroll/<令牌>/device`，系统里不留下描述文件；服务端从签名数据里取出明文 plist，按 UDID 记到 `Library/Apps/builds/ios-devices.json`，型号标识对应的名称取自 Xcode 的模拟器机型描述，然后跳到 `/enroll/<令牌>/done` 显示 UDID 和下一步。结果页按令牌找到刚登记的设备，UDID 不出现在网址里，后端重启后显示为过期。
+
+登记到 binOS 不等于能安装：还要在 Apple 开发者网站的 Devices 里添加 UDID，下一次 iOS 构建时 Xcode 按账号里的设备更新描述文件。从列表移除只影响 binOS 的记录。
+
 ## CLI 与验证
 
 ```sh
@@ -39,7 +47,7 @@ binos builds stop
 
 ## 无线安装的入口配置
 
-安装清单和 IPA 固定使用 `https://downloads.binos.app/install/`。该域名的所有请求先进入独立分发路由，普通网页、API 和其他路径返回 404。主站与 PR 预览没有匿名安装路径例外。开发实例仅允许在本机地址验证安装链路。
+安装清单和 IPA 固定使用 `https://downloads.binos.app/install/`，设备登记使用 `https://downloads.binos.app/enroll/`。该域名的所有请求先进入独立分发路由，普通网页、API 和其他路径返回 404。主站与 PR 预览没有匿名路径例外，PR 预览里不能登记设备。开发实例仅允许在本机地址验证安装和登记链路。
 
 在现有 Cloudflare Tunnel 添加 Published application route：主机名 `downloads.binos.app`，Service 为 `http://127.0.0.1:24667`，Path 留空，HTTP Host Header 留空以保留原始域名。路由应位于可能覆盖它的通配符路由之前。保存时由控制台创建对应 DNS 记录。
 
