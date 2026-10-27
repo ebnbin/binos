@@ -13,6 +13,7 @@ struct WindowMetrics: Equatable {
     var resizing = false
     var layoutMargins: NSDirectionalEdgeInsets?
     var readableWidth: CGFloat?
+    var verticalBarEdge: UIVerticalBarEdge = .unspecified
 }
 
 struct WindowProbe: UIViewRepresentable {
@@ -32,6 +33,13 @@ final class ProbeView: UIView {
     var report: (WindowMetrics) -> Void = { _ in }
     private var last: WindowMetrics?
     private var geometry: NSKeyValueObservation?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) { (view: ProbeView, _) in view.read() }
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -59,7 +67,8 @@ final class ProbeView: UIView {
             orientationLocked: geometry.isInterfaceOrientationLocked,
             resizing: geometry.isInteractivelyResizing,
             layoutMargins: root.directionalLayoutMargins,
-            readableWidth: root.readableContentGuide.layoutFrame.width
+            readableWidth: root.readableContentGuide.layoutFrame.width,
+            verticalBarEdge: traitCollection.verticalBarEdge
         )
         guard metrics != last else { return }
         last = metrics

@@ -9,6 +9,7 @@ struct MetricsView: View {
     @Environment(\.displayScale) private var displayScale
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge
 
     var body: some View {
         GeometryReader { proxy in
@@ -161,6 +162,11 @@ struct MetricsView: View {
             section("保留区域", .red, regions.isEmpty ? [("", "无")] : regions.map { region in
                 ("\(region.kind == .division ? "分隔" : "遮挡")\(region.isActive ? "" : "（未生效）")", "\(format(region.frame.minX)), \(format(region.frame.minY)) · \(dimensions(region.frame.size)) · 边距 \(edges(region.margins))")
             })
+            // 系统认为竖向栏（状态栏、标签栏、工具栏合成的一条）应该放在哪一侧，不管它有没有显示
+            section("竖向栏", .primary, [
+                ("UIKit verticalBarEdge", barEdge(window.verticalBarEdge)),
+                ("SwiftUI toolbarVerticalEdge", toolbarVerticalEdge.map { $0 == .leading ? "前侧（左）" : "后侧（右）" } ?? "未指定"),
+            ])
             section("铰链", .cyan, [
                 ("状态", hinge.map { hingeStatus($0.status) } ?? "没有报告"),
                 ("角度", hinge.map { "\(format($0.angle.degrees))°" } ?? "没有报告"),
@@ -212,6 +218,14 @@ struct MetricsView: View {
         case .landscapeLeft: "横屏（向左）"
         case .landscapeRight: "横屏（向右）"
         default: "未知"
+        }
+    }
+
+    private func barEdge(_ edge: UIVerticalBarEdge) -> String {
+        switch edge {
+        case .leading: "前侧（左）"
+        case .trailing: "后侧（右）"
+        default: "未指定"
         }
     }
 
