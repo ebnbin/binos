@@ -1,4 +1,4 @@
-import { SquarePen } from 'lucide-react'
+import { NotePencilIcon } from '@phosphor-icons/react'
 import type { WidgetContext } from '../types.ts'
 import styles from './CodeWidget.module.css'
 import { formatTime } from '../../ui/time.ts'
@@ -25,7 +25,7 @@ export function CodeWidget({ size, open }: WidgetContext) {
             open('/new')
           }}
         >
-          <SquarePen size={16} strokeWidth={1.75} />
+          <NotePencilIcon size={16} />
         </button>
       </header>
       {size === '2x2' ? (

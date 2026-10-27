@@ -1,6 +1,6 @@
 import { agents } from '@binos/server/services/kita/types'
 import type { AgentAccount, Limits } from '@binos/server/services/kita/types'
-import { ChevronLeft, RefreshCw } from 'lucide-react'
+import { ArrowsClockwiseIcon, CaretLeftIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { agentAccounts } from '../../services/kita/api.ts'
@@ -38,9 +38,9 @@ export function AgentAccounts({ back }: { back: () => void }) {
   return (
     <div className={styles.page}>
       <header className={styles.bar}>
-        <IconButton icon={ChevronLeft} label="返回" onClick={back} />
+        <IconButton icon={CaretLeftIcon} label="返回" onClick={back} />
         <h1>Agent</h1>
-        <IconButton icon={RefreshCw} label="重新读取" onClick={refresh} disabled={loading} className={loading ? styles.spinning : undefined} />
+        <IconButton icon={ArrowsClockwiseIcon} label="重新读取" onClick={refresh} disabled={loading} className={loading ? styles.spinning : undefined} />
       </header>
       {accounts === undefined ? (
         <div className={styles.loading}>

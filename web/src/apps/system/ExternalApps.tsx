@@ -1,4 +1,4 @@
-import { ChevronRight, Plus } from 'lucide-react'
+import { CaretRightIcon, PlusIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { icons, iconNames } from '../external/icons.ts'
 import { saveExternalApps, useExternalApps } from '../external/registry.ts'
@@ -38,7 +38,7 @@ export function ExternalApps() {
       <header className={styles.header}>
         <h2>外部 app</h2>
         <button type="button" className={styles.add} disabled={editing !== null} onClick={() => setEditing({ index: null, draft: newApp() })}>
-          <Plus size={14} strokeWidth={2} />
+          <PlusIcon size={14} />
           添加
         </button>
       </header>
@@ -56,7 +56,7 @@ export function ExternalApps() {
                 </span>
                 <span className={styles.name}>{app.name}</span>
                 <span className={styles.url}>{app.url}</span>
-                <ChevronRight className={styles.chevron} size={14} strokeWidth={2} aria-hidden />
+                <CaretRightIcon className={styles.chevron} size={14} aria-hidden />
               </button>
             </li>
           ),
@@ -74,7 +74,7 @@ export function ExternalApps() {
 
 function AppIcon({ name }: { name: ExternalAppConfig['icon'] }) {
   const Icon = icons[name]
-  return <Icon size={16} strokeWidth={1.75} />
+  return <Icon size={16} />
 }
 
 function Editor({

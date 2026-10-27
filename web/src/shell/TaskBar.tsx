@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { PointerEvent, PointerEventHandler, ReactNode, Ref } from 'react'
-import { CircleArrowUp, RefreshCw } from 'lucide-react'
+import { ArrowCircleUpIcon, ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import type { ConnectionState } from '../events.ts'
 import { BrandMark } from '../ui/BrandMark.tsx'
@@ -310,7 +310,7 @@ export function TaskBar({
           </button>
           {attention && (
             <button ref={notice} type="button" className={styles.notice} data-connection={connection} onClick={() => window.location.reload()}>
-              {connection === 'failed' ? <RefreshCw size={20} strokeWidth={2} /> : <CircleArrowUp size={20} strokeWidth={2} />}
+              {connection === 'failed' ? <ArrowsClockwiseIcon size={20} /> : <ArrowCircleUpIcon size={20} />}
               <span className={styles.noticeText}>
                 <strong>{connectionLabels[connection]}</strong>
                 <small>{connection === 'failed' ? '刷新页面重新连接' : '刷新页面使用新版本'}</small>

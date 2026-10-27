@@ -1,4 +1,4 @@
-import { Check, Copy, Plus, RefreshCw, Terminal as TerminalIcon, X } from 'lucide-react'
+import { ArrowsClockwiseIcon, CheckIcon, CopyIcon, PlusIcon, TerminalIcon, XIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -66,7 +66,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
     <div className={styles.app}>
       <header className={styles.toolbar}>
         <strong>
-          <TerminalIcon size={16} strokeWidth={1.75} />
+          <TerminalIcon size={16} />
           宿主 Mac
         </strong>
         <div className={styles.actions}>
@@ -80,12 +80,12 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
                   .catch(() => setError('无法访问剪贴板，请复制下方连接命令'))
               }
             >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
+              {copied ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
               <span>{copied ? '已复制' : '在 Mac 中连接'}</span>
             </button>
           )}
           <button disabled={busy || !snapshot?.available} onClick={() => void create()}>
-            <Plus size={16} />
+            <PlusIcon size={16} />
             新建终端
           </button>
         </div>
@@ -111,7 +111,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
           <footer className={styles.footer}>
             <span title={session.cwd}>{session.cwd}</span>
             <button onClick={() => setConfirmId(confirm ? '' : id)}>
-              <X size={14} />
+              <XIcon size={14} />
               结束会话
             </button>
           </footer>
@@ -132,14 +132,14 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
         </>
       ) : (
         <div className={styles.empty}>
-          <TerminalIcon size={32} strokeWidth={1.5} />
+          <TerminalIcon size={32} />
           <h2>{!snapshot ? '正在连接宿主 Mac…' : !snapshot.available ? '需要安装 tmux' : id ? '这个终端已结束' : 'Mac 的命令行，在 binOS 中使用'}</h2>
           {snapshot &&
             (snapshot.available ? (
               <>
                 <p>在宿主 Mac 上运行命令。关闭窗口或断线后，会话仍会继续。</p>
                 <button disabled={busy} onClick={() => void create()}>
-                  <Plus size={16} />
+                  <PlusIcon size={16} />
                   新建终端
                 </button>
               </>
@@ -278,7 +278,7 @@ function TerminalPane({ id, onExit }: { id: string; onExit(): Promise<void> }) {
         {state}
         {ended && (
           <button onClick={() => setAttempt((value) => value + 1)}>
-            <RefreshCw size={13} />
+            <ArrowsClockwiseIcon size={13} />
             重新连接
           </button>
         )}

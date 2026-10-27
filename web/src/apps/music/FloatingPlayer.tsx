@@ -1,4 +1,4 @@
-import { Disc3, GripHorizontal, Minus, Music2, Square } from 'lucide-react'
+import { DiscIcon, DotsSixIcon, MinusIcon, MusicNoteIcon, StopIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import { useElementSize } from '../../ui/useElementSize.ts'
@@ -24,7 +24,7 @@ export function MusicStatusButton({ collapsed, onToggle }: { collapsed: boolean;
   if (!track || state.status === 'idle') return null
   return (
     <button type="button" className={styles.statusButton} aria-label={collapsed ? '显示音乐播放器' : '收起音乐播放器'} aria-expanded={!collapsed} title={`${track.title} · ${labels[state.status]}`} onClick={onToggle}>
-      <Music2 size={20} strokeWidth={1.75} />
+      <MusicNoteIcon size={20} />
       {(state.status === 'playing' || state.status === 'loading') && <span className={styles.playingDot} />}
     </button>
   )
@@ -73,12 +73,12 @@ function PlayerPanel({ screen, onCollapse, onOpen, locked }: { screen: Dimension
             update(next)
             savePosition(next)
           }}
-        ><GripHorizontal size={14} strokeWidth={2} /><span>{labels[state.status]}</span></button>
-        <button type="button" className={styles.iconButton} aria-label="停止播放" title="停止播放" onClick={() => music.stop()}><Square size={11} fill="currentColor" strokeWidth={2} /></button>
-        <button type="button" className={styles.iconButton} aria-label="收起音乐播放器" title="收起，音乐继续播放" onClick={onCollapse}><Minus size={15} strokeWidth={2} /></button>
+        ><DotsSixIcon size={14} /><span>{labels[state.status]}</span></button>
+        <button type="button" className={styles.iconButton} aria-label="停止播放" title="停止播放" onClick={() => music.stop()}><StopIcon size={11} weight="fill" /></button>
+        <button type="button" className={styles.iconButton} aria-label="收起音乐播放器" title="收起，音乐继续播放" onClick={onCollapse}><MinusIcon size={15} /></button>
       </header>
       <button type="button" className={styles.info} aria-label="打开音乐 App" onClick={onOpen}>
-        <span className={styles.artwork}>{track.artworkUrl ? <img src={track.artworkUrl} alt="" referrerPolicy="no-referrer" /> : <Disc3 size={28} strokeWidth={1.5} />}</span>
+        <span className={styles.artwork}>{track.artworkUrl ? <img src={track.artworkUrl} alt="" referrerPolicy="no-referrer" /> : <DiscIcon size={28} />}</span>
         <span className={styles.text}><strong>{track.title}</strong><span>{track.artists.join(' / ') || '未知艺人'}</span></span>
       </button>
       {state.error && <p className={styles.error} role="alert">{state.error}</p>}

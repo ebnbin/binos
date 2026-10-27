@@ -1,4 +1,4 @@
-import { RefreshCw, Smartphone, Camera, Trash2, ExternalLink } from 'lucide-react'
+import { ArrowSquareOutIcon, ArrowsClockwiseIcon, CameraIcon, DeviceMobileIcon, TrashIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
 import type { Device, Platform } from '@binos/server/apps/devices/types'
@@ -61,7 +61,7 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
       <div className={styles.content}>
       <header className={styles.header}>
         <div><h1>Devices <span>设备</span></h1><p>开发测试设备与会话调度</p></div>
-        <button className={styles.icon} aria-label="刷新设备" title="刷新设备" disabled={busy} onClick={() => void act(load)}><RefreshCw size={16} strokeWidth={1.75} /></button>
+        <button className={styles.icon} aria-label="刷新设备" title="刷新设备" disabled={busy} onClick={() => void act(load)}><ArrowsClockwiseIcon size={16} /></button>
       </header>
       {data?.mode === 'mock' && <p className={styles.notice}>模拟设备预览 · 所有操作与正式设备隔离</p>}
       {error && <p className={styles.alert} role="alert">{error}</p>}
@@ -88,7 +88,7 @@ export function DevicesApp({ ctx }: { ctx: WindowContext }) {
           {data.queue.length ? <ol className={styles.group}>{data.queue.map((item) => <li className={styles.stacked} key={item.owner}><strong>{data.owners[item.owner]?.title || ownerName(item.owner)}</strong><span>{item.platforms.join(' + ')} · {item.phase === 'preparing' ? '正在准备整组设备' : item.phase === 'failed' ? item.error : '等待容量'} · {item.reason || '未填写用途'}</span></li>)}</ol> : <p className={styles.placeholderRow}>没有等待中的申请</p>}
         </section>
         <section className={styles.section}>
-          <div className={styles.sectionTitle}><h2 className={styles.groupHeader}>已有模拟器</h2><button className={styles.borderless} disabled={busy} onClick={() => void act(async () => { const result = await discoverDevices(); setData(result) })}><ExternalLink size={14} strokeWidth={2} />只读发现</button></div>
+          <div className={styles.sectionTitle}><h2 className={styles.groupHeader}>已有模拟器</h2><button className={styles.borderless} disabled={busy} onClick={() => void act(async () => { const result = await discoverDevices(); setData(result) })}><ArrowSquareOutIcon size={14} />只读发现</button></div>
           {data.observed.length > 0 && <div className={styles.group}>{data.observed.map((item) => <div className={styles.observed} key={`${item.platform}-${item.target}`}><span>{item.name}</span><span>{item.platform} · {item.state}</span></div>)}</div>}
           <p className={styles.footer}>这些设备不参与分配，也不会被清理或接管。</p>
           {data.discoveryErrors.map((text) => <p className={styles.error} key={text}>{text}</p>)}
@@ -111,17 +111,17 @@ function DeviceCard({ device, data, ctx, busy, act }: { device: Device; data: De
   const session = lease && data.owners[lease.owner]
   return (
     <article className={styles.card}>
-      <div className={styles.cardTitle}><span className={styles.cardIcon}><Smartphone size={18} strokeWidth={1.75} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
-      {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><Smartphone size={40} strokeWidth={1.25} /><span>按需查看设备画面</span></div>}
+      <div className={styles.cardTitle}><span className={styles.cardIcon}><DeviceMobileIcon size={18} /></span><div><h2>{device.platform === 'ios' ? 'iOS' : 'Android'} · {device.id.slice(-8)}</h2><p>{device.system?.replace('com.apple.CoreSimulator.SimRuntime.', '').replaceAll('-', '.') ?? (device.platform === 'ios' ? 'iOS' : 'Android')}</p></div><span className={styles.badge} data-status={device.status}>{labels[device.status]}</span></div>
+      {capture ? <img className={styles.screenshot} src={capture.url} alt={`${device.name} 屏幕截图`} /> : <div className={styles.placeholder}><DeviceMobileIcon size={40} weight="light" /><span>按需查看设备画面</span></div>}
       {capture && <p className={styles.caption}>截图于 {moment(capture.at)} · 非实时画面</p>}
       <dl className={styles.details}><div><dt>设备</dt><dd>{device.id}</dd></div><div><dt>占用</dt><dd>{session && ctx.openApplication ? <button className={styles.link} onClick={() => ctx.openApplication?.('code', `/${session.session}`)}>{session.title || `会话 ${session.session}`}</button> : lease ? ownerName(lease.owner) : '无'}</dd></div>{lease && <><div><dt>用途</dt><dd>{lease.reason || '未填写'}</dd></div><div><dt>开始</dt><dd>{moment(lease.createdAt)}</dd></div></>}</dl>
       {device.error && <p className={styles.error}>{device.error}</p>}
       <div className={styles.actions}>
-        <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => setCapture(await captureDevice(device.id)))}><Camera size={14} strokeWidth={2} />截图</button>
+        <button className={styles.button} disabled={busy || !['free', 'reserved', 'leased'].includes(device.status) || Boolean(device.error)} onClick={() => void act(async () => setCapture(await captureDevice(device.id)))}><CameraIcon size={14} />截图</button>
         {device.status !== 'destroying' && <button className={styles.destructive} disabled={busy} onClick={() => {
           if (!confirmDestroy) { setConfirmDestroy(true); return }
           void act(() => destroyDevice(device.id))
-        }}><Trash2 size={14} strokeWidth={2} />{confirmDestroy ? lease ? '确认中断租约并销毁' : '确认销毁设备' : lease ? '强制回收' : '销毁设备'}</button>}
+        }}><TrashIcon size={14} />{confirmDestroy ? lease ? '确认中断租约并销毁' : '确认销毁设备' : lease ? '强制回收' : '销毁设备'}</button>}
         {confirmDestroy && <button className={styles.button} disabled={busy} onClick={() => setConfirmDestroy(false)}>取消</button>}
       </div>
     </article>

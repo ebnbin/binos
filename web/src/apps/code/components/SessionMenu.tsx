@@ -1,6 +1,6 @@
 import type { SessionSummary } from '@binos/server/apps/code/types'
 import * as Dropdown from '@radix-ui/react-dropdown-menu'
-import { Archive, ArchiveRestore, Pencil, Pin, PinOff } from 'lucide-react'
+import { ArchiveIcon, BoxArrowUpIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import type { ReactElement } from 'react'
 import { editSession } from '../api.ts'
@@ -63,7 +63,7 @@ export function SessionActions({
               onRename()
             }}
           >
-            <Pencil size={16} strokeWidth={1.75} />
+            <PencilSimpleIcon size={16} />
             重命名
           </Dropdown.Item>
           <Dropdown.Item
@@ -74,7 +74,7 @@ export function SessionActions({
               void edit({ pinned: !session.pinned })
             }}
           >
-            {session.pinned ? <PinOff size={16} strokeWidth={1.75} /> : <Pin size={16} strokeWidth={1.75} />}
+            {session.pinned ? <PushPinSlashIcon size={16} /> : <PushPinIcon size={16} />}
             {session.pinned ? '取消置顶' : '置顶'}
           </Dropdown.Item>
           <Dropdown.Item
@@ -85,7 +85,7 @@ export function SessionActions({
               void edit({ archived: !session.archived })
             }}
           >
-            {session.archived ? <ArchiveRestore size={16} strokeWidth={1.75} /> : <Archive size={16} strokeWidth={1.75} />}
+            {session.archived ? <BoxArrowUpIcon size={16} /> : <ArchiveIcon size={16} />}
             {session.archived ? '取消归档' : '归档'}
           </Dropdown.Item>
           {error && (

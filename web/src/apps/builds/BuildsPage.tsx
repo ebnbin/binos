@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Build, BuildLogMessage, InstallLink, Target } from '@binos/server/apps/builds/types'
 import { errorMessage } from '../../api.ts'
-import { RefreshCw } from 'lucide-react'
+import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
 import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
@@ -92,7 +92,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   async function act(route: string, method = 'POST', body?: unknown) { setBusy(true); try { update(await request(route, method, body)); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   return <section className={styles.page}>
     <div className={styles.content}>
-    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act('/poll')}><RefreshCw size={14} strokeWidth={2} />检查更新</button></header>
+    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act('/poll')}><ArrowsClockwiseIcon size={14} />检查更新</button></header>
     {data?.mode === 'mock' && <p className={styles.notice}>预览模式：模拟构建，与正式构建及签名隔离。</p>}
     {error && <p role="alert" className={styles.alert}>{error}</p>}
     {data?.pollError && <p role="alert" className={styles.alert}>检查仓库失败：{data.pollError}</p>}

@@ -1,4 +1,4 @@
-import { ChevronRight, FileDiff } from 'lucide-react'
+import { CaretRightIcon, GitDiffIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { ToolBody } from './ToolBody.tsx'
 import type { FileChange } from './tools.ts'
@@ -19,7 +19,7 @@ export function TurnChanges({ thread, files }: { thread: string; files: FileChan
   return (
     <div className={styles.card}>
       <div className={styles.header}>
-        <FileDiff strokeWidth={1.75} className={styles.headerIcon} aria-hidden />
+        <GitDiffIcon className={styles.headerIcon} aria-hidden />
         <span className={styles.headerTitle}>改动了 {files.length} 个文件</span>
         <Counts added={added} removed={removed} />
       </div>
@@ -37,7 +37,7 @@ function FileRow({ thread, file }: { thread: string; file: FileChange }) {
   return (
     <li data-open={open || undefined}>
       <button type="button" className={styles.row} onClick={() => setOpen(!open)} aria-expanded={open} title={file.path}>
-        <ChevronRight strokeWidth={2.25} className={styles.chevron} aria-hidden />
+        <CaretRightIcon className={styles.chevron} aria-hidden weight="bold" />
         <span className={styles.name}>{file.path.split('/').at(-1)}</span>
         <span className={styles.dir}>{directory(file.path)}</span>
         {file.op && <span className={styles.kind}>{opText[file.op]}</span>}

@@ -1,4 +1,4 @@
-import { Brain, ChevronLeft, EyeOff, Loader, MessageCirclePlus, Trash } from 'lucide-react'
+import { BrainIcon, CaretLeftIcon, EyeSlashIcon, NotePencilIcon, SpinnerIcon, TrashIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { IconButton } from '../../ui/IconButton.tsx'
 import { formatTime } from '../../ui/time.ts'
@@ -58,15 +58,15 @@ export function KitaApp({ ctx }: { ctx: WindowContext }) {
           </button>
           <div className={styles.actions}>
             <button type="button" className={styles.action} onClick={() => open('/')} aria-current={route.name === 'new' && !route.temporary ? 'page' : undefined}>
-              <MessageCirclePlus size={16} strokeWidth={1.75} />
+              <NotePencilIcon size={16} />
               新对话
             </button>
             <button type="button" className={styles.action} onClick={() => open('/temporary')} aria-current={route.name === 'new' && route.temporary ? 'page' : undefined}>
-              <EyeOff size={16} strokeWidth={1.75} />
+              <EyeSlashIcon size={16} />
               临时对话
             </button>
             <button type="button" className={styles.action} onClick={() => open('/memories')} aria-current={route.name === 'memories' ? 'page' : undefined}>
-              <Brain size={16} strokeWidth={1.75} />
+              <BrainIcon size={16} />
               记忆{memories?.length ? <small>{memories.length}</small> : null}
             </button>
           </div>
@@ -77,13 +77,13 @@ export function KitaApp({ ctx }: { ctx: WindowContext }) {
             {conversations?.map((item) => (
               <li key={item.id}>
                 <button type="button" className={styles.conversation} aria-current={item.id === id ? 'page' : undefined} onClick={() => open(`/c/${item.id}`)}>
-                  {item.temporary && <EyeOff size={13} strokeWidth={1.75} aria-label="临时对话" className={styles.badge} />}
+                  {item.temporary && <EyeSlashIcon size={13} aria-label="临时对话" className={styles.badge} />}
                   <span className={styles.title}>{item.title || '对话'}</span>
-                  {item.state !== 'idle' ? <Loader size={13} className={styles.running} aria-label="正在回答" /> : <time dateTime={item.updatedAt}>{formatTime(new Date(item.updatedAt))}</time>}
+                  {item.state !== 'idle' ? <SpinnerIcon size={13} className={styles.running} aria-label="正在回答" /> : <time dateTime={item.updatedAt}>{formatTime(new Date(item.updatedAt))}</time>}
                 </button>
                 {item.state === 'idle' && (
                   <IconButton
-                    icon={Trash}
+                    icon={TrashIcon}
                     label="删除对话"
                     className={styles.delete}
                     onClick={() => {
@@ -98,7 +98,7 @@ export function KitaApp({ ctx }: { ctx: WindowContext }) {
         </nav>
         <main className={styles.main}>
           <header className={styles.bar}>
-            <IconButton icon={ChevronLeft} label="返回" onClick={() => setShowList(true)} />
+            <IconButton icon={CaretLeftIcon} label="返回" onClick={() => setShowList(true)} />
             <span>{title}</span>
           </header>
           {route.name === 'memories' ? (

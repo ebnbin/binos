@@ -1,5 +1,5 @@
 import type { Project, SessionSummary } from '@binos/server/apps/code/types'
-import { ArrowUpRight, MessageSquare, Search, UserRound } from 'lucide-react'
+import { ArrowUpRightIcon, ChatTextIcon, MagnifyingGlassIcon, UserIcon } from '@phosphor-icons/react'
 import type { searchContent } from '../api.ts'
 import { Spinner } from '../../../ui/Spinner.tsx'
 import styles from './SearchResults.module.css'
@@ -44,7 +44,7 @@ export function SearchResults({
   if (!data.results.length)
     return (
       <div className={styles.state} role="status">
-        <Search size={32} strokeWidth={1.5} />
+        <MagnifyingGlassIcon size={32} />
         <span>没有找到相关内容</span>
         <p>试试更短的关键词，或换个说法。</p>
       </div>
@@ -80,17 +80,17 @@ export function SearchResults({
               </span>
               <span className={styles.count}>
                 {matches.length} 处匹配
-                <ArrowUpRight size={12} strokeWidth={2} />
+                <ArrowUpRightIcon size={12} />
               </span>
             </button>
             {matches
               .filter((match) => match.kind !== 'title')
               .map((match) => {
-                const Icon = match.kind === 'input' ? UserRound : MessageSquare
+                const Icon = match.kind === 'input' ? UserIcon : ChatTextIcon
                 return (
                   <button type="button" className={styles.match} key={match.seq} onClick={() => onNavigate(`/${id}?seq=${match.seq}`)}>
                     <span className={styles.kind}>
-                      <Icon size={12} strokeWidth={2} />
+                      <Icon size={12} />
                       {match.kind === 'input' ? '你' : '回复'}
                     </span>
                     <span className={styles.snippet}>

@@ -1,7 +1,7 @@
 import type { Conversation } from '@binos/server/apps/kita/types'
 import { agents, defaultAgent } from '@binos/server/services/kita/types'
 import type { AgentId, Profile } from '@binos/server/services/kita/types'
-import { ArrowUp, EyeOff } from 'lucide-react'
+import { ArrowUpIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useAgentCatalogs } from '../../services/kita/models.ts'
@@ -105,7 +105,7 @@ export function Chat({
               {isTemporary ? (
                 <>
                   <span className={styles.temporaryMark}>
-                    <EyeOff size={28} strokeWidth={1.5} />
+                    <EyeSlashIcon size={28} />
                   </span>
                   <h1>临时对话</h1>
                 </>
@@ -151,7 +151,7 @@ export function Chat({
             </button>
           ) : (
             <button type="submit" className={styles.action} disabled={!input.trim()} aria-label="发送" title="发送">
-              <ArrowUp size={17} strokeWidth={2.2} />
+              <ArrowUpIcon size={17} />
             </button>
           )}
         </form>
