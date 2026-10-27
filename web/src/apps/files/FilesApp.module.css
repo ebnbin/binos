@@ -204,7 +204,6 @@
 
 .folder {
   color: var(--color-accent);
-  fill: color-mix(in srgb, var(--color-accent) 22%, transparent);
 }
 
 .file {
@@ -233,10 +232,6 @@
 .list > .entry.selected .meta,
 .list > .entry.selected svg {
   color: var(--color-on-selection);
-}
-
-.list > .entry.selected .folder {
-  fill: color-mix(in srgb, var(--color-on-selection) 30%, transparent);
 }
 
 /* 图标视图 */

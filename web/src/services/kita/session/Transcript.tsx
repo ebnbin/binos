@@ -1,6 +1,6 @@
 import type { PageEvent } from '@binos/server/services/kita/journal'
 import type { Attachment, Entry, Live, Status } from '@binos/server/services/kita/types'
-import { ChevronRight } from 'lucide-react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import { Alert } from '../../../ui/Alert.tsx'
@@ -297,7 +297,7 @@ function Steps({ steps, context, last }: { steps: Step[]; context: Context; last
           {running ? '正在工作' : '已工作'} {formatDuration(Math.max(end - start, 0))} · {summarize(steps)}
           {errors > 0 && <span className={styles.errors}> · {errors} 个出错</span>}
         </span>
-        <ChevronRight strokeWidth={2.25} className={styles.workedChevron} aria-hidden />
+        <CaretRightIcon className={styles.workedChevron} aria-hidden weight="bold" />
       </button>
       {open && <div className={styles.steps}>{list}</div>}
     </div>

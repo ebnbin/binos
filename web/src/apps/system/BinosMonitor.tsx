@@ -1,5 +1,5 @@
 import type { MonitorStatus } from '@binos/server/apps/system/types'
-import { ChevronRight } from 'lucide-react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { useConnected } from '../../events.ts'
 import { useApplications } from '../index.ts'
 import { ExternalApps } from './ExternalApps.tsx'
@@ -53,7 +53,7 @@ export function BinosMonitor({ status, navigate }: { status?: MonitorStatus; nav
               <button className={styles.settingLink} key={app.id} onClick={() => navigate(`/apps/${app.id}`)}>
                 {app.name}
                 <span>{app.settings!.hint}</span>
-                <ChevronRight size={14} strokeWidth={2} aria-hidden />
+                <CaretRightIcon size={14} aria-hidden />
               </button>
             ))}
           </div>

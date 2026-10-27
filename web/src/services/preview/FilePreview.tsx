@@ -1,4 +1,4 @@
-import { Download, File, Info, X } from 'lucide-react'
+import { DownloadSimpleIcon, FileIcon, InfoIcon, XIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { ModalHost } from '../../shell/hosts/ModalHost.tsx'
 import { CodeBlock } from '../../ui/content/CodeBlock.tsx'
@@ -40,7 +40,7 @@ function Preview({ item, type, source }: { item: PreviewFile; type: string; sour
   if (type === 'video') return <video className={styles.media} controls src={url} onError={() => setError('此视频无法在浏览器中播放，请下载查看')} />
   if (type === 'audio') return <audio className={styles.media} controls src={url} onError={() => setError('此音频无法在浏览器中播放，请下载查看')} />
   if (type === 'pdf') return <iframe className={styles.document} title={item.name} src={url} />
-  if (type === 'binary') return <div className={styles.status}><File size={56} strokeWidth={1} className={styles.statusIcon} /><strong>{item.name}</strong><span>此文件暂不支持预览</span><span>可以下载原文件或查看文件信息</span></div>
+  if (type === 'binary') return <div className={styles.status}><FileIcon size={56} className={styles.statusIcon} weight="light" /><strong>{item.name}</strong><span>此文件暂不支持预览</span><span>可以下载原文件或查看文件信息</span></div>
   if (text === undefined) return <div className={styles.status}>加载中…</div>
   if (type === 'html' && !source) return <iframe className={styles.document} title={item.name} sandbox="allow-scripts" srcDoc={text} />
   if (type === 'markdown' && !source) return <div className={styles.prose}><Markdown text={text} /></div>
@@ -69,11 +69,11 @@ function PreviewDialog({ item, close }: { item: PreviewFile; close: () => void }
     <ModalHost className={styles.dialog} onClose={close} label={item.name}>
       <div className={styles.window}>
         <header className={styles.toolbar}>
-          <button type="button" className={styles.toolbarIcon} onClick={close} aria-label="关闭预览" title="关闭" autoFocus><X size={17} strokeWidth={1.75} /></button>
-          <File size={16} strokeWidth={1.75} className={styles.toolbarFile} aria-hidden /><strong className={styles.title}>{item.name}</strong>
+          <button type="button" className={styles.toolbarIcon} onClick={close} aria-label="关闭预览" title="关闭" autoFocus><XIcon size={17} /></button>
+          <FileIcon size={16} className={styles.toolbarFile} aria-hidden /><strong className={styles.title}>{item.name}</strong>
           {['markdown', 'html'].includes(type) && <button type="button" className={styles.toolbarButton} onClick={() => setSource(!source)}>{source ? '预览' : '源码'}</button>}
-          <a className={styles.toolbarButton} href={item.downloadUrl ?? item.url} download={item.name} title="下载"><Download size={16} strokeWidth={1.75} /><span>下载</span></a>
-          <button type="button" className={styles.toolbarIcon} onClick={() => setInfo(!info)} aria-label="文件信息" title="文件信息" aria-pressed={info}><Info size={17} strokeWidth={1.75} /></button>
+          <a className={styles.toolbarButton} href={item.downloadUrl ?? item.url} download={item.name} title="下载"><DownloadSimpleIcon size={16} /><span>下载</span></a>
+          <button type="button" className={styles.toolbarIcon} onClick={() => setInfo(!info)} aria-label="文件信息" title="文件信息" aria-pressed={info}><InfoIcon size={17} /></button>
         </header>
         <div className={styles.body}>
           <main className={styles.preview}><Preview item={item} type={type} source={source} /></main>

@@ -1,7 +1,7 @@
 import * as Select from '@radix-ui/react-select'
 import { Popover } from '../../../ui/Popover.tsx'
-import { ArrowUp, Check, ChevronDown, Clock, Settings2, ListPlus, Paperclip, X, Zap } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
+import { ArrowUpIcon, CaretDownIcon, CheckIcon, ClockIcon, LightningIcon, ListPlusIcon, PaperclipIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react'
 import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { ClipboardEvent, DragEvent, KeyboardEvent, PointerEvent } from 'react'
 import type { QueuedMessage, SessionSummary } from '@binos/server/apps/code/types'
@@ -221,24 +221,24 @@ export function Composer({
           <ul className={styles.queue} aria-label="排队的消息">
             {queue.map((item) => (
               <li key={item.id}>
-                <Clock size={13} strokeWidth={1.75} className={styles.queueIcon} aria-label="排队中" />
+                <ClockIcon size={13} className={styles.queueIcon} aria-label="排队中" />
                 <span className={styles.queueText}>{item.text.trim() || item.attachments?.[0]?.name}</span>
                 {item.attachments?.length ? (
                   <span className={styles.queueFiles}>
-                    <Paperclip size={12} strokeWidth={1.75} />
+                    <PaperclipIcon size={12} />
                     {item.attachments.length}
                   </span>
                 ) : null}
                 {/* 被停止或出错后留下的，可以现在就发 */}
                 {!running && (
                   <IconButton
-                    icon={ArrowUp}
+                    icon={ArrowUpIcon}
                     label="现在发送"
                     className={styles.queueButton}
                     onClick={() => void sendQueued(sessionId, item.id)}
                   />
                 )}
-                <IconButton icon={X} label="撤回到输入框" className={styles.queueButton} onClick={() => void withdraw(item.id)} />
+                <IconButton icon={XIcon} label="撤回到输入框" className={styles.queueButton} onClick={() => void withdraw(item.id)} />
               </li>
             ))}
           </ul>
@@ -275,7 +275,7 @@ export function Composer({
             }}
           />
           <IconButton
-            icon={Paperclip}
+            icon={PaperclipIcon}
             label={enterSends ? '添加附件（也可以粘贴或拖进来）' : '添加附件'}
             className={styles.attach}
             disabled={sending}
@@ -289,7 +289,7 @@ export function Composer({
           }}>
             <Select.Trigger className={styles.model} aria-label="模型" title={running ? '回答结束后可切换模型' : '选择模型'}>
               <span>{selectedModel?.name ?? choice.model ?? agents[choice.agent].name}</span>
-              <ChevronDown size={12} strokeWidth={2.25} />
+              <CaretDownIcon size={12} weight="bold" />
             </Select.Trigger>
             <Select.Portal>
               <Select.Content className={styles.modelMenu} position="popper" side="top" sideOffset={8} collisionPadding={12}>
@@ -298,7 +298,7 @@ export function Composer({
                     <Select.Item key={option.value} value={option.value} disabled={option.disabled} className={styles.modelOption}>
                       <Select.ItemText>{option.model.name}</Select.ItemText>
                       <small>{agents[option.agent].name}{option.model.isDefault ? ' · 默认' : ''}</small>
-                      <Select.ItemIndicator className={styles.selected}><Check size={16} /></Select.ItemIndicator>
+                      <Select.ItemIndicator className={styles.selected}><CheckIcon size={16} /></Select.ItemIndicator>
                     </Select.Item>
                   ))}
                   {!modelOptions.some((option) => option.value === modelValue) && (
@@ -312,7 +312,7 @@ export function Composer({
           </Select.Root>
           <Popover open={settingsOpen} onOpenChange={setSettingsOpen} label="思考程度" side="top" align="start" className={styles.settingsMenu} trigger={
             <button type="button" className={styles.settings} disabled={running} aria-label={`思考程度：${choice.effort ? effortName(choice.effort) : '默认'}`} title="思考程度">
-              <Settings2 size={16} strokeWidth={1.75} />
+              <SlidersHorizontalIcon size={16} />
               {choice.effort && <span>{effortName(choice.effort)}</span>}
             </button>
           }>
@@ -325,7 +325,7 @@ export function Composer({
                     setSettingsOpen(false)
                   }}>
                   {effort ? effortName(effort) : '默认'}
-                  {(choice.effort ?? '') === effort && <Check size={16} aria-hidden="true" />}
+                  {(choice.effort ?? '') === effort && <CheckIcon size={16} aria-hidden="true" />}
                 </button>
               ))}
             </div>
@@ -354,9 +354,9 @@ const holdDelay = 350
 
 type HeldMode = Extract<SendMode, 'queue' | 'interrupt'>
 
-const heldModes: { mode: HeldMode; icon: LucideIcon; label: string; title: string }[] = [
-  { mode: 'queue', icon: ListPlus, label: '排队', title: enterSends ? `这一轮答完再发（${queueShortcut}）` : '这一轮答完再发' },
-  { mode: 'interrupt', icon: Zap, label: '打断', title: '打断正在做的事，马上处理这句话' },
+const heldModes: { mode: HeldMode; icon: Icon; label: string; title: string }[] = [
+  { mode: 'queue', icon: ListPlusIcon, label: '排队', title: enterSends ? `这一轮答完再发（${queueShortcut}）` : '这一轮答完再发' },
+  { mode: 'interrupt', icon: LightningIcon, label: '打断', title: '打断正在做的事，马上处理这句话' },
 ]
 
 const modeAt = (x: number, y: number) => (document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-held-mode]')?.dataset.heldMode as HeldMode | undefined)
@@ -435,7 +435,7 @@ function SendButton({ running, disabled, onSend }: { running: boolean; disabled:
         <span className={styles.heldMenu} role="menu" aria-label="发送方式">
           {heldModes.map(({ mode, icon: Icon, label, title }) => (
             <button key={mode} type="button" role="menuitem" data-held-mode={mode} data-active={active === mode || undefined} title={title} onClick={() => choose(mode)}>
-              <Icon size={16} strokeWidth={2} />
+              <Icon size={16} />
               {label}
             </button>
           ))}
@@ -464,7 +464,7 @@ function SendButton({ running, disabled, onSend }: { running: boolean; disabled:
           if (running && !disabled) setMenuOpen(true)
         }}
       >
-        <ArrowUp size={16} strokeWidth={2.5} />
+        <ArrowUpIcon size={16} weight="bold" />
       </button>
     </span>
   )

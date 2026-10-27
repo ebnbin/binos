@@ -1,21 +1,21 @@
 import type { Project, SessionSummary } from '@binos/server/apps/code/types'
 import { agents, defaultAgent } from '@binos/server/services/kita/types'
 import {
-  ChevronRight,
-  CircleAlert,
-  CircleStop,
-  Clock,
-  FolderPlus,
-  Gauge,
-  GitPullRequest,
-  Hourglass,
-  Hammer,
-  Smartphone,
-  MoreHorizontal,
-  Search,
-  SquarePen,
-  X,
-} from 'lucide-react'
+  CaretRightIcon,
+  ClockIcon,
+  DeviceMobileIcon,
+  DotsThreeIcon,
+  FolderPlusIcon,
+  GaugeIcon,
+  GitPullRequestIcon,
+  HammerIcon,
+  HourglassIcon,
+  MagnifyingGlassIcon,
+  NotePencilIcon,
+  StopCircleIcon,
+  WarningCircleIcon,
+  XIcon,
+} from '@phosphor-icons/react'
 import { Select } from '../../../ui/Select.tsx'
 import { useEffect, useState } from 'react'
 import { createProject, searchContent } from '../api.ts'
@@ -66,11 +66,11 @@ export function SessionList({
       </header>
       <AuthBanner />
       <button type="button" className={styles.newButton} onClick={() => onNavigate('/new')}>
-        <SquarePen size={16} strokeWidth={1.75} className={styles.icon} />
+        <NotePencilIcon size={16} className={styles.icon} />
         <span className={styles.title}>新对话</span>
       </button>
       <button type="button" className={styles.projectButton} disabled={saving} onClick={() => { setCreating(!creating); setConnecting(undefined); setMode('existing'); setName(''); setRepository(''); setError('') }}>
-        <FolderPlus size={16} strokeWidth={1.75} className={styles.icon} />
+        <FolderPlusIcon size={16} className={styles.icon} />
         <span className={styles.title}>创建项目</span>
       </button>
       {creating && (
@@ -125,7 +125,7 @@ export function SessionList({
         </form>
       )}
       <label className={styles.search}>
-        <Search size={14} strokeWidth={2} />
+        <MagnifyingGlassIcon size={14} />
         <input
           type="search"
           value={query}
@@ -140,16 +140,16 @@ export function SessionList({
         />
         {query && (
           <button type="button" className={styles.clear} onClick={() => setQuery('')} aria-label="清除搜索">
-            <X size={10} strokeWidth={3} />
+            <XIcon size={10} weight="bold" />
           </button>
         )}
       </label>
       <nav className={styles.list}>
         <ul>
-          {([['builds', 'binOS 构建', Hammer], ['devices', '设备', Smartphone]] as const).map(([name, label, Icon]) => (
+          {([['builds', 'binOS 构建', HammerIcon], ['devices', '设备', DeviceMobileIcon]] as const).map(([name, label, Icon]) => (
             <li key={name}>
               <button type="button" className={styles.item} aria-current={currentTool === name ? 'page' : undefined} onClick={() => onNavigate(`/${name}`)}>
-                <span className={styles.line}><Icon size={16} strokeWidth={1.75} className={styles.icon} /><span className={styles.title}>{label}</span>{name === 'builds' && summary && <span className={styles.buildSummary} data-state={summary.state}>{summary.text}</span>}</span>
+                <span className={styles.line}><Icon size={16} className={styles.icon} /><span className={styles.title}>{label}</span>{name === 'builds' && summary && <span className={styles.buildSummary} data-state={summary.state}>{summary.text}</span>}</span>
               </button>
             </li>
           ))}
@@ -185,7 +185,7 @@ export function SessionList({
                   }}>关联仓库</button>
                 )}
                 <button type="button" className={styles.headerIcon} aria-label={`在 ${project.name} 中新建对话`} onClick={() => onNavigate(`/new?project=${project.id}`)}>
-                  <SquarePen size={14} strokeWidth={2} />
+                  <NotePencilIcon size={14} />
                 </button>
               </div>
               <Sections
@@ -283,7 +283,7 @@ function Sections({
             onClick={() => setShowArchived(!showArchived)}
             aria-expanded={showArchived}
           >
-            <ChevronRight size={12} strokeWidth={2.5} className={styles.toggleChevron} />
+            <CaretRightIcon size={12} className={styles.toggleChevron} weight="bold" />
             已归档 {archived.length}
           </button>
           {(showArchived || searching) && items(archived)}
@@ -333,7 +333,7 @@ function SessionItem({
       {!renaming && (
         <SessionActions session={session} onRename={() => setRenaming(true)} open={menuOpen} onOpenChange={setMenuOpen}>
           <button type="button" className={styles.more} aria-label="更多操作" aria-expanded={menuOpen}>
-            <MoreHorizontal size={16} strokeWidth={2} />
+            <DotsThreeIcon size={16} />
           </button>
         </SessionActions>
       )}
@@ -353,25 +353,25 @@ function SessionMeta({ session, clock }: { session: SessionSummary; clock: boole
         {session.turns > 1 && <span>{session.turns} 轮</span>}
         {session.quota !== undefined && session.quota >= 0.005 && (
           <span title="大约占订阅周额度">
-            <Gauge size={12} strokeWidth={2} />
+            <GaugeIcon size={12} />
             {formatQuota(session.quota)}
           </span>
         )}
         {openPrs.length > 0 && (
           <span className={styles.openPr} title="开着的 PR">
-            <GitPullRequest size={12} strokeWidth={2} />
+            <GitPullRequestIcon size={12} />
             {openPrs.map((pr) => `#${pr.number}`).join(' ')}
           </span>
         )}
         {session.queue.length > 0 && (
           <span title="排队的消息">
-            <Clock size={12} strokeWidth={2} />
+            <ClockIcon size={12} />
             {session.queue.length}
           </span>
         )}
         {session.outcome && !session.running && !session.waiting && (
           <span className={session.outcome === 'error' ? styles.error : undefined}>
-            {session.outcome === 'error' ? <CircleAlert size={12} strokeWidth={2} /> : <CircleStop size={12} strokeWidth={2} />}
+            {session.outcome === 'error' ? <WarningCircleIcon size={12} /> : <StopCircleIcon size={12} />}
             {session.outcome === 'error' ? '出错' : '已停止'}
           </span>
         )}
@@ -381,7 +381,7 @@ function SessionMeta({ session, clock }: { session: SessionSummary; clock: boole
           <span className={styles.busy}>回答中</span>
         ) : session.waiting ? (
           <span className={styles.busy} title="答完了，在等后台任务">
-            <Hourglass size={12} strokeWidth={2} />
+            <HourglassIcon size={12} />
             后台任务
           </span>
         ) : (

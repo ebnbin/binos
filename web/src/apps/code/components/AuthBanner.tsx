@@ -1,6 +1,6 @@
 import { agentIds } from '@binos/server/services/kita/types'
 import type { AgentId } from '@binos/server/services/kita/types'
-import { CircleAlert } from 'lucide-react'
+import { WarningCircleIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useHourlyNow } from '../../../services/kita/auth.ts'
 import { useAgentStatus } from '../../../services/kita/status.ts'
@@ -28,7 +28,7 @@ export function AuthBanner() {
       ) : (
         first && (
           <button type="button" className={styles.row} onClick={() => setOpen({ agent: first.agent, fix: first.attention.fix })}>
-            <CircleAlert size={15} strokeWidth={1.75} />
+            <WarningCircleIcon size={15} />
             <span>{first.attention.text}</span>
             <span className={styles.action}>{first.attention.action}</span>
           </button>

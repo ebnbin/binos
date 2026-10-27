@@ -1,5 +1,5 @@
 import type { MonitorStatus } from '@binos/server/apps/system/types'
-import { Cpu, HardDrive, MemoryStick, Network, PlugZap } from 'lucide-react'
+import { CpuIcon, HardDriveIcon, MemoryIcon, NetworkIcon, PlugChargingIcon } from '@phosphor-icons/react'
 import { bytes } from './format.ts'
 import styles from './Monitor.module.css'
 
@@ -22,7 +22,7 @@ export function HostMonitor({ status }: { status: MonitorStatus }) {
       <div className={styles.cards}>
         <section className={styles.card} data-metric="cpu">
           <h2>
-            <Cpu size={16} strokeWidth={1.75} />
+            <CpuIcon size={16} />
             CPU
           </h2>
           <strong>{cpu === null ? '采样中' : `${cpu.toFixed(0)}%`}</strong>
@@ -31,7 +31,7 @@ export function HostMonitor({ status }: { status: MonitorStatus }) {
         </section>
         <section className={styles.card} data-metric="memory">
           <h2>
-            <MemoryStick size={16} strokeWidth={1.75} />
+            <MemoryIcon size={16} />
             内存
           </h2>
           <strong>
@@ -49,7 +49,7 @@ export function HostMonitor({ status }: { status: MonitorStatus }) {
         </section>
         <section className={styles.card} data-metric="network">
           <h2>
-            <Network size={16} strokeWidth={1.75} />
+            <NetworkIcon size={16} />
             网络速度
           </h2>
           <div className={styles.speeds}>
@@ -76,7 +76,7 @@ export function HostMonitor({ status }: { status: MonitorStatus }) {
         </section>
         <section className={styles.card} data-metric="power">
           <h2>
-            <PlugZap size={16} strokeWidth={1.75} />
+            <PlugChargingIcon size={16} />
             供电与运行时间
           </h2>
           <strong>
@@ -90,7 +90,7 @@ export function HostMonitor({ status }: { status: MonitorStatus }) {
       </div>
       <section className={styles.section}>
         <h2>
-          <HardDrive size={14} strokeWidth={2} />
+          <HardDriveIcon size={14} />
           存储
         </h2>
         <div className={styles.group}>

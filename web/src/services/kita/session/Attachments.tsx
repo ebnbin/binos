@@ -1,5 +1,5 @@
 import type { Attachment } from '@binos/server/services/kita/types'
-import { FileText, X } from 'lucide-react'
+import { FileTextIcon, XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { FileBlock } from '../../preview/index.ts'
 import { threadPreviewFile } from '../files.ts'
@@ -11,7 +11,7 @@ import styles from './Attachments.module.css'
 function FileCard({ name }: { name: string }) {
   return (
     <span className={styles.card}>
-      <FileText size={18} strokeWidth={1.75} />
+      <FileTextIcon size={18} />
       <span className={styles.name}>{name}</span>
     </span>
   )
@@ -50,7 +50,7 @@ export function PendingAttachments({ files, onRemove }: { files: PendingFile[]; 
           <PendingItem file={file} preview={preview} />
           {onRemove && (
             <button type="button" className={styles.remove} onClick={() => onRemove(key)} aria-label={`移除 ${file.name}`}>
-              <X size={11} strokeWidth={2.5} />
+              <XIcon size={11} weight="bold" />
             </button>
           )}
         </div>

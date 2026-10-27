@@ -1,5 +1,5 @@
 import type { Profile } from '@binos/server/services/kita/types'
-import { ImagePlus, Trash } from 'lucide-react'
+import { ImageSquareIcon, TrashIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { photoUrl, removePhoto, saveDescription, setAvatar, uploadPhoto } from '../../services/kita/api.ts'
 import { Alert } from '../../ui/Alert.tsx'
@@ -47,11 +47,11 @@ export function ProfilePage({ profile }: { profile: Profile | undefined }) {
                 <button type="button" className={styles.pick} onClick={() => void setAvatar(photo.file)} title={photo.file === profile.avatar ? '当前的头像' : '用作头像'}>
                   <img src={photoUrl(photo.file)} alt="喜多的照片" loading="lazy" />
                 </button>
-                <IconButton icon={Trash} label="删除这张照片" className={styles.remove} onClick={() => void removePhoto(photo.file)} />
+                <IconButton icon={TrashIcon} label="删除这张照片" className={styles.remove} onClick={() => void removePhoto(photo.file)} />
               </figure>
             ))}
             <button type="button" className={styles.upload} onClick={() => fileInput.current?.click()}>
-              <ImagePlus size={22} strokeWidth={1.5} />
+              <ImageSquareIcon size={22} />
               <span>添加照片</span>
             </button>
             <input

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ExternalLink, X } from 'lucide-react'
+import { ArrowSquareOutIcon, XIcon } from '@phosphor-icons/react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import { AppIcon } from './AppIcon.tsx'
 import type { BarPlacement } from './bar-placement.ts'
@@ -40,9 +40,9 @@ export function DockActions({
   const name = (member: OpenWindow) => app(member)?.name ?? member.title
   const actions: { target: DropTarget; icon: ReactNode; label: string }[] = [
     ...(group ? [{ target: { type: 'unsplit' } as DropTarget, icon: <span className={styles.single} />, label: '取消分屏' }] : []),
-    ...members.map((member) => ({ target: { type: 'close', id: member.id } as DropTarget, icon: <X size={18} strokeWidth={2} />, label: group ? `关闭 ${name(member)}` : '关闭' })),
+    ...members.map((member) => ({ target: { type: 'close', id: member.id } as DropTarget, icon: <XIcon size={18} />, label: group ? `关闭 ${name(member)}` : '关闭' })),
     ...members.filter((member) => app(member)?.url).map((member) => ({
-      target: { type: 'external', id: member.id } as DropTarget, icon: <ExternalLink size={18} strokeWidth={2} />, label: group ? `在新标签页打开 ${name(member)}` : '在新标签页打开',
+      target: { type: 'external', id: member.id } as DropTarget, icon: <ArrowSquareOutIcon size={18} />, label: group ? `在新标签页打开 ${name(member)}` : '在新标签页打开',
     })),
   ]
 

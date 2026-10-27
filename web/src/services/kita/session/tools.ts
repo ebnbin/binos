@@ -1,6 +1,6 @@
 import type { BrowserOperation, Entry, LineCount } from '@binos/server/services/kita/types'
-import { AppWindow, Bot, FilePen, FilePlus, FileText, Globe, Image, ListTodo, PackageSearch, Search, Sparkles, SquareTerminal, Wrench } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
+import { AppWindowIcon, FilePlusIcon, FileTextIcon, GlobeIcon, ImageIcon, ListChecksIcon, MagnifyingGlassIcon, PackageIcon, PencilSimpleLineIcon, RobotIcon, SparkleIcon, TerminalWindowIcon, WrenchIcon } from '@phosphor-icons/react'
 
 export type ToolCall = Extract<Entry, { type: 'tool_call' }>
 export type ToolResult = Extract<Entry, { type: 'tool_result' }>
@@ -25,7 +25,7 @@ export function callDuration({ call, result, live }: CallState, now: number): nu
 export type ToolCategory = 'command' | 'read' | 'edit' | 'search' | 'web' | 'browser' | 'subagent' | 'other'
 
 // 一次调用显示成：图标、动作、对象（命令、路径、搜索词……）
-type ToolLabel = { icon: LucideIcon; verb: string; category: ToolCategory; detail?: string }
+type ToolLabel = { icon: Icon; verb: string; category: ToolCategory; detail?: string }
 
 // 浏览器操作的说法，认不出的直接用工具名
 const browserVerbs: Record<Exclude<BrowserOperation, 'other'>, string> = {
@@ -45,35 +45,35 @@ const browserVerbs: Record<Exclude<BrowserOperation, 'other'>, string> = {
 export function toolLabel({ name, tool }: ToolCall): ToolLabel {
   switch (tool.kind) {
     case 'command':
-      return { icon: SquareTerminal, verb: '运行', category: 'command', detail: tool.command }
+      return { icon: TerminalWindowIcon, verb: '运行', category: 'command', detail: tool.command }
     case 'read':
-      return { icon: FileText, verb: '查看', category: 'read', detail: tool.path }
+      return { icon: FileTextIcon, verb: '查看', category: 'read', detail: tool.path }
     case 'edit':
       return tool.change?.type === 'write'
-        ? { icon: FilePlus, verb: '写入', category: 'edit', detail: tool.path }
-        : { icon: FilePen, verb: '修改', category: 'edit', detail: tool.path }
+        ? { icon: FilePlusIcon, verb: '写入', category: 'edit', detail: tool.path }
+        : { icon: PencilSimpleLineIcon, verb: '修改', category: 'edit', detail: tool.path }
     case 'search':
-      return { icon: Search, verb: tool.target === 'files' ? '查找文件' : '搜索', category: 'search', detail: tool.pattern }
+      return { icon: MagnifyingGlassIcon, verb: tool.target === 'files' ? '查找文件' : '搜索', category: 'search', detail: tool.pattern }
     case 'web_search':
-      return { icon: Globe, verb: '搜索网页', category: 'search', detail: tool.query }
+      return { icon: GlobeIcon, verb: '搜索网页', category: 'search', detail: tool.query }
     case 'web_fetch':
-      return { icon: Globe, verb: '打开网页', category: 'web', detail: tool.url }
+      return { icon: GlobeIcon, verb: '打开网页', category: 'web', detail: tool.url }
     case 'image_view':
-      return { icon: Image, verb: '查看图片', category: 'read', detail: tool.path }
+      return { icon: ImageIcon, verb: '查看图片', category: 'read', detail: tool.path }
     case 'browser':
-      return { icon: AppWindow, verb: tool.operation && tool.operation !== 'other' ? browserVerbs[tool.operation] : `浏览器 ${tool.action}`, category: 'browser', detail: tool.target }
+      return { icon: AppWindowIcon, verb: tool.operation && tool.operation !== 'other' ? browserVerbs[tool.operation] : `浏览器 ${tool.action}`, category: 'browser', detail: tool.target }
     case 'mcp':
-      return { icon: Wrench, verb: `${tool.server} ${tool.tool}`, category: 'other', detail: tool.target }
+      return { icon: WrenchIcon, verb: `${tool.server} ${tool.tool}`, category: 'other', detail: tool.target }
     case 'subagent':
-      return { icon: Bot, verb: '子 agent', category: 'subagent', detail: tool.description }
+      return { icon: RobotIcon, verb: '子 agent', category: 'subagent', detail: tool.description }
     case 'tool_search':
-      return { icon: PackageSearch, verb: '加载工具', category: 'other', detail: tool.query }
+      return { icon: PackageIcon, verb: '加载工具', category: 'other', detail: tool.query }
     case 'skill':
-      return { icon: Sparkles, verb: '使用技能', category: 'other', detail: tool.name }
+      return { icon: SparkleIcon, verb: '使用技能', category: 'other', detail: tool.name }
     case 'todo':
-      return { icon: ListTodo, verb: '更新待办', category: 'other' }
+      return { icon: ListChecksIcon, verb: '更新待办', category: 'other' }
     case 'other':
-      return { icon: Wrench, verb: name, category: 'other', detail: tool.target }
+      return { icon: WrenchIcon, verb: name, category: 'other', detail: tool.target }
   }
 }
 

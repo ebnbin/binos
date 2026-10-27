@@ -1,7 +1,7 @@
 import { ModalHost } from '../../shell/hosts/ModalHost.tsx'
 import { Checkbox } from '../../ui/Checkbox.tsx'
 import { Select } from '../../ui/Select.tsx'
-import { ArrowLeft, ArrowUp, ChevronRight, Download, File, Folder, Home, List, LayoutGrid, RefreshCw, Search, Upload } from 'lucide-react'
+import { ArrowLeftIcon, ArrowUpIcon, ArrowsClockwiseIcon, CaretRightIcon, DownloadSimpleIcon, FileIcon, FolderIcon, HouseIcon, ListIcon, MagnifyingGlassIcon, SquaresFourIcon, UploadSimpleIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../../api.ts'
 import { FilePreview } from '../../services/preview/index.ts'
@@ -125,22 +125,22 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
             ['图片', listing.home + '/Pictures'],
           ].map(([label, dir]) => (
             <button key={dir} className={`${styles.place} ${listing.path === dir ? styles.active : ''}`} disabled={busy} onClick={() => go(dir)}>
-              <Folder size={16} strokeWidth={1.75} />
+              <FolderIcon size={16} />
               {label}
             </button>
           ))}
         <div className={styles.caption}>位置</div>
         <button className={styles.place} disabled={busy} onClick={() => go('/')}>
-          <Home size={16} strokeWidth={1.75} />
+          <HouseIcon size={16} />
           Macintosh HD
         </button>
         <button className={styles.place} disabled={busy} onClick={() => go('/Volumes')}>
-          <Folder size={16} strokeWidth={1.75} />
+          <FolderIcon size={16} />
           外置磁盘
         </button>
         {listing && (
           <button className={styles.place} disabled={busy} onClick={() => go(listing.home + '/.Trash')}>
-            <Folder size={16} strokeWidth={1.75} />
+            <FolderIcon size={16} />
             废纸篓
           </button>
         )}
@@ -149,7 +149,7 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
         <header className={styles.toolbar}>
           <div className={styles.group}>
           <button className={styles.tool} title="后退" aria-label="后退" disabled={busy} onClick={ctx.back}>
-            <ArrowLeft size={17} strokeWidth={1.75} />
+            <ArrowLeftIcon size={17} />
           </button>
           <button
             className={styles.tool}
@@ -158,7 +158,7 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
             disabled={busy || !listing || listing.parent === listing.path}
             onClick={() => listing && go(listing.parent)}
           >
-            <ArrowUp size={17} strokeWidth={1.75} />
+            <ArrowUpIcon size={17} />
           </button>
           </div>
           <form
@@ -178,16 +178,16 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
           </form>
           <div className={styles.group}>
           <button className={styles.tool} title="刷新" aria-label="刷新" disabled={loading || busy} onClick={() => void load(route)}>
-            <RefreshCw size={16} strokeWidth={1.75} />
+            <ArrowsClockwiseIcon size={16} />
           </button>
           <button className={styles.tool} title={grid ? '列表视图' : '图标视图'} aria-label="切换视图" onClick={() => setGrid(!grid)}>
-            {grid ? <List size={17} strokeWidth={1.75} /> : <LayoutGrid size={16} strokeWidth={1.75} />}
+            {grid ? <ListIcon size={17} /> : <SquaresFourIcon size={16} />}
           </button>
           </div>
         </header>
         <div className={styles.controls}>
           <label className={styles.search}>
-            <Search size={14} strokeWidth={2} />
+            <MagnifyingGlassIcon size={14} />
             <input aria-label="搜索当前文件夹" placeholder="搜索当前文件夹" value={search} onChange={(e) => setSearch(e.target.value)} />
           </label>
           <Select
@@ -207,7 +207,7 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
             新建文件夹
           </button>
           <button className={styles.action} disabled={busy || !listing || loading} onClick={() => upload.current?.click()}>
-            <Upload size={14} strokeWidth={2} />
+            <UploadSimpleIcon size={14} />
             上传
           </button>
           <button
@@ -243,7 +243,7 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
           </button>
           {current && selected.length === 1 && !current.directory && (
             <a className={styles.action} href={download(current.path) + `&name=${encodeURIComponent(current.name)}`}>
-              <Download size={14} strokeWidth={2} />
+              <DownloadSimpleIcon size={14} />
               下载
             </a>
           )}
@@ -305,12 +305,12 @@ export function FilesApp({ ctx }: { ctx: WindowContext }) {
                   }}
                 >
                   <span className={styles.name}>
-                    {entry.directory ? <Folder className={styles.folder} size={grid ? 48 : 17} strokeWidth={grid ? 1.25 : 1.75} /> : <File className={styles.file} size={grid ? 44 : 17} strokeWidth={grid ? 1.25 : 1.75} />}
+                    {entry.directory ? <FolderIcon className={styles.folder} size={grid ? 48 : 17} weight="duotone" /> : <FileIcon className={styles.file} size={grid ? 44 : 17} weight={grid ? 'light' : 'regular'} />}
                     <span>
                       {entry.name}
                       {entry.symlink ? ' ↗' : ''}
                     </span>
-                    {entry.directory && !grid && <ChevronRight className={styles.chevron} size={13} strokeWidth={2} />}
+                    {entry.directory && !grid && <CaretRightIcon className={styles.chevron} size={13} />}
                   </span>
                   {!grid && (
                     <>

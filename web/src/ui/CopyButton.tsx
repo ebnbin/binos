@@ -1,4 +1,4 @@
-import { Check, Copy, CircleAlert } from 'lucide-react'
+import { CheckIcon, CopyIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import styles from './CopyButton.module.css'
 
@@ -29,11 +29,11 @@ export function CopyButton({ text, label = '复制' }: { text: string; label?: s
       }}
     >
       {copied ? (
-        <Check size={13} strokeWidth={2} />
+        <CheckIcon size={13} />
       ) : state === 'failed' ? (
-        <CircleAlert size={13} />
+        <WarningCircleIcon size={13} />
       ) : (
-        <Copy size={13} strokeWidth={1.75} />
+        <CopyIcon size={13} />
       )}
     </button>
   )

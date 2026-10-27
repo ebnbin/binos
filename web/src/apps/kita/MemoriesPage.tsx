@@ -1,6 +1,6 @@
 import type { Conversation } from '@binos/server/apps/kita/types'
 import type { Memory, MemorySource } from '@binos/server/services/kita/types'
-import { Check, Pencil, Trash, Undo2 } from 'lucide-react'
+import { ArrowUUpLeftIcon, CheckIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { addMemory, removeMemory, revertMemory, updateMemory } from '../../services/kita/api.ts'
 import { IconButton } from '../../ui/IconButton.tsx'
@@ -97,10 +97,10 @@ function MemoryItem({ memory, conversations, onOpen }: { memory: Memory; convers
           {memory.scope !== 'personal' && <> · <AppName id={memory.scope} /></>}
         </span>
         <span className={styles.actions}>
-          {memory.kind === 'inferred' && <IconButton icon={Check} label="确认" onClick={() => void updateMemory(memory.id, { kind: 'stated' })} />}
-          {previous && <IconButton icon={Undo2} label="恢复上一版" onClick={() => void revertMemory(memory.id)} />}
-          {editing === undefined && <IconButton icon={Pencil} label="修改" onClick={() => setEditing(memory.text)} />}
-          <IconButton icon={Trash} label="删除" onClick={() => void removeMemory(memory.id)} />
+          {memory.kind === 'inferred' && <IconButton icon={CheckIcon} label="确认" onClick={() => void updateMemory(memory.id, { kind: 'stated' })} />}
+          {previous && <IconButton icon={ArrowUUpLeftIcon} label="恢复上一版" onClick={() => void revertMemory(memory.id)} />}
+          {editing === undefined && <IconButton icon={PencilSimpleIcon} label="修改" onClick={() => setEditing(memory.text)} />}
+          <IconButton icon={TrashIcon} label="删除" onClick={() => void removeMemory(memory.id)} />
         </span>
       </div>
     </li>

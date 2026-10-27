@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { CaretLeftIcon } from '@phosphor-icons/react'
 import { IconButton } from '../../ui/IconButton.tsx'
 import { BuildsPage } from '../builds/BuildsPage.tsx'
 import { DevicesApp } from '../devices/DevicesApp.tsx'
@@ -51,7 +51,7 @@ export function CodeApp({ ctx }: { ctx: WindowContext }) {
           {tool ? (
             <>
               <header className={styles.toolBar}>
-                <IconButton icon={ChevronLeft} label="返回对话列表" onClick={() => ctx.navigate('/')} />
+                <IconButton icon={CaretLeftIcon} label="返回对话列表" onClick={() => ctx.navigate('/')} />
                 <span>{title}</span>
               </header>
               <div className={styles.content}>

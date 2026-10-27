@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Keyboard, RotateCw, X } from 'lucide-react'
+import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, KeyboardIcon, XIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import type { BrowserState, BrowserClientMessage, BrowserServerMessage } from '@binos/server/apps/browser/protocol'
@@ -255,13 +255,13 @@ export function RemoteBrowser({ ctx, session }: { ctx: WindowContext; session: R
   return <div className={styles.remote}>
     <div className={styles.toolbar}>
       <div className={styles.navigation}>
-        <IconButton icon={ArrowLeft} label="后退" disabled={closed || !state.canBack} onClick={() => send({ type: 'back' })} />
-        <IconButton icon={ArrowRight} label="前进" disabled={closed || !state.canForward} onClick={() => send({ type: 'forward' })} />
+        <IconButton icon={ArrowLeftIcon} label="后退" disabled={closed || !state.canBack} onClick={() => send({ type: 'back' })} />
+        <IconButton icon={ArrowRightIcon} label="前进" disabled={closed || !state.canForward} onClick={() => send({ type: 'forward' })} />
       </div>
       <div className={styles.navigation}>
-        <IconButton icon={RotateCw} label="刷新网页" disabled={closed} onClick={() => send({ type: 'reload' })} />
-        <IconButton icon={Keyboard} label="输入文字" disabled={closed} onClick={() => input.current?.focus({ preventScroll: true })} />
-        <IconButton icon={X} label="关闭远程标签页" disabled={closed || !session.current} onClick={() => send({ type: 'close' })} />
+        <IconButton icon={ArrowClockwiseIcon} label="刷新网页" disabled={closed} onClick={() => send({ type: 'reload' })} />
+        <IconButton icon={KeyboardIcon} label="输入文字" disabled={closed} onClick={() => input.current?.focus({ preventScroll: true })} />
+        <IconButton icon={XIcon} label="关闭远程标签页" disabled={closed || !session.current} onClick={() => send({ type: 'close' })} />
       </div>
       <form className={styles.address} onSubmit={(event) => { event.preventDefault(); visit() }}>
         <input aria-label="网址" value={address} onChange={(event) => setAddress(event.target.value)} onFocus={(event) => event.target.select()} placeholder="输入网址" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />

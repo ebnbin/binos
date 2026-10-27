@@ -1,4 +1,4 @@
-import { CalendarDays, Cat, CodeXml, Folder, Gauge, Globe, Music, Terminal } from 'lucide-react'
+import { CalendarDotsIcon, CatIcon, CodeIcon, FolderIcon, GaugeIcon, GlobeIcon, MusicNotesIcon, TerminalIcon } from '@phosphor-icons/react'
 import { lazy } from 'react'
 import type { ApplicationDefinition } from './types.ts'
 
@@ -6,7 +6,7 @@ import type { ApplicationDefinition } from './types.ts'
 export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   {
     id: 'calendar',
-    icon: CalendarDays,
+    icon: CalendarDotsIcon,
     views: {
       month: { kind: 'widget', component: lazy(() => import('./calendar/CalendarWidget.tsx').then((module) => ({ default: module.CalendarWidget }))) },
     },
@@ -14,7 +14,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'music',
-    icon: Music,
+    icon: MusicNotesIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: { kind: 'window', component: lazy(() => import('./music/MusicApp.tsx').then((module) => ({ default: module.MusicApp }))) },
@@ -24,7 +24,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'browser',
-    icon: Globe,
+    icon: GlobeIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: {
@@ -35,7 +35,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'terminal',
-    icon: Terminal,
+    icon: TerminalIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: {
@@ -46,7 +46,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'files',
-    icon: Folder,
+    icon: FolderIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: {
@@ -57,7 +57,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'code',
-    icon: CodeXml,
+    icon: CodeIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: {
@@ -73,7 +73,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'kita',
-    icon: Cat,
+    icon: CatIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: { kind: 'window', component: lazy(() => import('./kita/KitaApp.tsx').then((module) => ({ default: module.KitaApp }))) },
@@ -83,7 +83,7 @@ export const builtinApplications: Omit<ApplicationDefinition, 'name'>[] = [
   },
   {
     id: 'system',
-    icon: Gauge,
+    icon: GaugeIcon,
     mainWindow: { viewId: 'main' },
     views: {
       main: {

@@ -9,7 +9,7 @@ const tintOf = (id: string) => [...id].reduce((hash, char) => (hash * 31 + char.
 export function AppIcon({ app, className }: { app: ApplicationDefinition; className?: string }) {
   return (
     <span className={`${styles.icon} ${className ?? ''}`} data-app={app.id} data-tint={tintOf(app.id)} aria-hidden>
-      <app.icon strokeWidth={2} />
+      <app.icon />
     </span>
   )
 }

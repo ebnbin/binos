@@ -1,10 +1,10 @@
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
 import type { ComponentType } from 'react'
 
 export type ApplicationDefinition = {
   id: string
   name: string
-  icon: LucideIcon
+  icon: Icon
   // 独立部署的 web app 的网址，来自 app 注册表
   url?: string
   views: Record<string, ViewDefinition>

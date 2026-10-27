@@ -1,4 +1,4 @@
-import { Activity, Bot, Monitor, RefreshCw } from 'lucide-react'
+import { ArrowsClockwiseIcon, MonitorIcon, PulseIcon, RobotIcon } from '@phosphor-icons/react'
 import { useEffect, useState } from 'react'
 import { useApplications } from '../index.ts'
 import type { WindowContext } from '../types.ts'
@@ -46,9 +46,9 @@ export function SystemApp({ ctx }: { ctx: WindowContext }) {
         </div>
         <nav className={styles.sections} aria-label="系统分区">
           {[
-            { id: 'host', name: '宿主 Mac', hint: '硬件与 macOS', icon: Monitor, route: '/' },
-            { id: 'agent', name: 'Agent', hint: '账号与额度', icon: Bot, route: '/agent' },
-            { id: 'binos', name: 'binOS', hint: '运行与维护', icon: Activity, route: '/binos' },
+            { id: 'host', name: '宿主 Mac', hint: '硬件与 macOS', icon: MonitorIcon, route: '/' },
+            { id: 'agent', name: 'Agent', hint: '账号与额度', icon: RobotIcon, route: '/agent' },
+            { id: 'binos', name: 'binOS', hint: '运行与维护', icon: PulseIcon, route: '/binos' },
           ].map((item) => (
             <button
               key={item.id}
@@ -58,14 +58,14 @@ export function SystemApp({ ctx }: { ctx: WindowContext }) {
               data-selected={section === item.id}
               onClick={() => ctx.navigate(item.route)}
             >
-              <item.icon size={14} strokeWidth={2} aria-hidden />
+              <item.icon size={14} aria-hidden />
               {item.name}
             </button>
           ))}
         </nav>
         <div className={styles.actions}>
           <button className={styles.refresh} title="立即采集" aria-label="立即采集" disabled={refreshing} onClick={() => void refresh()}>
-            <RefreshCw size={16} strokeWidth={1.75} className={refreshing ? styles.spin : ''} />
+            <ArrowsClockwiseIcon size={16} className={refreshing ? styles.spin : ''} />
           </button>
         </div>
       </header>

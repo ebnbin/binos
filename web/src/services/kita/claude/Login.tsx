@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react'
+import { ArrowSquareOutIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import { Spinner } from '../../../ui/Spinner.tsx'
 import { cancelClaudeLogin, finishClaudeLogin, startClaudeLogin } from './api.ts'
@@ -77,7 +77,7 @@ export function ClaudeLogin({ kind, onClose }: { kind: ClaudeLoginKind; onClose:
         >
           <a className={styles.link} href={step.url} target="_blank" rel="noreferrer">
             1. 打开授权页面，用 Claude 账号授权
-            <ExternalLink size={14} strokeWidth={1.75} aria-hidden />
+            <ArrowSquareOutIcon size={14} aria-hidden />
           </a>
           <label className={styles.codeLabel}>
             2. 把授权后页面上显示的代码贴到这里

@@ -1,5 +1,5 @@
 import type { Profile } from '@binos/server/services/kita/types'
-import { Cat } from 'lucide-react'
+import { CatIcon } from '@phosphor-icons/react'
 import type { CSSProperties } from 'react'
 import { photoUrl } from '../../services/kita/api.ts'
 import styles from './Avatar.module.css'
@@ -11,7 +11,7 @@ export function Avatar({ profile, size, busy }: { profile: Profile | undefined; 
       {profile?.avatar ? (
         <img src={photoUrl(profile.avatar)} alt="喜多" draggable={false} />
       ) : (
-        <Cat size={Math.round(size * 0.55)} strokeWidth={1.5} aria-label="喜多" />
+        <CatIcon size={Math.round(size * 0.55)} aria-label="喜多" />
       )}
     </span>
   )

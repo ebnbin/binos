@@ -1,5 +1,5 @@
 import type { PullRequest, SessionSummary } from '@binos/server/apps/code/types'
-import { ChevronDown, ChevronLeft, GitMerge, GitPullRequest, GitPullRequestClosed } from 'lucide-react'
+import { CaretDownIcon, CaretLeftIcon, GitMergeIcon, GitPullRequestIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { RenameInput, SessionActions } from './SessionMenu.tsx'
 import { Popover } from '../../../ui/Popover.tsx'
@@ -29,7 +29,7 @@ export function TopBar({
   const prs = session?.prs ?? []
   return (
     <header className={styles.bar} onClick={(event) => event.target === event.currentTarget && onScrollTop()}>
-      <IconButton icon={ChevronLeft} label="返回对话列表" className={styles.singleColumnOnly} onClick={onBack} />
+      <IconButton icon={CaretLeftIcon} label="返回对话列表" className={styles.singleColumnOnly} onClick={onBack} />
       <div className={styles.heading} onClick={(event) => event.target === event.currentTarget && onScrollTop()}>
         {sessionId === null ? (
           <span className={`${styles.title} ${styles.singleColumnOnly}`}>新对话</span>
@@ -63,7 +63,7 @@ function SessionTitle({ session }: { session: SessionSummary }) {
       <SessionActions session={session} onRename={() => setRenaming(true)} open={menuOpen} onOpenChange={setMenuOpen}>
         <button type="button" className={styles.titleButton} aria-expanded={menuOpen} aria-haspopup="menu">
           <span className={styles.title}>{session.title || '（无内容）'}</span>
-          <ChevronDown size={14} strokeWidth={2} className={styles.titleChevron} />
+          <CaretDownIcon size={14} className={styles.titleChevron} />
         </button>
       </SessionActions>
     </span>
@@ -89,7 +89,7 @@ function PrMenu({ prs, project, onNavigate }: { prs: PullRequest[]; project: str
       onOpenChange={setOpen}
       trigger={
         <button type="button" className={styles.prButton} aria-label={`对话的 PR，${active.length} 个开着`} title="对话的 PR">
-          {active.length > 0 ? <GitPullRequest size={19} strokeWidth={1.75} /> : <GitMerge size={19} strokeWidth={1.75} />}
+          {active.length > 0 ? <GitPullRequestIcon size={19} /> : <GitMergeIcon size={19} />}
           {active.length > 0 && (
             <span className={styles.badge} data-state={state}>
               {active.length}
@@ -113,7 +113,7 @@ function PrMenu({ prs, project, onNavigate }: { prs: PullRequest[]; project: str
   )
 }
 
-const prIcons = { open: GitPullRequest, merged: GitMerge, closed: GitPullRequestClosed }
+const prIcons = { open: GitPullRequestIcon, merged: GitMergeIcon, closed: GitPullRequestIcon }
 const prStates = { open: '开着', merged: '已合并', closed: '已关闭' }
 
 const buildLabels = { running: '构建中', failed: '构建失败', success: '构建成功' }
@@ -124,7 +124,7 @@ function PrRow({ pr, build, onBuilds }: { pr: PullRequest; build: BuildState | u
   return (
     <div className={styles.prRow} data-state={pr.state ?? 'open'}>
       <a href={pr.url} target="_blank" rel="noreferrer" className={styles.prLink}>
-        <Icon size={14} strokeWidth={2} className={styles.prIcon} />
+        <Icon size={14} className={styles.prIcon} />
         <span className={styles.prNumber}>#{pr.number}</span>
         <span className={styles.prTitle}>{pr.title ?? pr.url}</span>
       </a>

@@ -1,5 +1,5 @@
-import { ChevronRight } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import type { Icon } from '@phosphor-icons/react'
+import { CaretRightIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { Spinner } from '../../../ui/Spinner.tsx'
@@ -20,7 +20,7 @@ export function Activity({
   defaultOpen = false,
   body,
 }: {
-  icon?: LucideIcon
+  icon?: Icon
   label: ReactNode
   detail?: ReactNode
   meta?: ReactNode
@@ -36,12 +36,12 @@ export function Activity({
     <div className={styles.activity} data-status={status} data-quiet={quiet || undefined} data-open={open || undefined}>
       <button type="button" className={styles.row} onClick={() => setOpen(!open)} disabled={!body} aria-expanded={body ? open : undefined}>
         <span className={styles.icon} aria-hidden={status !== 'running' || undefined}>
-          {status === 'running' ? <Spinner /> : Icon ? <Icon strokeWidth={1.75} /> : <span className={styles.dot} />}
+          {status === 'running' ? <Spinner /> : Icon ? <Icon /> : <span className={styles.dot} />}
         </span>
         <span className={styles.label}>{label}</span>
         {detail && <span className={styles.detail}>{detail}</span>}
         {meta && <span className={styles.meta}>{meta}</span>}
-        {body && <ChevronRight strokeWidth={2.25} className={styles.chevron} aria-hidden />}
+        {body && <CaretRightIcon className={styles.chevron} aria-hidden weight="bold" />}
       </button>
       {!open && preview && <pre className={styles.preview}>{preview}</pre>}
       {open && body && <div className={styles.body}>{body()}</div>}
