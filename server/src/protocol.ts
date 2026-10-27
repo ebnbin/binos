@@ -4,7 +4,7 @@ import type { api } from './api.js'
 import type { browserApi } from './apps/browser/api.js'
 import type { BrowserClientMessage, BrowserServerMessage } from './apps/browser/protocol.js'
 import type { buildsApi } from './apps/builds/api.js'
-import type { BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settings } from './apps/builds/types.js'
+import type { BuildEnqueue, BuildLogMessage, BuildsSnapshot, EnrollmentLink, InstallLink, IosDevices, Settings } from './apps/builds/types.js'
 import type { codeApi } from './apps/code/api.js'
 import type { CodeUsage, MessageBody, Project, RepositoryBody, SearchResults, SessionEdit, SessionRef, SessionSummary } from './apps/code/types.js'
 import type { devicesApi, DevicesSnapshot } from './apps/devices/api.js'
@@ -84,6 +84,9 @@ export type Http = {
   'POST /api/apps/builds/:id/cancel': { response: BuildsSnapshot }
   'POST /api/apps/builds/:id/retry': { response: BuildsSnapshot }
   'POST /api/apps/builds/:id/install': { response: InstallLink }
+  'GET /api/apps/builds/devices': { response: IosDevices }
+  'POST /api/apps/builds/devices/enrollment': { response: EnrollmentLink }
+  'DELETE /api/apps/builds/devices/:udid': {}
   // 完整的日志
   'GET /api/apps/builds/:id/log': { file: 'text/plain' }
   'GET /api/apps/builds/:id/artifacts/:name': { file: 'application/octet-stream' }

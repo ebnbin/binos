@@ -8,10 +8,11 @@ import { createReadStream } from 'node:fs'
 import { badRequest, errorHandler, notFound } from '../../errors.js'
 import { buildRequest } from './client.js'
 import { streamBuildLog } from './log.js'
+import { enrollmentToken, forget, iosDevices } from './enrollment.js'
 import { installableBuild, installationOrigin, installToken, ipaInfo } from './install.js'
 import { resultsDir } from './config.js'
 import { parseRequest } from './protocol.js'
-import type { BuildEnqueue, BuildsSnapshot, InstallLink, Settings } from './types.js'
+import type { BuildEnqueue, BuildsSnapshot, EnrollmentLink, InstallLink, Settings } from './types.js'
 const idValid = (id: string) => /^[a-f0-9-]{36}$/.test(id)
 const buildParam = validator('param', (value: Record<string, string>) => {
   if (!idValid(value.id ?? '')) throw notFound('构建不存在')
@@ -40,6 +41,11 @@ export const buildsApi = new Hono()
   // 现在就检查 main 和 PR 有没有新提交
   .post('/poll', async (c) => c.json(await buildRequest({ action: 'poll' })))
   .put('/settings', settingsBody, async (c) => c.json(await buildRequest({ action: 'settings', ...c.req.valid('json') })))
+  // 能无线安装 iOS 包的设备
+  .get('/devices', async (c) => c.json(await iosDevices()))
+  .post('/devices/enrollment', (c) => c.json({ url: `${installationOrigin(c.req.url)}/enroll/${enrollmentToken()}/binOS.mobileconfig`, expiresIn: 1800 } satisfies EnrollmentLink))
+  // 只从 binOS 的列表里移除，开发者账号里登记的设备不变
+  .delete('/devices/:udid', async (c) => { await forget(c.req.param('udid').toUpperCase()); return c.body(null, 204) })
   .post('/:id/cancel', buildParam, async (c) => c.json(await buildRequest({ action: 'cancel', id: c.req.valid('param').id })))
   .post('/:id/retry', buildParam, async (c) => c.json(await buildRequest({ action: 'retry', id: c.req.valid('param').id })))
   .post('/:id/install', async (c) => {

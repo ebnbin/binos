@@ -10,6 +10,8 @@ import type { MiddlewareHandler } from 'hono'
 import { isTestInstance } from '../../paths.js'
 import { buildRequest } from './client.js'
 import { resultsDir } from './config.js'
+import { enrollmentApi } from './enrollment.js'
+import { installationOrigin } from './origin.js'
 import type { Build } from './types.js'
 const exec = promisify(execFile)
 const key = randomBytes(32)
@@ -23,11 +25,7 @@ export function validInstallToken(id: string, token: string, now = Date.now()) {
   const expected = Buffer.from(sign(id, match[1])); const given = Buffer.from(match[2])
   return given.length === expected.length && timingSafeEqual(given, expected)
 }
-export function installationOrigin(requestUrl: string) {
-  const url = new URL(requestUrl)
-  if (isTestInstance && url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)) return url.origin
-  return 'https://downloads.binos.app'
-}
+export { installationOrigin }
 export async function installableBuild(id: string): Promise<{ build: Build; file: string } | undefined> {
   if (!idValid(id)) return
   const { builds, mode } = await buildRequest({ action: 'status' })
@@ -102,11 +100,11 @@ export const installationApi = new Hono()
 
 installationApi.all('*', (c) => c.notFound())
 
-const downloads = new Hono().route('/install', installationApi).all('*', (c) => c.notFound())
-// 独立分发域名只处理签名下载；其他路径不进入网页、普通 API 或预览代理。
+const downloads = new Hono().route('/install', installationApi).route('/enroll', enrollmentApi).all('*', (c) => c.notFound())
+// 独立分发域名只处理签名的下载和设备登记；其他路径不进入网页、普通 API 或预览代理。
 export const downloadsRouter: MiddlewareHandler = async (c, next) => {
   const url = new URL(c.req.url)
   if (url.hostname === 'downloads.binos.app') return downloads.fetch(c.req.raw)
-  if (isTestInstance && ['localhost', '127.0.0.1'].includes(url.hostname) && (url.pathname === '/install' || url.pathname.startsWith('/install/'))) return downloads.fetch(c.req.raw)
+  if (isTestInstance && ['localhost', '127.0.0.1'].includes(url.hostname) && /^\/(install|enroll)(\/|$)/.test(url.pathname)) return downloads.fetch(c.req.raw)
   return next()
 }

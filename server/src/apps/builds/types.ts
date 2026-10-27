@@ -30,3 +30,9 @@ export type BuildRequest = { action: 'status' | 'poll' } | { action: 'stop' | 'h
 export type BuildLogMessage = { type: 'log'; offset: number; text: string } | { type: 'end' }
 // iOS 的安装链接，expiresIn 秒内有效
 export type InstallLink = { url: string; expiresIn: number }
+// 登记过的 iOS 设备：product 是型号标识（如 iPhone19,4），model 是它的名称，认不出时同 product；version 是系统的构建版本号（如 24B119）
+export type IosDevice = { udid: string; product: string; model: string; name?: string; version?: string; enrolledAt: string }
+// provisioned 是这台设备在不在本机最新的 Ad Hoc 描述文件里；本机没有可用的描述文件时没有 profile，provisioned 都是 false
+export type IosDevices = { devices: (IosDevice & { provisioned: boolean })[]; profile?: { name: string; expiresAt: string; devices: number } }
+// 登记设备的链接：在要登记的设备上打开，下载描述文件，expiresIn 秒内有效
+export type EnrollmentLink = { url: string; expiresIn: number }
