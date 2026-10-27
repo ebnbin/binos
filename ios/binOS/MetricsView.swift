@@ -81,7 +81,7 @@ struct MetricsView: View {
                 ("像素", "\(dimensions(CGSize(width: size.width * displayScale, height: size.height * displayScale))) px"),
                 ("尺寸类型", "宽 \(sizeClass(horizontalSizeClass)) · 高 \(sizeClass(verticalSizeClass))"),
                 ("界面方向", window.orientation.map(orientation) ?? "未知"),
-                ("方向锁定", window.orientationLocked ? "是" : "否"),
+                ("app 锁定方向", window.orientationLocked ? "是" : "否"),
                 ("正在调整大小", window.resizing ? "是" : "否"),
             ])
             section("屏幕", .primary, [

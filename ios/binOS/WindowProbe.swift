@@ -8,6 +8,7 @@ struct WindowMetrics: Equatable {
     var scale: CGFloat?
     var nativeScale: CGFloat?
     var orientation: UIInterfaceOrientation?
+    // app 通过 prefersInterfaceOrientationLocked 请求的锁定，不是控制中心的竖排方向锁定
     var orientationLocked = false
     var resizing = false
     var layoutMargins: NSDirectionalEdgeInsets?
@@ -26,10 +27,11 @@ struct WindowProbe: UIViewRepresentable {
     func updateUIView(_ view: ProbeView, context: Context) {}
 }
 
-// 窗口大小、方向、所在的屏幕变化时都会重新布局，这时读一次
+// 窗口大小变化时会重新布局；方向翻转 180°、开始或结束调整大小时窗口尺寸不变，要另外监听场景的几何信息
 final class ProbeView: UIView {
     var report: (WindowMetrics) -> Void = { _ in }
     private var last: WindowMetrics?
+    private var geometry: NSKeyValueObservation?
 
     override func layoutSubviews() {
         super.layoutSubviews()
@@ -38,6 +40,9 @@ final class ProbeView: UIView {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        geometry = window?.windowScene?.observe(\.effectiveGeometry) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.read() }
+        }
         read()
     }
 
