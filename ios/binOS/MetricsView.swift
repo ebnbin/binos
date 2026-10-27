@@ -10,6 +10,7 @@ struct MetricsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(\.toolbarVerticalEdge) private var toolbarVerticalEdge
+    @Environment(\.systemGeometry) private var geometry
 
     var body: some View {
         GeometryReader { proxy in
@@ -17,25 +18,26 @@ struct MetricsView: View {
             let safe = proxy.safeAreaInsets
             let margins = proxy.contentMargins(for: .container)
             let regions = [ReservedRegion.Kind.occlusion, .division].flatMap { proxy.reservedRegions(kind: $0, options: .includeInactive) }
+            // 系统区域只用 binOS 自己的几何接口画
             if systemArea {
-                let layout = SystemLayout(size: size, safeArea: safe, occlusions: regions.filter { $0.kind == .occlusion && $0.isActive }.map(\.frame), cornerRadii: proxy.concentricCornerRadii)
                 ZStack(alignment: .topLeading) {
                     Color.black
-                    area(layout.content, .white)
-                    if let dock = layout.dock {
-                        area(dock, .blue)
+                    area(geometry.content, .white)
+                    if let bar = geometry.verticalBar {
+                        area(bar, .blue)
                     }
                     VStack(alignment: .leading, spacing: 8) {
                         toggle("显示系统区域", $systemArea)
-                        Text("内容区 \(describe(layout.content))")
-                        if let dock = layout.dock {
-                            Text("Dock 区 \(describe(dock))")
+                        Text("窗口 \(dimensions(geometry.window)) · 屏幕 \(dimensions(geometry.screen)) · 缩放 \(format(geometry.scale))")
+                        Text("内容区 \(describe(geometry.content))")
+                        if let bar = geometry.verticalBar {
+                            Text("竖向栏 \(describe(bar))")
                         }
                     }
                     .font(.footnote.monospacedDigit())
                     .padding(16)
-                    .frame(width: layout.content.rect.width)
-                    .offset(x: layout.content.rect.minX, y: layout.content.rect.minY)
+                    .frame(width: geometry.content.frame.width)
+                    .offset(x: geometry.content.frame.minX, y: geometry.content.frame.minY)
                 }
             } else {
                 ZStack(alignment: .topLeading) {
@@ -72,19 +74,19 @@ struct MetricsView: View {
         .onHingeChange { _, context in hinge = context.hinge }
     }
 
-    private func area(_ area: SystemLayout.Area, _ color: Color) -> some View {
-        UnevenRoundedRectangle(cornerRadii: area.radii)
+    private func area(_ area: SystemArea, _ color: Color) -> some View {
+        UnevenRoundedRectangle(cornerRadii: area.cornerRadii)
             .fill(color)
-            .frame(width: area.rect.width, height: area.rect.height)
-            .offset(x: area.rect.minX, y: area.rect.minY)
+            .frame(width: area.frame.width, height: area.frame.height)
+            .offset(x: area.frame.minX, y: area.frame.minY)
     }
 
     // 四个角一样时只写一个半径，否则写出带圆角的那几个角
-    private func describe(_ area: SystemLayout.Area) -> String {
-        let r = area.radii
+    private func describe(_ area: SystemArea) -> String {
+        let r = area.cornerRadii
         let corners = [("左上", r.topLeading), ("右上", r.topTrailing), ("左下", r.bottomLeading), ("右下", r.bottomTrailing)]
         let radius = Set(corners.map(\.1)).count == 1 ? format(r.topLeading) : corners.filter { $0.1 > 0 }.map { "\($0.0) \(format($0.1))" }.joined(separator: " · ")
-        return "\(dimensions(area.rect.size)) · 圆角 \(radius)"
+        return "\(dimensions(area.frame.size)) · 圆角 \(radius)"
     }
 
     // 开关在文字左边：右上角常常是灵动岛的保留区域

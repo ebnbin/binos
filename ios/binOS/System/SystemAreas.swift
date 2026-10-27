@@ -1,20 +1,17 @@
 import SwiftUI
 
-// 系统可以自由绘制的区域：从窗口里裁掉安全区和生效的遮挡区域所在的整条边，剩下一块完整的矩形。
-// 裁下来的长条够宽时给 Dock。分隔区域（折痕）不参与
-struct SystemLayout: Equatable {
-    struct Area: Equatable {
-        var rect: CGRect
-        var radii: RectangleCornerRadii
+// 内容区：从窗口里裁掉安全区和生效的遮挡区域所在的整条边，剩下一块完整的矩形。
+// 裁下来的长条够宽时作为竖向栏。分隔区域（折痕）不参与
+extension SystemGeometry {
+    // 低于这个宽度的长条不可用
+    static let minimumVerticalBarWidth: CGFloat = 80
+
+    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat) {
+        let occlusions = proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
+        self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii)
     }
 
-    var content: Area
-    var dock: Area?
-
-    // 低于这个宽度的长条只填黑
-    static let dockThickness: CGFloat = 80
-
-    init(size: CGSize, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?) {
+    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?) {
         let bounds = CGRect(origin: .zero, size: size)
         var cuts = [Edge.top: safeArea.top, .leading: safeArea.leading, .bottom: safeArea.bottom, .trailing: safeArea.trailing]
         let obstacles = occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty }
@@ -24,12 +21,13 @@ struct SystemLayout: Equatable {
         }
         let top = cuts[.top] ?? 0, leading = cuts[.leading] ?? 0, bottom = cuts[.bottom] ?? 0, trailing = cuts[.trailing] ?? 0
         let contentRect = CGRect(x: leading, y: top, width: max(size.width - leading - trailing, 0), height: max(size.height - top - bottom, 0))
+        // 内容区四个角用同一个半径：碰到的屏幕角里最大的物理圆角
         let radius = Self.touchedCorners(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
-        content = Area(rect: contentRect, radii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
+        let content = SystemArea(frame: contentRect, cornerRadii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
 
         // 最宽的那条，去掉两头的遮挡和垂直方向上的裁切
-        let widest = cuts.filter { $0.value >= Self.dockThickness }.max { $0.value < $1.value }
-        dock = widest.map { edge, thickness in
+        let widest = cuts.filter { $0.value >= Self.minimumVerticalBarWidth }.max { $0.value < $1.value }
+        let verticalBar = widest.map { edge, thickness in
             var strip: CGRect = switch edge {
             case .leading: CGRect(x: 0, y: top, width: thickness, height: size.height - top - bottom)
             case .trailing: CGRect(x: size.width - thickness, y: top, width: thickness, height: size.height - top - bottom)
@@ -46,8 +44,9 @@ struct SystemLayout: Equatable {
                     else { strip = CGRect(x: strip.minX, y: strip.minY, width: frame.minX - strip.minX, height: strip.height) }
                 }
             }
-            return Area(rect: strip, radii: Self.fit(Self.cornerRadii(of: strip, in: size, radii: cornerRadii), in: strip))
+            return SystemArea(frame: strip, cornerRadii: Self.fit(Self.cornerRadii(of: strip, in: size, radii: cornerRadii), in: strip))
         }
+        self.init(window: size, screen: screen, scale: scale, content: content, verticalBar: verticalBar)
     }
 
     // 只贴一条边就裁那条边；贴着角落时裁左右两侧的那条，灵动岛扩展时总是沿界面的竖直方向变长；
