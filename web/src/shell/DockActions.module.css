@@ -17,16 +17,22 @@
   }
 }
 
-/* 操作出现时屏幕上的内容拿走，和外框一样是纯黑 */
+/* 拖进分屏的范围时屏幕上的内容拿走，和外框一样是纯黑；拖出去又露出来 */
 .arranging {
   position: absolute;
   inset: 0;
   z-index: var(--z-overlay);
   background: var(--color-chrome);
-  animation: appear var(--duration-normal) var(--ease-standard);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-normal) var(--ease-standard);
 }
 
-/* 分屏的一块：黑底上一块淡色的底，拖到上面时亮起来 */
+.arranging[data-visible='true'] {
+  opacity: 1;
+}
+
+/* 分屏的一块：浮在 app 上时是毛玻璃，屏幕变黑后是黑底上一块淡色的底，拖到上面时亮起来 */
 .zone {
   position: fixed;
   display: flex;
@@ -35,17 +41,24 @@
   justify-content: center;
   gap: var(--space-2);
   border-radius: var(--radius-window);
-  background: color-mix(in srgb, var(--color-on-chrome) 8%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-on-chrome) 25%, transparent);
+  background: color-mix(in srgb, var(--color-chrome) 30%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-on-chrome) 35%, transparent);
   color: var(--color-on-chrome);
   font-size: var(--font-size-headline);
   font-weight: var(--font-weight-semibold);
+  -webkit-backdrop-filter: var(--material-blur);
+  backdrop-filter: var(--material-blur);
   transition:
-    background-color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-normal) var(--ease-standard),
     box-shadow var(--duration-fast) var(--ease-standard);
 }
 
-.zone[data-active='true'] {
+.layer[data-arranging='true'] .zone {
+  background: color-mix(in srgb, var(--color-on-chrome) 8%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-on-chrome) 25%, transparent);
+}
+
+.layer .zone[data-active='true'] {
   background: color-mix(in srgb, var(--color-accent) 30%, transparent);
   box-shadow: inset 0 0 0 2px var(--color-accent);
 }
@@ -135,5 +148,9 @@
 @media (prefers-reduced-motion: reduce) {
   .layer {
     animation: none;
+  }
+
+  .arranging {
+    transition: none;
   }
 }

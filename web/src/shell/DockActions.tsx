@@ -74,14 +74,17 @@ export function DockActions({
     : { left: screen.left + gap, top: screen.top + gap, width: screen.width - gap * 2, height: barPosition.top - gap - (screen.top + gap) })
   const zones = split && area ? zoneRects(area, layouts[split.layout], split.portrait) : []
   const hovered = zones.findIndex((_, at) => hover === dropKey({ type: 'split', at }))
+  // 拖进分屏的两块所在的范围时，底下的 app 才拿走、屏幕变黑；按两块合起来的范围算，经过两块之间的缝不会闪
+  const arranging = !!pointer && !!area && zones.length > 0
+    && pointer.x >= area.left && pointer.x <= area.left + area.width && pointer.y >= area.top && pointer.y <= area.top + area.height
 
   const dragging = pointer !== null
   return (
     <>
-      {/* 屏幕在排布：不再显示原来的内容，只剩黑底，分屏的两块就是排好后的样子。盖在屏幕里，浮在屏幕之上的 Dock 不被盖住 */}
-      {createPortal(<div className={styles.arranging} />, screenElement)}
+      {/* 盖在屏幕里，浮在屏幕之上的 Dock 不被盖住 */}
+      {zones.length > 0 && createPortal(<div className={styles.arranging} data-visible={arranging} />, screenElement)}
       {createPortal(
-        <div className={styles.layer} data-dragging={dragging} onPointerDown={(event) => {
+        <div className={styles.layer} data-dragging={dragging} data-arranging={arranging} onPointerDown={(event) => {
           if (event.target === event.currentTarget) onChoose({ type: 'cancel' })
         }}>
           {zones.map((rect, at) => {
