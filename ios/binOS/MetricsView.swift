@@ -2,6 +2,7 @@ import SwiftUI
 
 // 系统给这个窗口的所有尺寸：画在窗口上，数值列在安全区里。白底，挖孔和保留区域一眼能看出来
 struct MetricsView: View {
+    let onExit: () -> Void
     @AppStorage("essentials") private var essentials = true
     @AppStorage("systemArea") private var systemArea = false
     @State private var window = WindowMetrics()
@@ -25,6 +26,7 @@ struct MetricsView: View {
                     area(geometry.content, .white)
                     bar(geometry.systemBar, in: geometry.window)
                     VStack(alignment: .leading, spacing: 8) {
+                        exit
                         toggle("显示系统区域", $systemArea)
                         Text("窗口 \(dimensions(geometry.window)) · 屏幕 \(dimensions(geometry.screen)) · 缩放 \(format(geometry.scale))")
                         Text("内容区 \(describe(geometry.content))")
@@ -93,6 +95,13 @@ struct MetricsView: View {
         return "\(dimensions(area.frame.size)) · 圆角 \(radius)"
     }
 
+    private var exit: some View {
+        Button("回到桌面", systemImage: "chevron.backward", action: onExit)
+            .font(.subheadline.bold())
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // 开关在文字左边：右上角常常是灵动岛的保留区域
     private func toggle(_ title: String, _ isOn: Binding<Bool>) -> some View {
         HStack {
@@ -134,6 +143,7 @@ struct MetricsView: View {
     private func panel(size: CGSize, safe: EdgeInsets, margins: EdgeInsets, corners: RectangleCornerInsets, radii: RectangleCornerRadii?, regions: [ReservedRegion]) -> some View {
         // 宽的窗口分成多列，横屏和展开时不用滚动也能看全
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 24, alignment: .top)], alignment: .leading, spacing: 16) {
+            exit
             toggle("只看常用信息", $essentials)
             toggle("显示系统区域", $systemArea)
             section("窗口", .primary, [

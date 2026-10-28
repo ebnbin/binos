@@ -4,12 +4,19 @@ import SwiftUI
 struct DesktopSample: Identifiable {
     enum Kind { case icon, widget }
 
+    // 点了会打开的测试页面，其余的点了没反应
+    enum Action { case metrics }
+
     let id: Int
     let kind: Kind
     let size: DesktopLayout.Size
     let label: String
     let symbol: String
     let colors: [Color]
+    var action: Action?
+
+    // 尺寸调试页的入口，总在桌面的第一个
+    static let metrics = DesktopSample(id: 0, kind: .icon, size: DesktopLayout.Size(width: 1, height: 1), label: "尺寸", symbol: "ruler", colors: [Color(white: 0.1)], action: .metrics)
 }
 
 struct DesktopScene {
@@ -25,12 +32,12 @@ struct DesktopScene {
         var rng = SplitMix64(seed: seed)
         let scenario = Scenario.allCases.randomElement(using: &rng)!
         let count = Int.random(in: scenario.count, using: &rng)
-        var items: [DesktopSample] = []
-        while items.count < count {
+        var items = [DesktopSample.metrics]
+        while items.count < count + 1 {
             // 一段连续的图标，或者一段连续的小组件，长短不一，各种排列都会出现
             let widgets = Double.random(in: 0..<1, using: &rng) < scenario.widgetShare
             let run = Int.random(in: widgets ? 1...3 : 1...9, using: &rng)
-            for _ in 0..<min(run, count - items.count) {
+            for _ in 0..<min(run, count + 1 - items.count) {
                 items.append(sample(id: items.count, widget: widgets, scenario: scenario, using: &rng))
             }
         }

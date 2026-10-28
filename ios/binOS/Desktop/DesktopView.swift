@@ -3,6 +3,7 @@ import SwiftUI
 // 桌面：铺满内容区，内容按顺序分到各栏，超出一屏时整个桌面一起上下滚动
 struct DesktopView: View {
     let scene: DesktopScene
+    let onOpen: (DesktopSample.Action) -> Void
     @Environment(\.systemGeometry) private var geometry
 
     var body: some View {
@@ -14,7 +15,7 @@ struct DesktopView: View {
             HStack(alignment: .top, spacing: 0) {
                 ForEach(starts.indices, id: \.self) { index in
                     let end = index + 1 < starts.count ? starts[index + 1] : scene.items.count
-                    DesktopColumn(items: Array(scene.items[starts[index]..<end]), width: columns.width)
+                    DesktopColumn(items: Array(scene.items[starts[index]..<end]), width: columns.width, onOpen: onOpen)
                 }
             }
             .padding(.horizontal, columns.margin)
@@ -30,6 +31,7 @@ struct DesktopView: View {
 private struct DesktopColumn: View {
     let items: [DesktopSample]
     let width: CGFloat
+    let onOpen: (DesktopSample.Action) -> Void
 
     var body: some View {
         let (placements, rows) = DesktopLayout.pack(items.map(\.size))
@@ -40,6 +42,8 @@ private struct DesktopColumn: View {
                 let x = grid.inset + CGFloat(place.column) * grid.cellWidth, y = CGFloat(place.row) * grid.rowHeight
                 DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid))
                     .frame(width: CGFloat(item.size.width) * grid.cellWidth)
+                    .contentShape(Rectangle())
+                    .onTapGesture { if let action = item.action { onOpen(action) } }
                     .offset(x: x, y: y + grid.top)
             }
         }
