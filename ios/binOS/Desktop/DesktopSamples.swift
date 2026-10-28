@@ -85,9 +85,9 @@ struct DesktopScene {
         }
     }
 
-    // 宽 × 高，宽最多是一栏的 4 格
-    private static let widgetSizes = [(1, 1), (2, 1), (1, 2), (2, 2), (2, 2), (2, 2), (3, 1), (3, 2), (4, 1), (4, 2), (4, 2), (2, 3), (2, 4), (3, 3), (4, 3), (4, 4), (4, 4)].map { DesktopLayout.Size(width: $0.0, height: $0.1) }
-    private static let largeSizes = [(4, 2), (2, 4), (3, 3), (4, 3), (4, 4)].map { DesktopLayout.Size(width: $0.0, height: $0.1) }
+    // 宽 × 高，横竖都只能是 1、2、4 格，常见的尺寸多放几份
+    private static let widgetSizes = [(1, 1), (2, 1), (1, 2), (2, 2), (2, 2), (2, 2), (4, 1), (1, 4), (4, 2), (4, 2), (2, 4), (4, 4), (4, 4)].map { DesktopLayout.Size(width: $0.0, height: $0.1) }
+    private static let largeSizes = [(4, 2), (2, 4), (4, 4)].map { DesktopLayout.Size(width: $0.0, height: $0.1) }
 
     // 长短不一，最长的用来看省略号
     private static let labels = [

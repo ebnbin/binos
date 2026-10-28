@@ -1,15 +1,15 @@
 import CoreGraphics
 
 // 桌面的分栏和格子。一栏宽 360～480，最多 3 栏，再宽的空间平分到左右两边。
-// 一栏 4 格，格子宽是栏宽的四分之一，高固定是一栏 360 宽时的 90。
-// 图标和小组件的尺寸只由占几格决定，和栏宽无关，在所占的格子里水平居中
+// 一栏 4 格，格子是正方形，边长是栏宽的四分之一。图标和小组件横竖都只能占 1、2 或 4 格，
+// 尺寸只由占几格决定，按一栏 360 宽、格子 90 时算，和栏宽无关，连同下面的文字在所占的格子里居中
 enum DesktopLayout {
     static let columnMinWidth: CGFloat = 360
     static let columnMaxWidth: CGFloat = 480
     static let maxColumns = 3
     static let columnCells = 4
     static let cell = columnMinWidth / CGFloat(columnCells)
-    // 格子上下的边距、主体和文字之间的距离都是 padding，最下面是文字
+    // 格子 90 时上下的边距、主体和文字之间的距离都是 padding，最下面是文字
     static let padding: CGFloat = 6
     static let labelHeight: CGFloat = 12
 
@@ -36,7 +36,7 @@ enum DesktopLayout {
         return Columns(count: count, width: columnWidth, margin: (width - columnWidth * CGFloat(count)) / 2)
     }
 
-    // 图标或小组件本身：格子减去上下的边距、文字和它上面的间距，横向减去同样多
+    // 图标或小组件本身：90 的格子减去上下的边距、文字和它上面的间距，横向减去同样多
     static func body(_ size: Size) -> CGSize {
         let inset = padding * 3 + labelHeight
         return CGSize(width: cell * CGFloat(size.width) - inset, height: cell * CGFloat(size.height) - inset)
@@ -45,6 +45,11 @@ enum DesktopLayout {
     // 文字最多能用的宽度，超出时用省略号
     static func labelWidth(_ size: Size) -> CGFloat {
         cell * CGFloat(size.width) - padding * 2
+    }
+
+    // 主体、间距和文字合起来的高度
+    static func itemHeight(_ size: Size) -> CGFloat {
+        body(size).height + padding + labelHeight
     }
 
     // 按顺序放进一栏：每一个从上一个的后面开始，找第一个放得下的位置，不回头填前面的空，所以顺序不会变

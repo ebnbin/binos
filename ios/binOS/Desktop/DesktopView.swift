@@ -32,7 +32,7 @@ private struct DesktopColumn: View {
 
     var body: some View {
         let (placements, rows) = DesktopLayout.pack(items.map(\.size))
-        let cellWidth = width / CGFloat(DesktopLayout.columnCells)
+        let cell = width / CGFloat(DesktopLayout.columnCells)
         ZStack(alignment: .topLeading) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
@@ -40,12 +40,12 @@ private struct DesktopColumn: View {
                 DesktopItem(item: item)
                     .frame(width: labelWidth)
                     .offset(
-                        x: CGFloat(place.column) * cellWidth + (CGFloat(item.size.width) * cellWidth - labelWidth) / 2,
-                        y: CGFloat(place.row) * DesktopLayout.cell + DesktopLayout.padding
+                        x: CGFloat(place.column) * cell + (CGFloat(item.size.width) * cell - labelWidth) / 2,
+                        y: CGFloat(place.row) * cell + (CGFloat(item.size.height) * cell - DesktopLayout.itemHeight(item.size)) / 2
                     )
             }
         }
-        .frame(width: width, height: CGFloat(rows) * DesktopLayout.cell, alignment: .topLeading)
+        .frame(width: width, height: CGFloat(rows) * cell, alignment: .topLeading)
     }
 }
 
