@@ -64,6 +64,11 @@ enum DesktopLayout {
         CGSize(width: CGFloat(size.width - 1) * grid.rowHeight + icon, height: CGFloat(size.height - 1) * grid.rowHeight + icon)
     }
 
+    // 图标和有一边只占 1 格的小组件用图标边长的四分之一，两边都至少 2 格的小组件固定用大圆角
+    static func cornerRadius(_ size: Size) -> CGFloat {
+        min(size.width, size.height) < 2 ? icon / 4 : 25
+    }
+
     static func labelWidth(_ size: Size, grid: Grid) -> CGFloat {
         CGFloat(size.width) * grid.cellWidth - labelInset * 2
     }

@@ -63,13 +63,13 @@ private struct DesktopItem: View {
             Group {
                 switch item.kind {
                 case .icon:
-                    RoundedRectangle(cornerRadius: size.width / 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: DesktopLayout.cornerRadius(item.size), style: .continuous)
                         .fill(item.colors[0])
                         .overlay(Image(systemName: item.symbol).font(.system(size: 26, weight: .semibold)).foregroundStyle(.white))
                 case .widget:
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    RoundedRectangle(cornerRadius: DesktopLayout.cornerRadius(item.size), style: .continuous)
                         .fill(LinearGradient(colors: item.colors, startPoint: .top, endPoint: .bottom))
-                        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.6), lineWidth: 1.5))
+                        .overlay(RoundedRectangle(cornerRadius: DesktopLayout.cornerRadius(item.size), style: .continuous).strokeBorder(.white.opacity(0.6), lineWidth: 1.5))
                         .overlay {
                             VStack(spacing: 4) {
                                 Image(systemName: item.symbol).font(.system(size: 20, weight: .semibold))
