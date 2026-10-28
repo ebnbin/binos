@@ -4,22 +4,24 @@ import SwiftUI
 // 系统栏按顺序取第一种适用的：
 // 1. 竖向栏：只在明确支持的设备上有，iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条，完整显示。不够完整系统栏的厚度时向内容区加宽
 // 2. 窗口的短边够长时，在当前的底边完整显示
-// 3. 其余情况收起成一条：窗口竖长时在底边；横长时在侧边，按界面方向放在竖屏时底部所在的那一侧
+// 3. 其余情况收起成一条：窗口竖长或短边够长时在底边；短边不够的横长窗口在侧边，按界面方向放在竖屏时底部所在的那一侧
 extension SystemGeometry {
     static let fullBarThickness: CGFloat = 80
     static let compactBarThickness: CGFloat = 32
     static let fullBarMinimumShortSide: CGFloat = 800
+    // 手机横屏的短边都比这短，收起的系统栏放在侧边，不占本来就不多的高度
+    static let compactBarBottomMinimumShortSide: CGFloat = 512
 
-    // style：指定时沿用这个样式，不再按窗口尺寸判断
-    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, orientation: UIInterfaceOrientation, hinge: DeviceHinge.Status?, style: SystemBar.Style?) {
+    // keeping：指定时沿用它的样式和所在边，不再按窗口尺寸判断
+    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, orientation: UIInterfaceOrientation, hinge: DeviceHinge.Status?, keeping kept: SystemBar?) {
         // iPad 的屏幕上没有挖孔，前置硬件都在边框里，但系统会在摄像头那条边报告一条遮挡区域，所以不用。
         // 窗口可调整大小时左上角的窗口控制按钮也会占位，没有算进去
         let occlusions = SystemDevice.current == .pad ? [] : proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
         let verticalBar = SystemDevice.current == .duo && hinge == .closed
-        self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii, orientation: orientation, verticalBar: verticalBar, style: style)
+        self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii, orientation: orientation, verticalBar: verticalBar, keeping: kept)
     }
 
-    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, orientation: UIInterfaceOrientation, verticalBar wantsVerticalBar: Bool, style: SystemBar.Style?) {
+    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, orientation: UIInterfaceOrientation, verticalBar wantsVerticalBar: Bool, keeping kept: SystemBar?) {
         let bounds = CGRect(origin: .zero, size: size)
         var cuts = [Edge.top: safeArea.top, .leading: safeArea.leading, .bottom: safeArea.bottom, .trailing: safeArea.trailing]
         let obstacles = Self.merged(occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty })
@@ -45,8 +47,9 @@ extension SystemGeometry {
             }
             bar = (strip, edge, .full)
         } else {
-            let style = style ?? (min(size.width, size.height) >= Self.fullBarMinimumShortSide ? .full : .compact)
-            let edge = style == .full || size.height >= size.width ? .bottom : Self.portraitBottomSide(orientation)
+            let shortSide = min(size.width, size.height)
+            let style = kept?.style ?? (shortSide >= Self.fullBarMinimumShortSide ? .full : .compact)
+            let edge = kept?.edge ?? (style == .full || size.height >= size.width || shortSide >= Self.compactBarBottomMinimumShortSide ? .bottom : Self.portraitBottomSide(orientation))
             let (frame, remainder) = Self.slice(contentRect, edge: edge, thickness: style == .full ? Self.fullBarThickness : Self.compactBarThickness)
             contentRect = remainder
             bar = (frame, edge, style)
