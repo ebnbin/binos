@@ -49,15 +49,15 @@ private struct SystemGeometryProvider: ViewModifier {
     @Environment(\.displayScale) private var scale
     @State private var scene = SceneState()
     @State private var hinge: DeviceHinge.Status?
-    // 拖动调整窗口大小的过程中，系统栏保持开始拖动前的样式，松手后再按新的尺寸判断
-    @State private var style: SystemBar.Style?
+    // 拖动调整窗口大小的过程中，系统栏保持开始拖动前的样式和所在边，松手后再按新的尺寸判断
+    @State private var bar: SystemBar?
 
     func body(content: Content) -> some View {
         GeometryReader { proxy in
-            let geometry = SystemGeometry(proxy: proxy, screen: scene.screen, scale: scale, orientation: scene.orientation, hinge: hinge, style: scene.resizing ? style : nil)
+            let geometry = SystemGeometry(proxy: proxy, screen: scene.screen, scale: scale, orientation: scene.orientation, hinge: hinge, keeping: scene.resizing ? bar : nil)
             content
                 .environment(\.systemGeometry, geometry)
-                .onChange(of: geometry.systemBar.style, initial: true) { style = geometry.systemBar.style }
+                .onChange(of: geometry.systemBar, initial: true) { bar = geometry.systemBar }
         }
         .ignoresSafeArea()
         .onHingeChange { _, context in hinge = context.hinge?.status }
