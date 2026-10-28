@@ -36,18 +36,15 @@ private struct DesktopColumn: View {
         ZStack(alignment: .topLeading) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
-                let labelWidth = DesktopLayout.labelWidth(item.size)
+                let labelWidth = DesktopLayout.labelWidth(item.size, cell: cell)
                 // 调试用：画出每一个占据的整块格子
                 Rectangle()
                     .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .frame(width: CGFloat(item.size.width) * cell, height: CGFloat(item.size.height) * cell)
                     .offset(x: CGFloat(place.column) * cell, y: CGFloat(place.row) * cell)
-                DesktopItem(item: item)
+                DesktopItem(item: item, size: DesktopLayout.body(item.size, cell: cell))
                     .frame(width: labelWidth)
-                    .offset(
-                        x: CGFloat(place.column) * cell + (CGFloat(item.size.width) * cell - labelWidth) / 2,
-                        y: CGFloat(place.row) * cell + (CGFloat(item.size.height) * cell - DesktopLayout.itemHeight(item.size)) / 2
-                    )
+                    .offset(x: CGFloat(place.column) * cell + (CGFloat(item.size.width) * cell - labelWidth) / 2, y: CGFloat(place.row) * cell + DesktopLayout.top(cell: cell))
             }
         }
         .frame(width: width, height: CGFloat(rows) * cell, alignment: .topLeading)
@@ -57,14 +54,14 @@ private struct DesktopColumn: View {
 // 图标是纯色、中间一个符号；小组件是渐变色、写着占几格
 private struct DesktopItem: View {
     let item: DesktopSample
+    let size: CGSize
 
     var body: some View {
-        let body = DesktopLayout.body(item.size)
-        VStack(spacing: DesktopLayout.padding) {
+        VStack(spacing: DesktopLayout.spacing) {
             Group {
                 switch item.kind {
                 case .icon:
-                    RoundedRectangle(cornerRadius: body.width / 4, style: .continuous)
+                    RoundedRectangle(cornerRadius: size.width / 4, style: .continuous)
                         .fill(item.colors[0])
                         .overlay(Image(systemName: item.symbol).font(.system(size: 26, weight: .semibold)).foregroundStyle(.white))
                 case .widget:
@@ -81,7 +78,7 @@ private struct DesktopItem: View {
                         }
                 }
             }
-            .frame(width: body.width, height: body.height)
+            .frame(width: size.width, height: size.height)
             Text(item.label)
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.white)
