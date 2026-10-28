@@ -4,7 +4,6 @@ import SwiftUI
 struct RootView: View {
     @State private var metrics = false
     @State private var scene = DesktopScene.random()
-    @Environment(\.systemGeometry) private var geometry
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -18,10 +17,7 @@ struct RootView: View {
                     case .shuffle: scene = .random()
                     }
                 }
-                UnevenRoundedRectangle(cornerRadii: geometry.systemBar.area.cornerRadii)
-                    .path(in: CGRect(origin: .zero, size: geometry.window))
-                    .intersection(Path(geometry.systemBar.area.frame))
-                    .fill(Color(white: 0.12))
+                SystemBarView()
             }
         }
         .ignoresSafeArea()

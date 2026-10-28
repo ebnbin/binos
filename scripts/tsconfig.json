@@ -8,5 +8,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": [".", "../vitest.config.ts", "../server/src/layout.ts", "../server/src/process.ts", "../server/src/production.ts", "../server/src/preview-info.ts", "../server/src/preview-instances.ts", "../server/src/apps/builds/types.ts", "../server/src/protocol-id.ts"]
+  "include": [".", "../vitest.config.ts", "../server/src/layout.ts", "../server/src/process.ts", "../server/src/production.ts", "../server/src/preview-info.ts", "../server/src/preview-instances.ts", "../server/src/apps/builds/types.ts", "../server/src/protocol-id.ts", "../web/src/logo.ts"]
 }
