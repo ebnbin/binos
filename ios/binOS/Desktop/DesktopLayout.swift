@@ -117,15 +117,16 @@ enum DesktopLayout {
             rows[key] = value
             return value
         }
-        func key(_ heights: [Int]) -> [Int] {
-            [heights.max() ?? 0, heights.reduce(0, +)] + heights.map { -$0 }
+        // 前面的栏多放：起点越靠后，前面的栏放得越多。只比高度分不出来，几栏都是一行时会把后面的内容都推到后面的栏
+        func key(_ heights: [Int], _ starts: [Int]) -> [Int] {
+            [heights.max() ?? 0, heights.reduce(0, +)] + starts.map { -$0 }
         }
         var best: (starts: [Int], key: [Int])?
         func search(_ starts: [Int]) {
             if starts.count == count {
                 let bounds = starts + [sizes.count]
                 let heights = starts.indices.map { rowsOf(bounds[$0], bounds[$0 + 1]) }
-                let candidate = key(heights)
+                let candidate = key(heights, starts)
                 if best.map({ candidate.lexicographicallyPrecedes($0.key) }) ?? true { best = (starts, candidate) }
                 return
             }
