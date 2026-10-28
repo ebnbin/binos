@@ -3,7 +3,7 @@ import UIKit.UIGestureRecognizerSubclass
 
 // 系统栏：纯黑的底，看起来像屏幕可显示区域以外的部分；上面一颗透明的 Liquid Glass 胶囊，目前只放标志。
 // 收起的系统栏点开后，胶囊从底边那一条里变成完整尺寸，升到这一条的上方，浮在内容区上面，内容区不变。
-// 在胶囊以外按下、在胶囊上往下滑，或者一段时间没有操作就收起；手指按在胶囊上时不收起
+// 在胶囊以外按下、在胶囊上往下滑，或者一段时间没有操作就收起；手指按在胶囊上的时候，只有这根手指往下滑才收起
 struct SystemBarView: View {
     static let compactCapsule = CGSize(width: 56, height: 28)
     static let compactLogo: CGFloat = 20
@@ -14,7 +14,8 @@ struct SystemBarView: View {
 
     @Environment(\.systemGeometry) private var geometry
     @State private var expanded = false
-    @State private var holding = false
+    // 手指按在胶囊上；手势被系统取消时也会复原
+    @GestureState private var holding = false
     // 每次操作加一，重新开始计时
     @State private var activity = 0
 
@@ -39,7 +40,7 @@ struct SystemBarView: View {
         }
         .frame(width: geometry.window.width, height: geometry.window.height, alignment: .topLeading)
         .background(TouchObserver { location in
-            if expanded && !capsule.contains(location) { collapse() }
+            if expanded && !holding && !capsule.contains(location) { collapse() }
         })
         .task(id: Idle(expanded: expanded, holding: holding, activity: activity)) {
             guard expanded, !holding else { return }
@@ -52,13 +53,12 @@ struct SystemBarView: View {
     // 收起时点一下展开；展开后往下滑收起，其余的按下和松开都算一次操作
     private var press: some Gesture {
         DragGesture(minimumDistance: 0)
+            .updating($holding) { _, holding, _ in holding = true }
             .onChanged { value in
-                holding = true
                 let dy = value.translation.height
                 if expanded, dy > Self.swipeDistance, dy > abs(value.translation.width) { collapse() }
             }
             .onEnded { value in
-                holding = false
                 activity += 1
                 if !expanded, hypot(value.translation.width, value.translation.height) < Self.swipeDistance {
                     withAnimation(.bouncy) { expanded = true }
