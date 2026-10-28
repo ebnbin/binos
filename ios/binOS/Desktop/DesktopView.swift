@@ -37,6 +37,11 @@ private struct DesktopColumn: View {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
                 let labelWidth = DesktopLayout.labelWidth(item.size)
+                // 调试用：画出每一个占据的整块格子
+                Rectangle()
+                    .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    .frame(width: CGFloat(item.size.width) * cell, height: CGFloat(item.size.height) * cell)
+                    .offset(x: CGFloat(place.column) * cell, y: CGFloat(place.row) * cell)
                 DesktopItem(item: item)
                     .frame(width: labelWidth)
                     .offset(
