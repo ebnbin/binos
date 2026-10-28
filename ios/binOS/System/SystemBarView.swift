@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit.UIGestureRecognizerSubclass
 
 // 系统栏：纯黑的底，看起来像屏幕可显示区域以外的部分；上面一颗透明的 Liquid Glass 胶囊，目前只放标志。
-// 收起的系统栏点开后，胶囊从底边那一条里变成完整尺寸，浮在内容区上面，内容区不变。
+// 收起的系统栏点开后，胶囊从底边那一条里变成完整尺寸，升到这一条的上方，浮在内容区上面，内容区不变。
 // 在胶囊以外按下、在胶囊上往下滑，或者一段时间没有操作就收起；手指按在胶囊上时不收起
 struct SystemBarView: View {
     static let compactCapsule = CGSize(width: 56, height: 28)
@@ -70,11 +70,11 @@ struct SystemBarView: View {
         withAnimation(.bouncy) { expanded = false }
     }
 
-    // 胶囊在窗口坐标系里的位置：在系统栏里居中；收起的系统栏展开后，胶囊在底边一段完整系统栏厚度的范围里居中
+    // 胶囊在窗口坐标系里的位置：在系统栏里居中；收起的系统栏展开后，胶囊在紧贴系统栏上方、完整系统栏厚度的一段里居中
     private static func capsule(_ bar: SystemBar, expanded: Bool) -> CGRect {
         let area = bar.area.frame
         let (center, size) = switch bar.form {
-        case .compact where expanded: (CGPoint(x: area.midX, y: area.maxY - SystemGeometry.fullBarThickness / 2), fullCapsule)
+        case .compact where expanded: (CGPoint(x: area.midX, y: area.minY - SystemGeometry.fullBarThickness / 2), fullCapsule)
         case .compact: (CGPoint(x: area.midX, y: area.midY), compactCapsule)
         case .bottom: (CGPoint(x: area.midX, y: area.midY), fullCapsule)
         case .side: (CGPoint(x: area.midX, y: area.midY), CGSize(width: fullCapsule.height, height: fullCapsule.width))
