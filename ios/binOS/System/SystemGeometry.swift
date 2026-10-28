@@ -3,17 +3,30 @@ import SwiftUI
 // binOS 自己的几何接口：应用层的尺寸和坐标都从这里取，不直接使用系统的安全区、保留区域等接口。
 // 单位都是点，区域都在窗口坐标系里（原点是窗口左上角）
 struct SystemGeometry: Equatable, Sendable {
-    // app 可用的整个窗口，包括内容区和竖向栏以外的部分
+    // app 可用的整个窗口，包括内容区和系统栏以外的部分
     var window: CGSize
     var screen: CGSize
     // 一点等于几个物理像素
     var scale: CGFloat
     // 一块完整的矩形，应用层在这里自由绘制
     var content: SystemArea
-    // 内容区旁边另外可用的长条，只有部分设备有
-    var verticalBar: SystemArea?
+    // 贴着窗口一条边的长条，同时承担状态栏和 Dock，每块屏幕上都有
+    var systemBar: SystemBar
 
-    static let zero = SystemGeometry(window: .zero, screen: .zero, scale: 1, content: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), verticalBar: nil)
+    static let zero = SystemGeometry(window: .zero, screen: .zero, scale: 1, content: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), systemBar: SystemBar(area: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), edge: .bottom, style: .compact))
+}
+
+struct SystemBar: Equatable, Sendable {
+    var area: SystemArea
+    var edge: Edge
+    var style: Style
+
+    enum Style: Equatable, Sendable {
+        // 常驻，完整显示
+        case full
+        // 收起成一条，点开后完整的内容浮在内容区上面
+        case compact
+    }
 }
 
 struct SystemArea: Equatable, Sendable {
@@ -34,34 +47,45 @@ extension View {
 
 private struct SystemGeometryProvider: ViewModifier {
     @Environment(\.displayScale) private var scale
-    @State private var screen = CGSize.zero
+    @State private var scene = SceneState()
     @State private var hinge: DeviceHinge.Status?
+    // 拖动调整窗口大小的过程中，系统栏保持开始拖动前的样式，松手后再按新的尺寸判断
+    @State private var style: SystemBar.Style?
 
     func body(content: Content) -> some View {
         GeometryReader { proxy in
-            content.environment(\.systemGeometry, SystemGeometry(proxy: proxy, screen: screen, scale: scale, hinge: hinge))
+            let geometry = SystemGeometry(proxy: proxy, screen: scene.screen, scale: scale, orientation: scene.orientation, hinge: hinge, style: scene.resizing ? style : nil)
+            content
+                .environment(\.systemGeometry, geometry)
+                .onChange(of: geometry.systemBar.style, initial: true) { style = geometry.systemBar.style }
         }
         .ignoresSafeArea()
         .onHingeChange { _, context in hinge = context.hinge?.status }
-        .background(ScreenReader(size: $screen))
+        .background(SceneReader(state: $scene))
     }
 }
 
-// SwiftUI 没有屏幕尺寸，从窗口所在的屏幕读取。开合时窗口会换到另一块屏幕上
-private struct ScreenReader: UIViewRepresentable {
-    @Binding var size: CGSize
+private struct SceneState: Equatable {
+    var screen = CGSize.zero
+    var orientation = UIInterfaceOrientation.unknown
+    var resizing = false
+}
 
-    func makeUIView(context: Context) -> ScreenView {
-        let view = ScreenView()
-        view.report = { size = $0 }
+// SwiftUI 拿不到的屏幕尺寸、界面方向和是否正在调整大小，从窗口所在的场景读取。开合时窗口会换到另一块屏幕上
+private struct SceneReader: UIViewRepresentable {
+    @Binding var state: SceneState
+
+    func makeUIView(context: Context) -> SceneView {
+        let view = SceneView()
+        view.report = { state = $0 }
         return view
     }
 
-    func updateUIView(_ view: ScreenView, context: Context) {}
+    func updateUIView(_ view: SceneView, context: Context) {}
 
-    final class ScreenView: UIView {
-        var report: (CGSize) -> Void = { _ in }
-        private var last: CGSize?
+    final class SceneView: UIView {
+        var report: (SceneState) -> Void = { _ in }
+        private var last: SceneState?
         private var geometry: NSKeyValueObservation?
 
         override func didMoveToWindow() {
@@ -78,10 +102,12 @@ private struct ScreenReader: UIViewRepresentable {
         }
 
         private func read() {
-            guard let size = window?.windowScene?.screen.bounds.size, size != last else { return }
-            last = size
+            guard let scene = window?.windowScene else { return }
+            let state = SceneState(screen: scene.screen.bounds.size, orientation: scene.effectiveGeometry.interfaceOrientation, resizing: scene.effectiveGeometry.isInteractivelyResizing)
+            guard state != last else { return }
+            last = state
             // 布局过程中不直接改 SwiftUI 的状态
-            DispatchQueue.main.async { [report] in report(size) }
+            DispatchQueue.main.async { [report] in report(state) }
         }
     }
 }
