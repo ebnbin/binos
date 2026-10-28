@@ -3,7 +3,6 @@ import SwiftUI
 // 系统给这个窗口的所有尺寸：画在窗口上，数值列在安全区里。白底，挖孔和保留区域一眼能看出来
 struct MetricsView: View {
     let onExit: () -> Void
-    @AppStorage("essentials") private var essentials = true
     @AppStorage("systemArea") private var systemArea = false
     @State private var window = WindowMetrics()
     @State private var hinge: DeviceHinge?
@@ -44,11 +43,9 @@ struct MetricsView: View {
                         UnevenRoundedRectangle(cornerRadii: radii).stroke(.purple, lineWidth: 2)
                     }
                     corners(proxy.containerCornerInsets, in: size)
-                    if !essentials {
-                        inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-                        inset(safe, in: size).stroke(.green, lineWidth: 2)
-                        edgeLabels(safe, in: size)
-                    }
+                    inset(margins, in: size).stroke(.blue, style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                    inset(safe, in: size).stroke(.green, lineWidth: 2)
+                    edgeLabels(safe, in: size)
                     ForEach(regions) { region in
                         let color: Color = region.kind == .division ? .cyan : .red
                         Rectangle()
@@ -144,31 +141,27 @@ struct MetricsView: View {
         // 宽的窗口分成多列，横屏和展开时不用滚动也能看全
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 24, alignment: .top)], alignment: .leading, spacing: 16) {
             exit
-            toggle("只看常用信息", $essentials)
             toggle("显示系统区域", $systemArea)
             section("窗口", .primary, [
                 ("尺寸", "\(dimensions(size)) pt"),
                 ("像素", "\(dimensions(CGSize(width: size.width * displayScale, height: size.height * displayScale))) px"),
                 ("界面方向", window.orientation.map(orientation) ?? "未知"),
-            ] + (essentials ? [] : [
                 ("尺寸类型", "宽 \(sizeClass(horizontalSizeClass)) · 高 \(sizeClass(verticalSizeClass))"),
                 ("app 锁定方向", window.orientationLocked ? "是" : "否"),
                 ("正在调整大小", window.resizing ? "是" : "否"),
-            ]))
+            ])
             section("屏幕", .primary, [
                 ("型号", SystemDevice.modelIdentifier),
                 ("尺寸", window.screenSize.map { "\(dimensions($0)) pt" } ?? "未知"),
                 ("物理像素", window.nativeSize.map { "\(dimensions($0)) px" } ?? "未知"),
                 ("缩放", [window.scale, window.nativeScale].compactMap { $0 }.map(format).joined(separator: " · 原生 ")),
             ])
-            if !essentials {
-                section("安全区", .green, [("上 · 左 · 下 · 右", edges(safe))])
-                section("内容边距", .blue, [("上 · 左 · 下 · 右", edges(margins))])
-                section("系统布局边距", .primary, [
-                    ("上 · 左 · 下 · 右", window.layoutMargins.map { edges(EdgeInsets(top: $0.top, leading: $0.leading, bottom: $0.bottom, trailing: $0.trailing)) } ?? "未知"),
-                    ("可读内容宽度", window.readableWidth.map { "\(format($0)) pt" } ?? "未知"),
-                ])
-            }
+            section("安全区", .green, [("上 · 左 · 下 · 右", edges(safe))])
+            section("内容边距", .blue, [("上 · 左 · 下 · 右", edges(margins))])
+            section("系统布局边距", .primary, [
+                ("上 · 左 · 下 · 右", window.layoutMargins.map { edges(EdgeInsets(top: $0.top, leading: $0.leading, bottom: $0.bottom, trailing: $0.trailing)) } ?? "未知"),
+                ("可读内容宽度", window.readableWidth.map { "\(format($0)) pt" } ?? "未知"),
+            ])
             section("角落避让", .orange, [
                 ("左上", dimensions(corners.topLeading)),
                 ("右上", dimensions(corners.topTrailing)),
