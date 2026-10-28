@@ -32,22 +32,23 @@ private struct DesktopColumn: View {
 
     var body: some View {
         let (placements, rows) = DesktopLayout.pack(items.map(\.size))
-        let cell = width / CGFloat(DesktopLayout.columnCells)
+        let grid = DesktopLayout.grid(columnWidth: width)
         ZStack(alignment: .topLeading) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
-                let labelWidth = DesktopLayout.labelWidth(item.size, cell: cell)
+                let span = CGSize(width: CGFloat(item.size.width) * grid.cellWidth, height: CGFloat(item.size.height) * grid.rowHeight)
+                let x = grid.inset + CGFloat(place.column) * grid.cellWidth, y = CGFloat(place.row) * grid.rowHeight
                 // 调试用：画出每一个占据的整块格子
                 Rectangle()
                     .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                    .frame(width: CGFloat(item.size.width) * cell, height: CGFloat(item.size.height) * cell)
-                    .offset(x: CGFloat(place.column) * cell, y: CGFloat(place.row) * cell)
-                DesktopItem(item: item, size: DesktopLayout.body(item.size, cell: cell))
-                    .frame(width: labelWidth)
-                    .offset(x: CGFloat(place.column) * cell + (CGFloat(item.size.width) * cell - labelWidth) / 2, y: CGFloat(place.row) * cell + DesktopLayout.top(cell: cell))
+                    .frame(width: span.width, height: span.height)
+                    .offset(x: x, y: y)
+                DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid))
+                    .frame(width: span.width)
+                    .offset(x: x, y: y + grid.top)
             }
         }
-        .frame(width: width, height: CGFloat(rows) * cell, alignment: .topLeading)
+        .frame(width: width, height: CGFloat(rows) * grid.rowHeight, alignment: .topLeading)
     }
 }
 
@@ -55,6 +56,7 @@ private struct DesktopColumn: View {
 private struct DesktopItem: View {
     let item: DesktopSample
     let size: CGSize
+    let labelWidth: CGFloat
 
     var body: some View {
         VStack(spacing: DesktopLayout.spacing) {
@@ -80,11 +82,12 @@ private struct DesktopItem: View {
             }
             .frame(width: size.width, height: size.height)
             Text(item.label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.5), radius: 1)
                 .lineLimit(1)
                 .truncationMode(.tail)
+                .frame(maxWidth: labelWidth)
                 .frame(height: DesktopLayout.labelHeight)
         }
     }

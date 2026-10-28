@@ -1,20 +1,24 @@
 import CoreGraphics
 
 // 桌面的分栏和格子。一栏宽 360～480，最多 3 栏，再宽的空间平分到左右两边。
-// 一栏 4 格，格子是正方形，边长是栏宽的四分之一。图标和小组件横竖都只能占 1、2 或 4 格。
-// 图标的尺寸固定，连同下面的文字在格子里居中；小组件的四边对齐到它覆盖的那些格子里图标的位置：
-// 左右对齐最外侧图标的左右边，上边对齐第一行图标的顶边，文字和最后一行图标的文字在同一高度
+// 一栏 4 格，图标和小组件横竖都只能占 1、2 或 4 格。
+// 横向：一栏 4 个图标之外的宽度分成 5 份，图标之间、最外侧图标到栏边都隔一份，栏两边各留半份，4 格平分其余的宽度。
+// 纵向：行高是栏宽的四分之一，比 360 宽时的 90 多出来的高度平分到上下两边。
+// 图标的尺寸固定；小组件的宽和高都按行高算，占几格就是几格的高度，所以格子数和尺寸的对应关系不变。
+// 小组件的上边和第一行图标齐平，文字和最后一行图标的文字在同一高度，横向在所占的格子里居中
 enum DesktopLayout {
     static let columnMinWidth: CGFloat = 360
     static let columnMaxWidth: CGFloat = 480
     static let maxColumns = 3
     static let columnCells = 4
     static let icon: CGFloat = 60
+    // 行高 90 时图标上面的距离
+    static let top: CGFloat = 6
     // 图标和文字之间的距离
     static let spacing: CGFloat = 6
-    static let labelHeight: CGFloat = 12
-    // 文字最多能用的宽度，超出时用省略号
-    static let labelWidth: CGFloat = 78
+    static let labelHeight: CGFloat = 14
+    // 文字左右各比所占的格子窄这么多，超出时用省略号
+    static let labelInset: CGFloat = 6
 
     struct Size: Hashable, Sendable {
         var width: Int
@@ -39,19 +43,29 @@ enum DesktopLayout {
         return Columns(count: count, width: columnWidth, margin: (width - columnWidth * CGFloat(count)) / 2)
     }
 
+    // 一栏里的格子
+    struct Grid: Equatable {
+        var cellWidth: CGFloat
+        var rowHeight: CGFloat
+        // 栏左右两边各留的宽度
+        var inset: CGFloat
+        // 主体顶边离所在行顶边的距离
+        var top: CGFloat
+    }
+
+    static func grid(columnWidth: CGFloat) -> Grid {
+        let gap = (columnWidth - icon * CGFloat(columnCells)) / CGFloat(columnCells + 1)
+        let rowHeight = columnWidth / CGFloat(columnCells)
+        return Grid(cellWidth: icon + gap, rowHeight: rowHeight, inset: gap / 2, top: top + (rowHeight - columnMinWidth / CGFloat(columnCells)) / 2)
+    }
+
     // 图标或小组件本身。图标占 1 格，就是固定的图标大小
-    static func body(_ size: Size, cell: CGFloat) -> CGSize {
-        CGSize(width: CGFloat(size.width - 1) * cell + icon, height: CGFloat(size.height - 1) * cell + icon)
+    static func body(_ size: Size, grid: Grid) -> CGSize {
+        CGSize(width: CGFloat(size.width - 1) * grid.rowHeight + icon, height: CGFloat(size.height - 1) * grid.rowHeight + icon)
     }
 
-    // 文字最多能用的宽度，对齐到最外侧图标的文字
-    static func labelWidth(_ size: Size, cell: CGFloat) -> CGFloat {
-        CGFloat(size.width - 1) * cell + labelWidth
-    }
-
-    // 主体顶边离所占格子顶边的距离：一格里的图标和文字上下居中
-    static func top(cell: CGFloat) -> CGFloat {
-        (cell - icon - spacing - labelHeight) / 2
+    static func labelWidth(_ size: Size, grid: Grid) -> CGFloat {
+        CGFloat(size.width) * grid.cellWidth - labelInset * 2
     }
 
     // 按顺序放进一栏：每一个从上一个的后面开始，找第一个放得下的位置，不回头填前面的空，所以顺序不会变
