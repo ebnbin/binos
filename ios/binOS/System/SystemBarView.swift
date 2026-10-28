@@ -25,6 +25,8 @@ struct SystemBarView: View {
 
     @Environment(\.systemGeometry) private var geometry
     @State private var expanded = false
+    // 收起时的图标和完整胶囊里对应的那一个是同一个，展开收起时跟着胶囊移动缩放
+    @Namespace private var icons
     // 手指按在胶囊上；手势被系统取消时也会复原
     @GestureState private var holding = false
     // 每次操作加一，重新开始计时
@@ -40,16 +42,18 @@ struct SystemBarView: View {
                 .path(in: CGRect(origin: .zero, size: geometry.window))
                 .intersection(Path(bar.area.frame))
                 .fill(.black)
-            Group {
-                if full { dock(vertical: bar.form != .compact && bar.form != .bottom, length: max(capsule.width, capsule.height)) }
-                else if let app = apps.first(where: { $0.id == front }) { SampleIcon(sample: app.sample, size: Self.compactIcon) }
-                else { logo(Self.compactIcon) }
-            }
-            .frame(width: capsule.width, height: capsule.height)
-            .glassEffect(.clear.interactive(), in: .capsule)
-            .contentShape(.capsule)
-            .simultaneousGesture(press, isEnabled: bar.form == .compact)
-            .position(x: capsule.midX, y: capsule.midY)
+            // 收起和完整是同一颗玻璃，只改尺寸，切换时形状连贯地变过去；里面的内容盖在玻璃上，单独切换
+            Color.clear
+                .frame(width: capsule.width, height: capsule.height)
+                .glassEffect(.clear.interactive(), in: .capsule)
+                .overlay {
+                    if full { dock(vertical: bar.form != .compact && bar.form != .bottom, length: max(capsule.width, capsule.height)) }
+                    else if let app = apps.first(where: { $0.id == front }) { icon(app, Self.compactIcon) }
+                    else { logo(Self.compactIcon) }
+                }
+                .contentShape(.capsule)
+                .simultaneousGesture(press, isEnabled: bar.form == .compact)
+                .position(x: capsule.midX, y: capsule.midY)
         }
         .frame(width: geometry.window.width, height: geometry.window.height, alignment: .topLeading)
         .background(TouchObserver { location in
@@ -69,7 +73,7 @@ struct SystemBarView: View {
         let items = Group {
             Button(action: onHome) { logo(Self.fullIcon) }
             ForEach(apps) { app in
-                Button { onSelect(app.id) } label: { SampleIcon(sample: app.sample, size: Self.fullIcon) }
+                Button { onSelect(app.id) } label: { icon(app, Self.fullIcon) }
                     .contextMenu {
                         Button("关闭", systemImage: "xmark", role: .destructive) { onClose(app.id) }
                     }
@@ -89,7 +93,11 @@ struct SystemBarView: View {
     }
 
     private func logo(_ size: CGFloat) -> some View {
-        Image("Logo").resizable().frame(width: size, height: size)
+        Image("Logo").resizable().matchedGeometryEffect(id: "logo", in: icons).frame(width: size, height: size)
+    }
+
+    private func icon(_ app: SampleApp, _ size: CGFloat) -> some View {
+        SampleIcon(sample: app.sample).matchedGeometryEffect(id: app.id, in: icons).frame(width: size, height: size)
     }
 
     // 收起时点一下展开；展开后往下滑收起，其余的按下和松开都算一次操作

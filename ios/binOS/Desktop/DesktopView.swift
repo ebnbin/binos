@@ -62,7 +62,8 @@ private struct DesktopItem: View {
             Group {
                 switch item.kind {
                 case .icon:
-                    SampleIcon(sample: item, size: DesktopLayout.icon)
+                    SampleIcon(sample: item)
+                        .frame(width: DesktopLayout.icon, height: DesktopLayout.icon)
                 case .widget:
                     RoundedRectangle(cornerRadius: DesktopLayout.cornerRadius(item.size), style: .continuous)
                         .fill(LinearGradient(colors: item.colors, startPoint: .top, endPoint: .bottom))

@@ -45,15 +45,16 @@ struct SampleFill: View {
     }
 }
 
-// app 的图标：底色上一个白色符号，圆角是边长的四分之一，符号大小随边长缩放
+// app 的图标：底色上一个白色符号，圆角是边长的四分之一，符号大小随边长缩放。铺满给它的方块，大小在外面定
 struct SampleIcon: View {
     let sample: DesktopSample
-    let size: CGFloat
 
     var body: some View {
-        SampleFill(colors: sample.colors)
-            .overlay(Image(systemName: sample.symbol).font(.system(size: size * 26 / DesktopLayout.icon, weight: .semibold)).foregroundStyle(.white))
-            .frame(width: size, height: size)
-            .clipShape(RoundedRectangle(cornerRadius: size / 4, style: .continuous))
+        GeometryReader { proxy in
+            let size = min(proxy.size.width, proxy.size.height)
+            SampleFill(colors: sample.colors)
+                .overlay(Image(systemName: sample.symbol).font(.system(size: size * 26 / DesktopLayout.icon, weight: .semibold)).foregroundStyle(.white))
+                .clipShape(RoundedRectangle(cornerRadius: size / 4, style: .continuous))
+        }
     }
 }
