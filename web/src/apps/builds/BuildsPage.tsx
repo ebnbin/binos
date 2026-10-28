@@ -27,7 +27,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   const [busy, setBusy] = useState(false)
   const [ref, setRef] = useState(initialRef)
   const [target, setTarget] = useState('both')
-  const [filter, setFilter] = useState(initialRef.startsWith('pr/') ? 'pr' : 'all')
+  const [filter, setFilter] = useState(initialRef.startsWith('pr/') ? 'pr' : 'main')
   const [log, setLog] = useState<Build>()
   const [text, setText] = useState('')
   const [clock, setClock] = useState(() => Date.now())
@@ -108,17 +108,28 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
         <div className={styles.submitRow}><button className={styles.prominent} disabled={busy || !data} type="submit">开始构建</button></div>
       </div>
     </form>
-    <nav className={styles.filters} aria-label="构建筛选">{[['all', '全部'], ['main', 'main'], ['pr', 'PR'], ['manual', '手动']].map(([key, label]) => <button className={styles.segment} key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</nav>
-    {!data ? <p className={styles.empty}>正在连接构建服务…</p> : !data.builds.length ? <p className={styles.empty}>暂无构建。提交包含移动端构建脚本后将自动构建，也可以手动指定来源。</p> : groupBuilds(data.builds).filter((g) => filter === 'all' || g.kind === filter).map((g) => {
-      const title = data.prs?.find((pr) => pr.number === g.pr)?.title
-      const closed = g.pr && data.prs && !title
-      const [latest, ...older] = g.commits
-      return <section className={styles.section} key={g.key}>
-        <h2 className={styles.groupHeader}>{g.kind === 'main' ? 'main' : g.kind === 'manual' ? '手动' : <>PR #{g.pr}{title && ` ${title}`}{closed && <span className={styles.closed}>已合并或关闭</span>}</>}</h2>
-        <div className={styles.list}>{latest.map(card)}</div>
-        {older.length > 0 && <details className={styles.older}><summary>更早的 {older.length} 个提交</summary><div className={styles.list}>{older.flat().map(card)}</div></details>}
-      </section>
-    })}
+    <nav className={styles.filters} aria-label="构建筛选">{[['main', 'main'], ['pr', 'PR'], ['manual', '手动']].map(([key, label]) => <button className={styles.segment} key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}</nav>
+    {!data ? <p className={styles.empty}>正在连接构建服务…</p> : !data.builds.length ? <p className={styles.empty}>暂无构建。提交包含移动端构建脚本后将自动构建，也可以手动指定来源。</p> : (() => {
+      const groups = groupBuilds(data.builds).filter((g) => g.kind === filter)
+      // 已合并或关闭的 PR 收在最后，默认折叠
+      const isClosed = (g: Group) => Boolean(g.pr && data.prs && !data.prs.some((pr) => pr.number === g.pr))
+      const open = groups.filter((g) => !isClosed(g))
+      const closed = groups.filter(isClosed)
+      const section = (g: Group) => {
+        const title = data.prs?.find((pr) => pr.number === g.pr)?.title
+        const [latest, ...older] = g.commits
+        return <section className={styles.section} key={g.key}>
+          <h2 className={styles.groupHeader}>{g.kind === 'main' ? 'main' : g.kind === 'manual' ? '手动' : <>PR #{g.pr}{title && ` ${title}`}{isClosed(g) && <span className={styles.closed}>已合并或关闭</span>}</>}</h2>
+          <div className={styles.list}>{latest.map(card)}</div>
+          {older.length > 0 && <details className={styles.older}><summary>更早的 {older.length} 个提交</summary><div className={styles.list}>{older.flat().map(card)}</div></details>}
+        </section>
+      }
+      if (!groups.length) return <p className={styles.empty}>暂无构建。</p>
+      return <>
+        {open.map(section)}
+        {closed.length > 0 && <details className={styles.closedPrs}><summary>已合并或关闭的 {closed.length} 个 PR</summary>{closed.map(section)}</details>}
+      </>
+    })()}
     </div>
     {log && <section className={styles.log} aria-label="构建日志"><header><strong>{targetLabels[log.target]} · {log.commit.slice(0, 7)}</strong><a className={styles.link} href={`${base}/${log.id}/log`} download>下载完整日志</a><button className={styles.button} onClick={() => setLog(undefined)}>关闭日志</button></header><pre ref={pre} onScroll={(e) => { const el = e.currentTarget; follow.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24 }}>{text}</pre></section>}
   </section>
