@@ -23,7 +23,7 @@ struct MetricsView: View {
                 ZStack(alignment: .topLeading) {
                     Color.black
                     area(geometry.content, .white)
-                    area(geometry.systemBar.area, geometry.systemBar.style == .full ? .blue : .orange)
+                    bar(geometry.systemBar, in: geometry.window)
                     VStack(alignment: .leading, spacing: 8) {
                         toggle("显示系统区域", $systemArea)
                         Text("窗口 \(dimensions(geometry.window)) · 屏幕 \(dimensions(geometry.screen)) · 缩放 \(format(geometry.scale))")
@@ -75,6 +75,14 @@ struct MetricsView: View {
             .fill(color)
             .frame(width: area.frame.width, height: area.frame.height)
             .offset(x: area.frame.minX, y: area.frame.minY)
+    }
+
+    // 系统栏的圆角可以比它的厚度大，按整个窗口画出圆角，再只留下系统栏的范围
+    private func bar(_ bar: SystemBar, in window: CGSize) -> some View {
+        UnevenRoundedRectangle(cornerRadii: bar.area.cornerRadii)
+            .path(in: CGRect(origin: .zero, size: window))
+            .intersection(Path(bar.area.frame))
+            .fill(bar.style == .full ? .blue : .orange)
     }
 
     // 四个角一样时只写一个半径，否则写出带圆角的那几个角

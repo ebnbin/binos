@@ -4,7 +4,7 @@ import SwiftUI
 // 系统栏按顺序取第一种适用的：
 // 1. 竖向栏：只在明确支持的设备上有，iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条，完整显示。不够完整系统栏的厚度时向内容区加宽
 // 2. 窗口的短边够长时，在当前的底边完整显示
-// 3. 其余情况收起成一条，放在竖屏时底部所在的那条边：横屏时是左侧或右侧
+// 3. 其余情况收起成一条：窗口竖长时在底边；横长时在侧边，按界面方向放在竖屏时底部所在的那一侧
 extension SystemGeometry {
     static let fullBarThickness: CGFloat = 80
     static let compactBarThickness: CGFloat = 32
@@ -46,26 +46,22 @@ extension SystemGeometry {
             bar = (strip, edge, .full)
         } else {
             let style = style ?? (min(size.width, size.height) >= Self.fullBarMinimumShortSide ? .full : .compact)
-            let edge = style == .full ? .bottom : Self.portraitBottom(orientation)
+            let edge = style == .full || size.height >= size.width ? .bottom : Self.portraitBottomSide(orientation)
             let (frame, remainder) = Self.slice(contentRect, edge: edge, thickness: style == .full ? Self.fullBarThickness : Self.compactBarThickness)
             contentRect = remainder
             bar = (frame, edge, style)
         }
 
-        // 内容区四个角用同一个半径：碰到的屏幕角里最大的物理圆角
-        let radius = Self.touchedCorners(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
+        // 内容区四个角用同一个半径：各个角和屏幕圆角同心时的半径里最大的那个
+        let radius = Self.concentricRadii(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
         let content = SystemArea(frame: contentRect, cornerRadii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
-        let systemBar = SystemBar(area: SystemArea(frame: bar.frame, cornerRadii: Self.fit(Self.cornerRadii(of: bar.frame, in: size, radii: cornerRadii), in: bar.frame)), edge: bar.edge, style: bar.style)
+        let systemBar = SystemBar(area: SystemArea(frame: bar.frame, cornerRadii: Self.cornerRadii(of: bar.frame, in: size, radii: cornerRadii)), edge: bar.edge, style: bar.style)
         self.init(window: size, screen: screen, scale: scale, content: content, systemBar: systemBar)
     }
 
-    // 方向未知时按竖屏
-    private static func portraitBottom(_ orientation: UIInterfaceOrientation) -> Edge {
-        switch orientation {
-        case .landscapeLeft: .leading
-        case .landscapeRight: .trailing
-        default: .bottom
-        }
+    // 界面是竖屏或方向未知时，没有对应的一侧，放在右侧
+    private static func portraitBottomSide(_ orientation: UIInterfaceOrientation) -> Edge {
+        orientation == .landscapeLeft ? .leading : .trailing
     }
 
     // 从矩形贴着 edge 的一侧切下厚度为 thickness 的一条，返回这一条和剩下的部分
@@ -120,7 +116,7 @@ extension SystemGeometry {
         }
     }
 
-    // 区域的每个角碰到屏幕角时用那个角的物理圆角，否则是直角
+    // 区域的每个角碰到屏幕角时用那个角的物理圆角，否则是直角。半径可以比区域的厚度大：圆弧沿着屏幕的圆角，超出区域的部分不算
     private static func cornerRadii(of rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> RectangleCornerRadii {
         guard let radii else { return RectangleCornerRadii() }
         let left = rect.minX < 0.5, right = rect.maxX > size.width - 0.5, top = rect.minY < 0.5, bottom = rect.maxY > size.height - 0.5
@@ -132,9 +128,14 @@ extension SystemGeometry {
         )
     }
 
-    private static func touchedCorners(of rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> [CGFloat] {
-        let corners = cornerRadii(of: rect, in: size, radii: radii)
-        return [corners.topLeading, corners.bottomLeading, corners.bottomTrailing, corners.topTrailing].filter { $0 > 0 }
+    // 区域的每个角离屏幕两条边的距离里取较大的那个，屏幕圆角减去它，就是和屏幕圆角同心、又不超出屏幕的半径
+    private static func concentricRadii(of rect: CGRect, in size: CGSize, radii: RectangleCornerRadii?) -> [CGFloat] {
+        guard let radii else { return [] }
+        let left = rect.minX, right = size.width - rect.maxX, top = rect.minY, bottom = size.height - rect.maxY
+        return [
+            radii.topLeading - max(left, top), radii.bottomLeading - max(left, bottom),
+            radii.bottomTrailing - max(right, bottom), radii.topTrailing - max(right, top),
+        ].map { max($0, 0) }
     }
 
     // 同一条边上两个角的半径之和不超过边长，超过时按比例缩小
