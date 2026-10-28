@@ -3,7 +3,6 @@ import type { Build, BuildLogMessage, InstallLink, Target } from '@binos/server/
 import { errorMessage } from '../../api.ts'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { Select } from '../../ui/Select.tsx'
-import { IosDevicesSection } from './IosDevicesSection.tsx'
 import styles from './builds.module.css'
 import { buildsBase as base, buildsRequest as request, useBuilds } from './useBuilds.ts'
 const targetLabels: Record<Target, string> = { web: 'Web', android: 'Android', ios: 'iOS' }
@@ -100,7 +99,6 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
     {data && <div className={styles.block}><div className={styles.group}>
       <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act('/settings', 'PUT', { automatic: e.target.checked })} /></label>
     </div>{data.checkedAt && <small className={styles.footer}>上次检查：{new Date(data.checkedAt).toLocaleString()}</small>}</div>}
-    {data && <IosDevicesSection real={data.mode === 'real'} onError={setError} />}
     <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act('', 'POST', { ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] }) }}>
       <div className={styles.group}>
         <label className={styles.row}>构建来源<input className={styles.field} aria-label="构建来源" required value={ref} onChange={(e) => setRef(e.target.value)} placeholder="main、pr/编号、完整提交号" /></label>

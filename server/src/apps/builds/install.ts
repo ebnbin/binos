@@ -10,7 +10,6 @@ import type { MiddlewareHandler } from 'hono'
 import { isTestInstance } from '../../paths.js'
 import { buildRequest } from './client.js'
 import { resultsDir } from './config.js'
-import { enrollmentApi } from './enrollment.js'
 import { installationOrigin } from './origin.js'
 import type { Build } from './types.js'
 const exec = promisify(execFile)
@@ -100,11 +99,11 @@ export const installationApi = new Hono()
 
 installationApi.all('*', (c) => c.notFound())
 
-const downloads = new Hono().route('/install', installationApi).route('/enroll', enrollmentApi).all('*', (c) => c.notFound())
-// 独立分发域名只处理签名的下载和设备登记；其他路径不进入网页、普通 API 或预览代理。
+const downloads = new Hono().route('/install', installationApi).all('*', (c) => c.notFound())
+// 独立分发域名只处理签名的下载；其他路径不进入网页、普通 API 或预览代理。
 export const downloadsRouter: MiddlewareHandler = async (c, next) => {
   const url = new URL(c.req.url)
   if (url.hostname === 'downloads.binos.app') return downloads.fetch(c.req.raw)
-  if (isTestInstance && ['localhost', '127.0.0.1'].includes(url.hostname) && /^\/(install|enroll)(\/|$)/.test(url.pathname)) return downloads.fetch(c.req.raw)
+  if (isTestInstance && ['localhost', '127.0.0.1'].includes(url.hostname) && /^\/install(\/|$)/.test(url.pathname)) return downloads.fetch(c.req.raw)
   return next()
 }
