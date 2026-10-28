@@ -625,34 +625,6 @@
           ],
           "additionalProperties": false
         },
-        "GET /api/apps/builds/devices": {
-          "type": "object",
-          "properties": {
-            "response": {
-              "$ref": "#/definitions/IosDevices"
-            }
-          },
-          "required": [
-            "response"
-          ],
-          "additionalProperties": false
-        },
-        "POST /api/apps/builds/devices/enrollment": {
-          "type": "object",
-          "properties": {
-            "response": {
-              "$ref": "#/definitions/EnrollmentLink"
-            }
-          },
-          "required": [
-            "response"
-          ],
-          "additionalProperties": false
-        },
-        "DELETE /api/apps/builds/devices/:udid": {
-          "type": "object",
-          "additionalProperties": false
-        },
         "GET /api/apps/builds/:id/log": {
           "type": "object",
           "properties": {
@@ -1536,9 +1508,6 @@
         "POST /api/apps/builds/:id/cancel",
         "POST /api/apps/builds/:id/retry",
         "POST /api/apps/builds/:id/install",
-        "GET /api/apps/builds/devices",
-        "POST /api/apps/builds/devices/enrollment",
-        "DELETE /api/apps/builds/devices/:udid",
         "GET /api/apps/builds/:id/log",
         "GET /api/apps/builds/:id/artifacts/:name",
         "GET /api/apps/code/projects",
@@ -3619,88 +3588,6 @@
       "additionalProperties": false
     },
     "InstallLink": {
-      "type": "object",
-      "properties": {
-        "url": {
-          "type": "string"
-        },
-        "expiresIn": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "url",
-        "expiresIn"
-      ],
-      "additionalProperties": false
-    },
-    "IosDevices": {
-      "type": "object",
-      "properties": {
-        "devices": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "provisioned": {
-                "type": "boolean"
-              },
-              "udid": {
-                "type": "string"
-              },
-              "product": {
-                "type": "string"
-              },
-              "model": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "version": {
-                "type": "string"
-              },
-              "enrolledAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "enrolledAt",
-              "model",
-              "product",
-              "provisioned",
-              "udid"
-            ]
-          }
-        },
-        "profile": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
-            "expiresAt": {
-              "type": "string"
-            },
-            "devices": {
-              "type": "number"
-            }
-          },
-          "required": [
-            "name",
-            "expiresAt",
-            "devices"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "devices"
-      ],
-      "additionalProperties": false
-    },
-    "EnrollmentLink": {
       "type": "object",
       "properties": {
         "url": {
