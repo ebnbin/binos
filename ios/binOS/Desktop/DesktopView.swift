@@ -1,0 +1,89 @@
+import SwiftUI
+
+// 桌面：铺满内容区，内容按顺序分到各栏，超出一屏时整个桌面一起上下滚动
+struct DesktopView: View {
+    let scene: DesktopScene
+    @Environment(\.systemGeometry) private var geometry
+
+    var body: some View {
+        let content = geometry.content
+        let columns = DesktopLayout.columns(width: content.frame.width)
+        let sizes = scene.items.map(\.size)
+        let starts = DesktopLayout.split(sizes, count: columns.count)
+        ScrollView {
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(starts.indices, id: \.self) { index in
+                    let end = index + 1 < starts.count ? starts[index + 1] : scene.items.count
+                    DesktopColumn(items: Array(scene.items[starts[index]..<end]), width: columns.width)
+                }
+            }
+            .padding(.horizontal, columns.margin)
+        }
+        .frame(width: content.frame.width, height: content.frame.height)
+        .background(LinearGradient(colors: scene.wallpaper.count > 1 ? scene.wallpaper : scene.wallpaper + scene.wallpaper, startPoint: .topLeading, endPoint: .bottomTrailing))
+        .clipShape(UnevenRoundedRectangle(cornerRadii: content.cornerRadii))
+        .offset(x: content.frame.minX, y: content.frame.minY)
+    }
+}
+
+private struct DesktopColumn: View {
+    let items: [DesktopSample]
+    let width: CGFloat
+
+    var body: some View {
+        let (placements, rows) = DesktopLayout.pack(items.map(\.size))
+        let cellWidth = width / CGFloat(DesktopLayout.columnCells)
+        ZStack(alignment: .topLeading) {
+            ForEach(items.indices, id: \.self) { index in
+                let item = items[index], place = placements[index]
+                let labelWidth = DesktopLayout.labelWidth(item.size)
+                DesktopItem(item: item)
+                    .frame(width: labelWidth)
+                    .offset(
+                        x: CGFloat(place.column) * cellWidth + (CGFloat(item.size.width) * cellWidth - labelWidth) / 2,
+                        y: CGFloat(place.row) * DesktopLayout.cell + DesktopLayout.padding
+                    )
+            }
+        }
+        .frame(width: width, height: CGFloat(rows) * DesktopLayout.cell, alignment: .topLeading)
+    }
+}
+
+// 图标是纯色、中间一个符号；小组件是渐变色、写着占几格
+private struct DesktopItem: View {
+    let item: DesktopSample
+
+    var body: some View {
+        let body = DesktopLayout.body(item.size)
+        VStack(spacing: DesktopLayout.padding) {
+            Group {
+                switch item.kind {
+                case .icon:
+                    RoundedRectangle(cornerRadius: body.width / 4, style: .continuous)
+                        .fill(item.colors[0])
+                        .overlay(Image(systemName: item.symbol).font(.system(size: 26, weight: .semibold)).foregroundStyle(.white))
+                case .widget:
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(LinearGradient(colors: item.colors, startPoint: .top, endPoint: .bottom))
+                        .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(.white.opacity(0.6), lineWidth: 1.5))
+                        .overlay {
+                            VStack(spacing: 4) {
+                                Image(systemName: item.symbol).font(.system(size: 20, weight: .semibold))
+                                Text("\(item.size.width)×\(item.size.height)").font(.system(size: 15, weight: .bold).monospacedDigit())
+                            }
+                            .foregroundStyle(.white)
+                            .shadow(radius: 2)
+                        }
+                }
+            }
+            .frame(width: body.width, height: body.height)
+            Text(item.label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.5), radius: 1)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(height: DesktopLayout.labelHeight)
+        }
+    }
+}
