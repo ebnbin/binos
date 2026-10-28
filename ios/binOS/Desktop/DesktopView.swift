@@ -18,6 +18,7 @@ struct DesktopView: View {
                 }
             }
             .padding(.horizontal, columns.margin)
+            .padding(.vertical, DesktopLayout.verticalInset)
         }
         .frame(width: content.frame.width, height: content.frame.height)
         .background(LinearGradient(colors: scene.wallpaper.count > 1 ? scene.wallpaper : scene.wallpaper + scene.wallpaper, startPoint: .topLeading, endPoint: .bottomTrailing))

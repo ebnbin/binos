@@ -19,6 +19,8 @@ enum DesktopLayout {
     static let labelHeight: CGFloat = 14
     // 文字左右各比所占的格子窄这么多，超出时用省略号
     static let labelInset: CGFloat = 6
+    // 整个桌面最上面和最下面留的距离
+    static let verticalInset: CGFloat = 24
 
     struct Size: Hashable, Sendable {
         var width: Int
