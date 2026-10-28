@@ -223,6 +223,13 @@
   margin-bottom: var(--space-1-5);
 }
 
+.closedPrs > summary {
+  margin-bottom: var(--space-6);
+  color: var(--color-link);
+  font-size: var(--font-size-footnote);
+  cursor: pointer;
+}
+
 .list {
   composes: group from '../../ui/controls.module.css';
 }
