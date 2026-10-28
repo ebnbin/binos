@@ -14,7 +14,8 @@ struct SystemBarView: View {
 
     @Environment(\.systemGeometry) private var geometry
     @State private var expanded = false
-    @State private var holding = false
+    // 手指按在胶囊上；手势被系统取消时也会复原
+    @GestureState private var holding = false
     // 每次操作加一，重新开始计时
     @State private var activity = 0
 
@@ -34,7 +35,7 @@ struct SystemBarView: View {
                 .frame(width: capsule.width, height: capsule.height)
                 .glassEffect(.clear.interactive(), in: .capsule)
                 .contentShape(.capsule)
-                .gesture(CapsulePress(onChange: press))
+                .gesture(press, isEnabled: bar.form == .compact)
                 .position(x: capsule.midX, y: capsule.midY)
         }
         .frame(width: geometry.window.width, height: geometry.window.height, alignment: .topLeading)
@@ -49,23 +50,20 @@ struct SystemBarView: View {
         .onChange(of: bar.form) { expanded = false }
     }
 
-    // 收起时点一下展开；展开后往下滑收起，其余的按下和松开都算一次操作。一直完整显示的系统栏不展开也不收起
-    private func press(_ state: UIGestureRecognizer.State, _ translation: CGSize) {
-        switch state {
-        case .began:
-            holding = true
-        case .changed:
-            if expanded, translation.height > Self.swipeDistance, translation.height > abs(translation.width) { collapse() }
-        case .ended:
-            holding = false
-            activity += 1
-            if geometry.systemBar.form == .compact, !expanded, hypot(translation.width, translation.height) < Self.swipeDistance {
-                withAnimation(.bouncy) { expanded = true }
+    // 收起时点一下展开；展开后往下滑收起，其余的按下和松开都算一次操作
+    private var press: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .updating($holding) { _, holding, _ in holding = true }
+            .onChanged { value in
+                let dy = value.translation.height
+                if expanded, dy > Self.swipeDistance, dy > abs(value.translation.width) { collapse() }
             }
-        default:
-            holding = false
-            activity += 1
-        }
+            .onEnded { value in
+                activity += 1
+                if !expanded, hypot(value.translation.width, value.translation.height) < Self.swipeDistance {
+                    withAnimation(.bouncy) { expanded = true }
+                }
+            }
     }
 
     private func collapse() {
@@ -88,51 +86,6 @@ struct SystemBarView: View {
         var expanded: Bool
         var holding: Bool
         var activity: Int
-    }
-}
-
-// 胶囊上的按住和拖动。SwiftUI 的手势在别处有触摸开始时可能被取消，按着胶囊时另一只手的操作会打断它，
-// 所以用 UIKit 的手势：和其他手势同时识别，也不会被其他手势阻止
-private struct CapsulePress: UIGestureRecognizerRepresentable {
-    // 手势的状态和从按下的位置算起的位移
-    let onChange: (UIGestureRecognizer.State, CGSize) -> Void
-
-    func makeUIGestureRecognizer(context: Context) -> Recognizer {
-        let recognizer = Recognizer()
-        recognizer.delegate = context.coordinator
-        return recognizer
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: Recognizer, context: Context) {
-        let location = recognizer.location(in: nil)
-        if recognizer.state == .began { recognizer.start = location }
-        onChange(recognizer.state, CGSize(width: location.x - recognizer.start.x, height: location.y - recognizer.start.y))
-    }
-
-    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator {
-        Coordinator()
-    }
-
-    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
-        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-            true
-        }
-    }
-
-    // 按下就开始，移动多远都不失败
-    final class Recognizer: UILongPressGestureRecognizer {
-        var start = CGPoint.zero
-
-        init() {
-            super.init(target: nil, action: nil)
-            minimumPressDuration = 0
-            allowableMovement = .greatestFiniteMagnitude
-            cancelsTouchesInView = false
-        }
-
-        override func canBePrevented(by preventingGestureRecognizer: UIGestureRecognizer) -> Bool {
-            false
-        }
     }
 }
 
