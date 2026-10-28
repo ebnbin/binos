@@ -36,15 +36,9 @@ private struct DesktopColumn: View {
         ZStack(alignment: .topLeading) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
-                let span = CGSize(width: CGFloat(item.size.width) * grid.cellWidth, height: CGFloat(item.size.height) * grid.rowHeight)
                 let x = grid.inset + CGFloat(place.column) * grid.cellWidth, y = CGFloat(place.row) * grid.rowHeight
-                // 调试用：画出每一个占据的整块格子
-                Rectangle()
-                    .strokeBorder(.white.opacity(0.6), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                    .frame(width: span.width, height: span.height)
-                    .offset(x: x, y: y)
                 DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid))
-                    .frame(width: span.width)
+                    .frame(width: CGFloat(item.size.width) * grid.cellWidth)
                     .offset(x: x, y: y + grid.top)
             }
         }
