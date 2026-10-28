@@ -13,8 +13,8 @@ extension SystemGeometry {
     // 手机横屏的短边都比这短
     static let bottomBarMinimumShortSide: CGFloat = 512
 
-    // keeping：指定时沿用它的样式和所在边，不再按窗口尺寸判断
-    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, orientation: UIInterfaceOrientation, hinge: DeviceHinge.Status?, keeping kept: SystemBar?) {
+    // keeping：指定时沿用这个形态，不再按窗口尺寸判断
+    init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, orientation: UIInterfaceOrientation, hinge: DeviceHinge.Status?, keeping kept: SystemBar.Form?) {
         // iPad 的屏幕上没有挖孔，前置硬件都在边框里，但系统会在摄像头那条边报告一条遮挡区域，所以不用。
         // 窗口可调整大小时左上角的窗口控制按钮也会占位，没有算进去
         let occlusions = SystemDevice.current == .pad ? [] : proxy.reservedRegions(kind: .occlusion).filter(\.isActive).map(\.frame)
@@ -22,7 +22,7 @@ extension SystemGeometry {
         self.init(window: proxy.size, screen: screen, scale: scale, safeArea: proxy.safeAreaInsets, occlusions: occlusions, cornerRadii: proxy.concentricCornerRadii, orientation: orientation, verticalBar: verticalBar, keeping: kept)
     }
 
-    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, orientation: UIInterfaceOrientation, verticalBar wantsVerticalBar: Bool, keeping kept: SystemBar?) {
+    init(window size: CGSize, screen: CGSize, scale: CGFloat, safeArea: EdgeInsets, occlusions: [CGRect], cornerRadii: RectangleCornerRadii?, orientation: UIInterfaceOrientation, verticalBar wantsVerticalBar: Bool, keeping kept: SystemBar.Form?) {
         let bounds = CGRect(origin: .zero, size: size)
         var cuts = [Edge.top: safeArea.top, .leading: safeArea.leading, .bottom: safeArea.bottom, .trailing: safeArea.trailing]
         let obstacles = Self.merged(occlusions.map { $0.intersection(bounds) }.filter { !$0.isNull && !$0.isEmpty })
@@ -35,7 +35,7 @@ extension SystemGeometry {
 
         // 左右两侧裁得更宽的那条，去掉两头的遮挡和上下的裁切
         let side = [(Edge.leading, leading), (.trailing, trailing)].filter { $0.1 > 0 }.max { $0.1 < $1.1 }
-        let bar: (frame: CGRect, edge: Edge, style: SystemBar.Style)
+        let bar: (frame: CGRect, form: SystemBar.Form)
         if wantsVerticalBar, let (edge, cut) = side {
             // 至少是完整系统栏的厚度，裁下来的更宽时用裁下来的
             let thickness = max(cut, Self.fullBarThickness)
@@ -46,39 +46,35 @@ extension SystemGeometry {
                 if frame.midY < strip.midY { strip = CGRect(x: strip.minX, y: frame.maxY, width: strip.width, height: strip.maxY - frame.maxY) }
                 else { strip = CGRect(x: strip.minX, y: strip.minY, width: strip.width, height: frame.minY - strip.minY) }
             }
-            bar = (strip, edge, .full)
+            bar = (strip, .side(edge == .leading ? .left : .right))
         } else {
             let shortSide = min(size.width, size.height)
-            let (style, edge): (SystemBar.Style, Edge) = if let kept { (kept.style, kept.edge) }
-                else if shortSide >= Self.fullBarMinimumShortSide { (.full, .bottom) }
-                else if size.height >= size.width || shortSide >= Self.bottomBarMinimumShortSide { (.compact, .bottom) }
-                else { (.full, Self.portraitBottomSide(orientation)) }
-            let (frame, remainder) = Self.slice(contentRect, edge: edge, thickness: style == .full ? Self.fullBarThickness : Self.compactBarThickness)
+            let form: SystemBar.Form = if let kept { kept }
+                else if shortSide >= Self.fullBarMinimumShortSide { .bottom }
+                else if size.height >= size.width || shortSide >= Self.bottomBarMinimumShortSide { .compact }
+                else { .side(Self.portraitBottomSide(orientation)) }
+            let (frame, remainder) = switch form {
+            case .compact: contentRect.divided(atDistance: Self.compactBarThickness, from: .maxYEdge)
+            case .bottom: contentRect.divided(atDistance: Self.fullBarThickness, from: .maxYEdge)
+            case .side(.left): contentRect.divided(atDistance: Self.fullBarThickness, from: .minXEdge)
+            case .side(.right): contentRect.divided(atDistance: Self.fullBarThickness, from: .maxXEdge)
+            }
             contentRect = remainder
-            bar = (frame, edge, style)
+            bar = (frame, form)
         }
 
         // 内容区四个角用同一个半径：各个角和屏幕圆角同心时的半径里最大的那个
         let radius = Self.concentricRadii(of: contentRect, in: size, radii: cornerRadii).max() ?? 0
         let content = SystemArea(frame: contentRect, cornerRadii: Self.fit(RectangleCornerRadii(topLeading: radius, bottomLeading: radius, bottomTrailing: radius, topTrailing: radius), in: contentRect))
-        let systemBar = SystemBar(area: SystemArea(frame: bar.frame, cornerRadii: Self.cornerRadii(of: bar.frame, in: size, radii: cornerRadii)), edge: bar.edge, style: bar.style)
+        let systemBar = SystemBar(area: SystemArea(frame: bar.frame, cornerRadii: Self.cornerRadii(of: bar.frame, in: size, radii: cornerRadii)), form: bar.form)
         self.init(window: size, screen: screen, scale: scale, content: content, systemBar: systemBar)
     }
 
     // 界面是竖屏或方向未知时，没有对应的一侧，放在右侧
-    private static func portraitBottomSide(_ orientation: UIInterfaceOrientation) -> Edge {
-        orientation == .landscapeLeft ? .leading : .trailing
+    private static func portraitBottomSide(_ orientation: UIInterfaceOrientation) -> SystemBar.Side {
+        orientation == .landscapeLeft ? .left : .right
     }
 
-    // 从矩形贴着 edge 的一侧切下厚度为 thickness 的一条，返回这一条和剩下的部分
-    private static func slice(_ rect: CGRect, edge: Edge, thickness: CGFloat) -> (CGRect, CGRect) {
-        switch edge {
-        case .top: rect.divided(atDistance: thickness, from: .minYEdge)
-        case .leading: rect.divided(atDistance: thickness, from: .minXEdge)
-        case .bottom: rect.divided(atDistance: thickness, from: .maxYEdge)
-        case .trailing: rect.divided(atDistance: thickness, from: .maxXEdge)
-        }
-    }
 
     // 互相重叠的遮挡合成一块：摄像头落在灵动岛的区域里时，不再单独决定裁哪条边
     private static func merged(_ frames: [CGRect]) -> [CGRect] {

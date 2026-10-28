@@ -13,19 +13,26 @@ struct SystemGeometry: Equatable, Sendable {
     // 贴着窗口一条边的长条，同时承担状态栏和 Dock，每块屏幕上都有
     var systemBar: SystemBar
 
-    static let zero = SystemGeometry(window: .zero, screen: .zero, scale: 1, content: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), systemBar: SystemBar(area: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), edge: .bottom, style: .compact))
+    static let zero = SystemGeometry(window: .zero, screen: .zero, scale: 1, content: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), systemBar: SystemBar(area: SystemArea(frame: .zero, cornerRadii: RectangleCornerRadii()), form: .compact))
 }
 
 struct SystemBar: Equatable, Sendable {
     var area: SystemArea
-    var edge: Edge
-    var style: Style
+    var form: Form
 
-    enum Style: Equatable, Sendable {
-        // 常驻，完整显示
-        case full
-        // 收起成一条，点开后完整的内容浮在内容区上面
+    enum Form: Equatable, Sendable {
+        // 在底边收起成一条，点开后完整的内容浮在内容区上面
         case compact
+        // 在底边完整显示
+        case bottom
+        // 在左侧或右侧完整显示
+        case side(Side)
+    }
+
+    // 窗口坐标系里的左右，不随书写方向变
+    enum Side: Equatable, Sendable {
+        case left
+        case right
     }
 }
 
@@ -49,15 +56,15 @@ private struct SystemGeometryProvider: ViewModifier {
     @Environment(\.displayScale) private var scale
     @State private var scene = SceneState()
     @State private var hinge: DeviceHinge.Status?
-    // 拖动调整窗口大小的过程中，系统栏保持开始拖动前的样式和所在边，松手后再按新的尺寸判断
-    @State private var bar: SystemBar?
+    // 拖动调整窗口大小的过程中，系统栏保持开始拖动前的形态，松手后再按新的尺寸判断
+    @State private var form: SystemBar.Form?
 
     func body(content: Content) -> some View {
         GeometryReader { proxy in
-            let geometry = SystemGeometry(proxy: proxy, screen: scene.screen, scale: scale, orientation: scene.orientation, hinge: hinge, keeping: scene.resizing ? bar : nil)
+            let geometry = SystemGeometry(proxy: proxy, screen: scene.screen, scale: scale, orientation: scene.orientation, hinge: hinge, keeping: scene.resizing ? form : nil)
             content
                 .environment(\.systemGeometry, geometry)
-                .onChange(of: geometry.systemBar, initial: true) { bar = geometry.systemBar }
+                .onChange(of: geometry.systemBar.form, initial: true) { form = geometry.systemBar.form }
         }
         .ignoresSafeArea()
         .onHingeChange { _, context in hinge = context.hinge?.status }

@@ -29,7 +29,7 @@ struct MetricsView: View {
                         toggle("显示系统区域", $systemArea)
                         Text("窗口 \(dimensions(geometry.window)) · 屏幕 \(dimensions(geometry.screen)) · 缩放 \(format(geometry.scale))")
                         Text("内容区 \(describe(geometry.content))")
-                        Text("系统栏 \(geometry.systemBar.style == .full ? "完整" : "收起") · \(edge(geometry.systemBar.edge)) · \(describe(geometry.systemBar.area))")
+                        Text("系统栏 \(form(geometry.systemBar.form)) · \(describe(geometry.systemBar.area))")
                     }
                     .font(.footnote.monospacedDigit())
                     .padding(16)
@@ -81,7 +81,7 @@ struct MetricsView: View {
         UnevenRoundedRectangle(cornerRadii: bar.area.cornerRadii)
             .path(in: CGRect(origin: .zero, size: window))
             .intersection(Path(bar.area.frame))
-            .fill(bar.style == .full ? .blue : .orange)
+            .fill(bar.form == .compact ? .orange : .blue)
     }
 
     // 四个角一样时只写一个半径，否则写出带圆角的那几个角
@@ -231,12 +231,12 @@ struct MetricsView: View {
         }
     }
 
-    private func edge(_ edge: Edge) -> String {
-        switch edge {
-        case .top: "上边"
-        case .leading: "左侧"
-        case .bottom: "下边"
-        case .trailing: "右侧"
+    private func form(_ form: SystemBar.Form) -> String {
+        switch form {
+        case .compact: "底边收起"
+        case .bottom: "底边完整"
+        case .side(.left): "左侧完整"
+        case .side(.right): "右侧完整"
         }
     }
 
