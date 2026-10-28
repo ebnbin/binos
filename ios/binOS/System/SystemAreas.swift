@@ -4,13 +4,14 @@ import SwiftUI
 // 系统栏按顺序取第一种适用的：
 // 1. 竖向栏：只在明确支持的设备上有，iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条，完整显示。不够完整系统栏的厚度时向内容区加宽
 // 2. 窗口的短边够长时，在当前的底边完整显示
-// 3. 其余情况收起成一条：窗口竖长或短边够长时在底边；短边不够的横长窗口在侧边，按界面方向放在竖屏时底部所在的那一侧
+// 3. 窗口竖长，或者横长但短边不太短时，在底边收起成一条
+// 4. 其余情况是短边很短的横长窗口，不占它本来就不多的高度，在侧边完整显示，按界面方向放在竖屏时底部所在的那一侧。收起的系统栏只有底边的横条一种
 extension SystemGeometry {
     static let fullBarThickness: CGFloat = 80
     static let compactBarThickness: CGFloat = 32
     static let fullBarMinimumShortSide: CGFloat = 800
-    // 手机横屏的短边都比这短，收起的系统栏放在侧边，不占本来就不多的高度
-    static let compactBarBottomMinimumShortSide: CGFloat = 512
+    // 手机横屏的短边都比这短
+    static let bottomBarMinimumShortSide: CGFloat = 512
 
     // keeping：指定时沿用它的样式和所在边，不再按窗口尺寸判断
     init(proxy: GeometryProxy, screen: CGSize, scale: CGFloat, orientation: UIInterfaceOrientation, hinge: DeviceHinge.Status?, keeping kept: SystemBar?) {
@@ -48,8 +49,10 @@ extension SystemGeometry {
             bar = (strip, edge, .full)
         } else {
             let shortSide = min(size.width, size.height)
-            let style = kept?.style ?? (shortSide >= Self.fullBarMinimumShortSide ? .full : .compact)
-            let edge = kept?.edge ?? (style == .full || size.height >= size.width || shortSide >= Self.compactBarBottomMinimumShortSide ? .bottom : Self.portraitBottomSide(orientation))
+            let (style, edge): (SystemBar.Style, Edge) = if let kept { (kept.style, kept.edge) }
+                else if shortSide >= Self.fullBarMinimumShortSide { (.full, .bottom) }
+                else if size.height >= size.width || shortSide >= Self.bottomBarMinimumShortSide { (.compact, .bottom) }
+                else { (.full, Self.portraitBottomSide(orientation)) }
             let (frame, remainder) = Self.slice(contentRect, edge: edge, thickness: style == .full ? Self.fullBarThickness : Self.compactBarThickness)
             contentRect = remainder
             bar = (frame, edge, style)
