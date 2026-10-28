@@ -2,7 +2,7 @@ import SwiftUI
 
 // 内容区：从窗口里裁掉安全区和生效的遮挡区域所在的整条边，再裁掉系统栏，剩下一块完整的矩形。分隔区域（折痕）不参与。
 // 系统栏按顺序取第一种适用的：
-// 1. 竖向栏：只在明确支持的设备上有，iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条，完整显示
+// 1. 竖向栏：只在明确支持的设备上有，iPhone Duo 合上时，灵动岛所在的左侧或右侧裁下来的那条，完整显示。不够完整系统栏的厚度时向内容区加宽
 // 2. 窗口的短边够长时，在当前的底边完整显示
 // 3. 其余情况收起成一条，放在竖屏时底部所在的那条边：横屏时是左侧或右侧
 extension SystemGeometry {
@@ -33,7 +33,11 @@ extension SystemGeometry {
         // 左右两侧裁得更宽的那条，去掉两头的遮挡和上下的裁切
         let side = [(Edge.leading, leading), (.trailing, trailing)].filter { $0.1 > 0 }.max { $0.1 < $1.1 }
         let bar: (frame: CGRect, edge: Edge, style: SystemBar.Style)
-        if wantsVerticalBar, let (edge, thickness) = side {
+        if wantsVerticalBar, let (edge, cut) = side {
+            // 至少是完整系统栏的厚度，裁下来的更宽时用裁下来的
+            let thickness = max(cut, Self.fullBarThickness)
+            if edge == .leading { contentRect = contentRect.divided(atDistance: max(thickness - contentRect.minX, 0), from: .minXEdge).remainder }
+            else { contentRect = contentRect.divided(atDistance: max(contentRect.maxX - (size.width - thickness), 0), from: .maxXEdge).remainder }
             var strip = CGRect(x: edge == .leading ? 0 : size.width - thickness, y: top, width: thickness, height: size.height - top - bottom)
             for frame in obstacles where frame.intersects(strip) {
                 if frame.midY < strip.midY { strip = CGRect(x: strip.minX, y: frame.maxY, width: strip.width, height: strip.maxY - frame.maxY) }
