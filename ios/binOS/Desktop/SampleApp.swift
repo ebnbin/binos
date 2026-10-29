@@ -7,28 +7,66 @@ struct SampleApp: Identifiable, Equatable {
     let sample: DesktopSample
 
     init(sample: DesktopSample, seed: UInt64) {
-        id = "\(seed)-\(sample.id)"
+        id = Self.id(sample: sample, seed: seed)
         self.sample = sample
     }
+
+    static func id(sample: DesktopSample, seed: UInt64) -> String { "\(seed)-\(sample.id)" }
 
     static func == (lhs: SampleApp, rhs: SampleApp) -> Bool { lhs.id == rhs.id }
 }
 
-// 铺满内容区
-struct SampleAppView: View {
+// 窗口的位置和圆角，都在窗口坐标系里。显示时是内容区，收起时是它的图标
+struct WindowFrame: Equatable {
+    var frame: CGRect
+    var radius: CGFloat
+}
+
+// 图标在窗口坐标系里的位置，窗口从这里展开、收回这里。键是桌面上的 app 序号，或者系统栏里的 dock 和 capsule。
+// 只在动画开始时读，滚动和布局时的更新不触发重绘
+final class IconFrames {
+    var frames: [String: CGRect] = [:]
+
+    static func dock(_ id: SampleApp.ID) -> String { "dock:\(id)" }
+    // 收起的胶囊里那一个图标
+    static let capsule = "capsule"
+}
+
+extension View {
+    func reportsIconFrame(_ key: String, to frames: IconFrames) -> some View {
+        onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frames.frames[key] = $0 }
+            .onDisappear { frames.frames[key] = nil }
+    }
+}
+
+// app 的窗口：在图标的位置时看起来就是这个图标，展开到内容区时显示内容，中间的过程连贯地变过去
+struct SampleWindow: View {
     let app: SampleApp
-    @Environment(\.systemGeometry) private var geometry
+    let window: WindowFrame
+    // 是否展开在内容区
+    let shown: Bool
+    let content: CGSize
 
     var body: some View {
-        let content = geometry.content
-        Text("\(Self.format(content.frame.width)) × \(Self.format(content.frame.height))")
-            .font(.system(size: 28, weight: .semibold).monospacedDigit())
-            .foregroundStyle(.white)
-            .shadow(color: .black.opacity(0.5), radius: 2)
-            .frame(width: content.frame.width, height: content.frame.height)
-            .background(SampleFill(colors: app.sample.colors))
-            .clipShape(UnevenRoundedRectangle(cornerRadii: content.cornerRadii))
-            .offset(x: content.frame.minX, y: content.frame.minY)
+        let frame = window.frame
+        SampleFill(colors: app.sample.colors)
+            .overlay {
+                Image(systemName: app.sample.symbol)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .scaleEffect(min(frame.width, frame.height) / DesktopLayout.icon)
+                    .opacity(shown ? 0 : 1)
+                Text("\(Self.format(content.width)) × \(Self.format(content.height))")
+                    .font(.system(size: 28, weight: .semibold).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 2)
+                    .fixedSize()
+                    .scaleEffect(content.width > 0 ? frame.width / content.width : 1)
+                    .opacity(shown ? 1 : 0)
+            }
+            .frame(width: frame.width, height: frame.height)
+            .clipShape(RoundedRectangle(cornerRadius: window.radius, style: .continuous))
+            .position(x: frame.midX, y: frame.midY)
     }
 
     private static func format(_ value: CGFloat) -> String {

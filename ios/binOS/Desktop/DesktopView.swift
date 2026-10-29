@@ -3,6 +3,7 @@ import SwiftUI
 // 桌面：铺满内容区，内容按顺序分到各栏，超出一屏时整个桌面一起上下滚动
 struct DesktopView: View {
     let scene: DesktopScene
+    let frames: IconFrames
     let onOpen: (DesktopSample) -> Void
     @Environment(\.systemGeometry) private var geometry
 
@@ -15,7 +16,7 @@ struct DesktopView: View {
             HStack(alignment: .top, spacing: 0) {
                 ForEach(starts.indices, id: \.self) { index in
                     let end = index + 1 < starts.count ? starts[index + 1] : scene.items.count
-                    DesktopColumn(items: Array(scene.items[starts[index]..<end]), width: columns.width, onOpen: onOpen)
+                    DesktopColumn(items: Array(scene.items[starts[index]..<end]), width: columns.width, seed: scene.seed, frames: frames, onOpen: onOpen)
                 }
             }
             .padding(.horizontal, columns.margin)
@@ -31,6 +32,8 @@ struct DesktopView: View {
 private struct DesktopColumn: View {
     let items: [DesktopSample]
     let width: CGFloat
+    let seed: UInt64
+    let frames: IconFrames
     let onOpen: (DesktopSample) -> Void
 
     var body: some View {
@@ -40,7 +43,7 @@ private struct DesktopColumn: View {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index], place = placements[index]
                 let x = grid.inset + CGFloat(place.column) * grid.cellWidth, y = CGFloat(place.row) * grid.rowHeight
-                DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid))
+                DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid), frameKey: SampleApp.id(sample: item, seed: seed), frames: frames)
                     .frame(width: CGFloat(item.size.width) * grid.cellWidth)
                     .contentShape(Rectangle())
                     .onTapGesture { onOpen(item) }
@@ -56,6 +59,8 @@ private struct DesktopItem: View {
     let item: DesktopSample
     let size: CGSize
     let labelWidth: CGFloat
+    let frameKey: String
+    let frames: IconFrames
 
     var body: some View {
         VStack(spacing: DesktopLayout.spacing) {
@@ -79,6 +84,7 @@ private struct DesktopItem: View {
                 }
             }
             .frame(width: size.width, height: size.height)
+            .reportsIconFrame(frameKey, to: frames)
             Text(item.label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.white)

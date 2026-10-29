@@ -22,6 +22,8 @@ struct SystemBarView: View {
     let onHome: () -> Void
     let onSelect: (SampleApp.ID) -> Void
     let onClose: (SampleApp.ID) -> Void
+    // 报告图标的位置，app 的窗口收回这里
+    let frames: IconFrames
 
     @Environment(\.systemGeometry) private var geometry
     @State private var expanded = false
@@ -48,7 +50,7 @@ struct SystemBarView: View {
                 .glassEffect(.clear.interactive(), in: .capsule)
                 .overlay {
                     if full { dock(vertical: bar.form != .compact && bar.form != .bottom, length: max(capsule.width, capsule.height)) }
-                    else if let app = apps.first(where: { $0.id == front }) { icon(app, Self.compactIcon) }
+                    else if let app = apps.first(where: { $0.id == front }) { icon(app, Self.compactIcon).reportsIconFrame(IconFrames.capsule, to: frames) }
                     else { logo(Self.compactIcon) }
                 }
                 .contentShape(.capsule)
@@ -73,7 +75,7 @@ struct SystemBarView: View {
         let items = Group {
             Button(action: onHome) { logo(Self.fullIcon) }
             ForEach(apps) { app in
-                Button { onSelect(app.id) } label: { icon(app, Self.fullIcon) }
+                Button { onSelect(app.id) } label: { icon(app, Self.fullIcon).reportsIconFrame(IconFrames.dock(app.id), to: frames) }
                     .contextMenu {
                         Button("关闭", systemImage: "xmark", role: .destructive) { onClose(app.id) }
                     }
