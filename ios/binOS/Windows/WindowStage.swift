@@ -42,6 +42,8 @@ private struct WindowContainer: UIViewControllerRepresentable {
             }
             for window in windows where hosted[window.id] == nil {
                 let child = UIHostingController(rootView: SampleAppView(app: window.app))
+                // 内容区已经避开了该避开的部分，窗口里不再按系统的安全区退让
+                child.safeAreaRegions = .keyboard
                 addChild(child)
                 child.view.frame = view.bounds
                 child.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
