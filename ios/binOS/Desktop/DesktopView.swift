@@ -3,7 +3,7 @@ import SwiftUI
 // 桌面：铺满内容区，内容按顺序分到各栏，超出一屏时整个桌面一起上下滚动
 struct DesktopView: View {
     let scene: DesktopScene
-    let onOpen: (DesktopSample.Action) -> Void
+    let onOpen: (DesktopSample) -> Void
     @Environment(\.systemGeometry) private var geometry
 
     var body: some View {
@@ -31,7 +31,7 @@ struct DesktopView: View {
 private struct DesktopColumn: View {
     let items: [DesktopSample]
     let width: CGFloat
-    let onOpen: (DesktopSample.Action) -> Void
+    let onOpen: (DesktopSample) -> Void
 
     var body: some View {
         let (placements, rows) = DesktopLayout.pack(items.map(\.size))
@@ -43,7 +43,7 @@ private struct DesktopColumn: View {
                 DesktopItem(item: item, size: DesktopLayout.body(item.size, grid: grid), labelWidth: DesktopLayout.labelWidth(item.size, grid: grid))
                     .frame(width: CGFloat(item.size.width) * grid.cellWidth)
                     .contentShape(Rectangle())
-                    .onTapGesture { if let action = item.action { onOpen(action) } }
+                    .onTapGesture { onOpen(item) }
                     .offset(x: x, y: y + grid.top)
             }
         }
