@@ -4,7 +4,7 @@ import SwiftUI
 struct DesktopSample: Identifiable {
     enum Kind { case icon, widget }
 
-    // 测试用的入口，其余的点了没反应
+    // 测试用的入口，其余的点了打开一个假 app
     enum Action { case metrics, shuffle }
 
     let id: Int
