@@ -2,6 +2,7 @@ import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, KeyboardIcon, XIcon 
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import type { BrowserState, BrowserClientMessage, BrowserServerMessage } from '@binos/protocol/apps/browser'
+import { socketUrl } from '../../api.ts'
 import { IconButton } from '../../ui/IconButton.tsx'
 import type { WindowContext } from '../types.ts'
 import { addressRoute, browserAddress, routeAddress } from './address.ts'
@@ -70,10 +71,7 @@ export function RemoteBrowser({ ctx, session }: { ctx: WindowContext; session: R
       lastMessage = Date.now()
       setError('')
       setStatus('正在连接远程浏览器…')
-      const url = new URL('/api/apps/browser/socket', location.href)
-      url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-      if (session.current) url.searchParams.set('session', session.current)
-      const ws = new WebSocket(url)
+      const ws = new WebSocket(socketUrl('GET /api/apps/browser/socket', { query: { session: session.current } }))
       connection = ws
       socket.current = ws
       ws.onmessage = (event) => {

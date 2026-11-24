@@ -15,8 +15,11 @@ export type CatalogPage = { tracks: Track[]; nextPage?: string; warning?: string
 export type MusicErrorCode = 'configuration' | 'invalid-input' | 'unavailable' | 'quota' | 'network' | 'unsupported'
 export type PlayerErrorCode = 'invalid-input' | 'not-found' | 'busy' | 'conflict' | 'capacity'
 
-// move：把 ref 这首移到第 index 首（从 0 开始，超出范围的放到两头）
+// 曲目按 ref 的 provider 和 id 认，队列里不重复，最多 500 首。add：依次加到末尾，已经在队列里的和超出上限的跳过；
+// initialize：队列还没被改过（revision 为 0）时和 add 一样，否则什么也不做；remove：去掉 ref 这首；
+// move：把 ref 这首移到第 index 首（从 0 开始，超出范围的放到两头）；clear：清空。客户端可以按同样的规则先在本地显示
 export type QueueOperation = { type: 'add' | 'initialize'; tracks: Track[] } | { type: 'remove'; ref: TrackRef } | { type: 'move'; ref: TrackRef; index: number } | { type: 'clear' }
+// revision 是改过几次；QueueMutation 的 id 和最近 1000 次里的重复时不再生效，返回当前的队列
 export type QueueSnapshot = { revision: number; tracks: Track[] }
 export type QueueMutation = { id: string; operation: QueueOperation }
 

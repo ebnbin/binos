@@ -1,10 +1,10 @@
 import type { QueueOperation, Track } from '@binos/protocol/apps/music'
 
-// 和后端一致
+// 规则见契约里的 QueueOperation
 const maxQueueTracks = 500
 const key = (track: Pick<Track, 'ref'>) => JSON.stringify([track.ref.provider, track.ref.id])
 
-// 一次队列操作作用到 tracks 上，先在本地显示，规则和后端的一样；fresh 是队列还没有被改过，只有这时 initialize 才生效
+// 一次队列操作作用到 tracks 上，先在本地显示；fresh 是队列还没有被改过，只有这时 initialize 才生效
 export function applyQueueOperation(tracks: Track[], op: QueueOperation, fresh: boolean): Track[] {
   switch (op.type) {
     case 'clear':

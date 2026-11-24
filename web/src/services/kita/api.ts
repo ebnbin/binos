@@ -21,7 +21,7 @@ export async function agentCatalogs() {
 
 // thread 的内容：seq 在 from 之后的事件，以及临时内容的变化；from 为 undefined 时先给出最后至少 tail 条，从一轮的开头起
 export function sessionStreamUrl(thread: string, from: number | undefined, tail: number) {
-  return apiUrl('GET /api/kita/sessions/:id/stream', { params: { id: thread }, query: { [from === undefined ? 'tail' : 'from']: String(from ?? tail) } }).href
+  return apiUrl('GET /api/kita/sessions/:id/stream', { params: { id: thread }, query: from === undefined ? { tail: String(tail) } : { from: String(from) } }).href
 }
 
 // seq 在 before 之前的至少 limit 条事件，从一轮的开头读起；读不到时返回 undefined
@@ -62,11 +62,7 @@ export async function saveDescription(description: string) {
 export const photoUrl = (file: string) => apiUrl('GET /api/kita/profile/photos/:file', { params: { file } }).pathname
 
 export async function uploadPhoto(file: File): Promise<string | undefined> {
-  const res = await fetch(apiUrl('POST /api/kita/profile/photos'), {
-    method: 'POST',
-    body: file,
-    headers: { 'Content-Type': 'application/octet-stream' },
-  }).catch(() => undefined)
+  const res = await request('POST /api/kita/profile/photos', { body: file }).catch(() => undefined)
   if (res?.ok) return undefined
   return errorMessage(res, `上传 ${file.name} 失败`)
 }

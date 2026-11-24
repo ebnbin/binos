@@ -1,23 +1,15 @@
-import { errorMessage } from '../../api.ts'
+import { ensureOk, readJson, request, socketUrl } from '../../api.ts'
 
 type Message = { type: string; data?: string; message?: string }
 export type TerminalTransport = { send(value: object): void; close(): void }
-const base = '/api/apps/terminal'
 
-export async function terminalRequest<T>(path: string, method = 'GET'): Promise<T> {
-  const response = await fetch(`${base}${path === '/' ? '' : path}`, {
-    method,
-    ...(method === 'POST' && { headers: { 'Content-Type': 'application/json' }, body: '{}' }),
-  })
-  if (!response.ok) throw new Error(await errorMessage(response, '请求失败'))
-  return (response.status === 204 ? undefined : await response.json()) as T
-}
+export const readTerminals = async () => readJson(await request('GET /api/apps/terminal'), '请求失败')
+export const createTerminal = async () => readJson(await request('POST /api/apps/terminal/sessions'), '请求失败')
+export const closeTerminal = async (id: string) => { await ensureOk(await request('DELETE /api/apps/terminal/sessions/:id', { params: { id } }), '请求失败') }
 
 export function openTerminal(id: string, receive: (message: Message) => void, disconnected: () => void): TerminalTransport {
   let closed = false
-  const url = new URL(`${base}/sessions/${id}/socket`, location.href)
-  url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const socket = new WebSocket(url)
+  const socket = new WebSocket(socketUrl('GET /api/apps/terminal/sessions/:id/socket', { params: { id } }))
   const stop = () => {
     if (closed) return
     closed = true

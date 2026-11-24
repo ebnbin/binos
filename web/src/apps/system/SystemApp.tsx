@@ -6,7 +6,7 @@ import { AgentAccounts } from './AgentAccounts.tsx'
 import { BinosMonitor } from './BinosMonitor.tsx'
 import { HostMonitor } from './HostMonitor.tsx'
 import { moment } from './format.ts'
-import { systemRequest, useMonitor } from './monitor.ts'
+import { refreshMonitor, useMonitor } from './monitor.ts'
 import styles from './Monitor.module.css'
 
 export function SystemApp({ ctx }: { ctx: WindowContext }) {
@@ -26,7 +26,7 @@ export function SystemApp({ ctx }: { ctx: WindowContext }) {
     setActionError('')
     try {
       // 采样完成后的状态由推送送来
-      await systemRequest('/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      await refreshMonitor()
     } catch (e) {
       setActionError(String(e))
     } finally {

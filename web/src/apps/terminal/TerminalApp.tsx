@@ -5,7 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import type { TerminalSession } from '@binos/protocol/apps/terminal'
 import { onChange } from '../../events.ts'
 import type { WindowContext } from '../types.ts'
-import { openTerminal, terminalRequest } from './transport.ts'
+import { closeTerminal, createTerminal, openTerminal, readTerminals } from './transport.ts'
 import type { TerminalTransport } from './transport.ts'
 import '@xterm/xterm/css/xterm.css'
 import styles from './TerminalApp.module.css'
@@ -25,7 +25,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
   const { navigate, setTitle } = ctx
   const load = useCallback(async () => {
     try {
-      setSnapshot(await terminalRequest<Sessions>('/'))
+      setSnapshot(await readTerminals())
       setError('')
     } catch (e) {
       setError(String(e))
@@ -40,7 +40,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
   const create = async () => {
     setBusy(true)
     try {
-      const created = await terminalRequest<TerminalSession>('/sessions', 'POST')
+      const created = await createTerminal()
       await load()
       navigate(`/${created.id}`)
     } catch (e) {
@@ -52,7 +52,7 @@ export function TerminalApp({ ctx }: { ctx: WindowContext }) {
   const end = async () => {
     setBusy(true)
     try {
-      await terminalRequest(`/sessions/${id}`, 'DELETE')
+      await closeTerminal(id)
       navigate('/')
       await load()
     } catch (e) {

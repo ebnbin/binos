@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { listProjects, listSessions, readSession } from './api.ts'
 import { onChange } from '../../events.ts'
 
-// 按最近有动静的排在前面，和后端一致
+// 按最近有动静的排在前面，和契约里列表的顺序一样
 const byUpdated = (sessions: SessionSummary[]) => sessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
 // 对话列表和项目：第一次和重新连上时整份读取，之后收到 session 通知只更新那一个对话，收到 project 通知只读项目

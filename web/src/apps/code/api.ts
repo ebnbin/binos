@@ -1,6 +1,6 @@
 import type { Upload } from '@binos/protocol/apps/code'
 import type { AgentId } from '@binos/protocol/services/kita'
-import { apiUrl, errorMessage, request } from '../../api.ts'
+import { errorMessage, request } from '../../api.ts'
 
 // query：只要标题或对话内容里含有它的
 export async function listSessions(query?: string) {
@@ -55,17 +55,13 @@ export async function codeUsage() {
   return res?.ok ? ((await res.json()).usage ?? undefined) : undefined
 }
 
-// 和后端一致
+// 契约里登记的上限
 export const maxUploadBytes = 50 * 1024 * 1024
 
 export async function uploadFile(file: File): Promise<Upload | { error: string }> {
-  const res = await fetch(apiUrl('POST /api/apps/code/uploads'), {
-    method: 'POST',
-    body: file,
-    headers: { 'Content-Type': 'application/octet-stream', 'X-File-Name': encodeURIComponent(file.name) },
-  }).catch(() => undefined)
+  const res = await request('POST /api/apps/code/uploads', { body: file, headers: { 'X-File-Name': encodeURIComponent(file.name) } }).catch(() => undefined)
   if (res?.ok) {
-    const { file: name } = (await res.json()) as { file: string }
+    const { file: name } = await res.json()
     return { file: name, name: file.name }
   }
   return { error: await errorMessage(res, `上传 ${file.name} 失败`) }
