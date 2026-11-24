@@ -1,4 +1,4 @@
-import type { Http, Queries, Sse, WebSockets } from '@binos/protocol'
+import type { Http, Queries, Sse, WebSockets } from './contract/index.js'
 import type { ExtractSchema, MergePath } from 'hono/types'
 import type { JSONParsed } from 'hono/utils/types'
 import type { api } from './api.js'
@@ -14,7 +14,7 @@ import type { terminalApi } from './apps/terminal/api.js'
 import type { claudeApi } from './services/kita/drivers/claude/api.js'
 import type { codexApi } from './services/kita/drivers/codex/api.js'
 
-// 客户端收发的数据结构登记在 protocol/src/index.ts。
+// 客户端收发的数据结构登记在 contract/index.ts，由它生成的 protocol.schema.json 是对外公开的契约。
 // 这里在类型检查时核对 Http 和各个路由实际返回的 JSON：路由的响应变了而 Http 没跟着改，server 的 pnpm check 就报出是哪个路由。
 // app 和 agent 的路由是运行时挂上去的，不在 api 的类型里，按挂载的位置逐个列出
 type Mounted =

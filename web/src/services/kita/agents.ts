@@ -1,4 +1,4 @@
-import type { AgentId } from '@binos/protocol/services/kita'
+import type { AgentId } from '../../contract.ts'
 
 // 能用的 agent 和显示的名字
 export const agents = {

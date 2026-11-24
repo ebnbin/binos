@@ -1,6 +1,6 @@
-import type { AgentId } from '@binos/protocol/services/kita'
+import type { AgentId } from '../../contract/services/kita.js'
 
-export type { Context, Tokens, AgentId, AgentModel, AgentCatalog, Attachment, ToolDetail, ToolKind, LineCount, BrowserOperation, WebLink, FileChange, Entry, Status, TaskProgress, Live, LiveEvent, KitaSessionEvent, KitaSessionState, KitaSessionSummary, QuotaWindow, Limits, ClaudeAuth, CodexAuth, AgentAuths, AgentAttention, AgentStatus, AccountDetail, AgentAccount, IdentityScope, MemoryKind, MemorySource, NewMemory, MemoryChange, Memory, Photo, Profile, Activity } from '@binos/protocol/services/kita'
+export type { Context, Tokens, AgentId, AgentModel, AgentCatalog, Attachment, ToolDetail, ToolKind, LineCount, BrowserOperation, WebLink, FileChange, Entry, Status, TaskProgress, Live, LiveEvent, KitaSessionEvent, KitaSessionState, KitaSessionSummary, QuotaWindow, Limits, ClaudeAuth, CodexAuth, AgentAuths, AgentAttention, AgentStatus, AccountDetail, AgentAccount, IdentityScope, MemoryKind, MemorySource, NewMemory, MemoryChange, Memory, Photo, Profile, Activity } from '../../contract/services/kita.js'
 
 // 能用的 agent 和显示的名字。怎么接入在服务端的 drivers/，按同样的 id 对应
 export const agents = {

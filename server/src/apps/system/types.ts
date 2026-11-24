@@ -1,1 +1,1 @@
-export type { Volume, SystemSnapshot, MonitorStatus } from '@binos/protocol/apps/system'
+export type { Volume, SystemSnapshot, MonitorStatus } from '../../contract/apps/system.js'

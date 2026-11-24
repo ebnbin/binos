@@ -1,4 +1,4 @@
-import type { TerminalSession } from '@binos/protocol/apps/terminal'
+import type { TerminalSession } from '../../contract/apps/terminal.js'
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'

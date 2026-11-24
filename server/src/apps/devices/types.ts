@@ -1,6 +1,6 @@
-import type { Models, Platform, State } from '@binos/protocol/apps/devices'
+import type { Models, Platform, State } from '../../contract/apps/devices.js'
 
-export type { Platform, DeviceDisplay, DisplayState, DeviceStatus, Device, Models, Lease, Waiting, DeviceEvent, State, ObservedDevice, Snapshot, LeaseResult, DeviceModel } from '@binos/protocol/apps/devices'
+export type { Platform, DeviceDisplay, DisplayState, DeviceStatus, Device, Models, Lease, Waiting, DeviceEvent, State, ObservedDevice, Snapshot, LeaseResult, DeviceModel } from '../../contract/apps/devices.js'
 export type Request =
   | { action: 'status' | 'discover' | 'models' | 'stop' }
   | { action: 'acquire'; owner: string; reason: string; platforms: Platform[]; models?: Models; requestId?: string }

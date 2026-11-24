@@ -1,5 +1,5 @@
-import type { PageEvent } from '@binos/protocol/services/kita'
-import type { Entry, Live, KitaSessionEvent } from '@binos/protocol/services/kita'
+import type { PageEvent } from '../../../contract.ts'
+import type { Entry, Live, KitaSessionEvent } from '../../../contract.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { connectEventSource } from '../../../eventSource.ts'
 import { readOlderEvents, sessionStreamUrl } from '../api.ts'

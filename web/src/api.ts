@@ -1,5 +1,5 @@
-import type { Http, Queries, Sse, WebSockets } from '@binos/protocol'
-import type { ApiError, AppRegistry, Apps } from '@binos/protocol/core'
+import type { Http, Queries, Sse, WebSockets } from './contract.ts'
+import type { ApiError, AppRegistry, Apps } from './contract.ts'
 
 type Route = keyof Http | keyof Sse | keyof WebSockets
 type PathParams<Path extends string> = Path extends `${string}:${infer Name}/${infer Rest}` ? Name | PathParams<Rest> : Path extends `${string}:${infer Name}` ? Name : never
@@ -18,9 +18,9 @@ type UrlOptions<R extends Route> = ParamsOption<R> & QueryOption<R>
 type RequestOptions<R extends keyof Http> = UrlOptions<R> & BodyOption<R> & { signal?: AbortSignal }
 type Args<Options> = Partial<Options> extends Options ? [options?: Options] : [options: Options]
 
-function url(route: string, params: Record<string, string> = {}, query: Record<string, string | undefined> = {}) {
+function url(route: string, params: Record<string, string> = {}, query: object = {}) {
   const result = new URL(route.slice(route.indexOf(' ') + 1).replace(/:(\w+)/g, (_, name: string) => encodeURIComponent(params[name])), window.location.origin)
-  for (const [key, value] of Object.entries(query)) {
+  for (const [key, value] of Object.entries(query) as [string, string | undefined][]) {
     if (value !== undefined) result.searchParams.set(key, value)
   }
   return result

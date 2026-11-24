@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ProviderInfo, ProviderSettings } from '@binos/protocol/apps/music'
+import type { ProviderInfo, ProviderSettings } from '../../contract.ts'
 import { configureProvider } from './api.ts'
 import { refreshProviders } from './providers.ts'
 import styles from './music.module.css'

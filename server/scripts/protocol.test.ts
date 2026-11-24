@@ -14,7 +14,7 @@ const clients = [
   { name: 'iOS', file: 'ios/binOS/Core/Protocol.swift', pattern: /\bprotocolID\s*=\s*"([0-9a-f]{12})"/, example: 'static let protocolID = "<标识>"' },
 ]
 
-it('schema 和 protocol/src/index.ts 一致', () => {
+it('schema 和 src/contract/index.ts 一致', () => {
   const fresh = generateSchema()
   expect(fresh === schema ? '' : `${schemaFile} 不是最新的，在 server/ 里运行 pnpm protocol 重新生成。有变化的部分：${changes(schema, fresh).join('、')}`).toBe('')
 }, 60_000)

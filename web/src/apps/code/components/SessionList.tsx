@@ -1,4 +1,4 @@
-import type { Project, SessionSummary } from '@binos/protocol/apps/code'
+import type { Project, SessionSummary } from '../../../contract.ts'
 import { agents, defaultAgent } from '../../../services/kita/agents.ts'
 import {
   CaretRightIcon,

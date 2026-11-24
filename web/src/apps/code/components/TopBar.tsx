@@ -1,4 +1,4 @@
-import type { PullRequest, SessionSummary } from '@binos/protocol/apps/code'
+import type { PullRequest, SessionSummary } from '../../../contract.ts'
 import { CaretDownIcon, CaretLeftIcon, GitMergeIcon, GitPullRequestIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { RenameInput, SessionActions } from './SessionMenu.tsx'

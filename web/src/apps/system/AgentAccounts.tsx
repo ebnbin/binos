@@ -1,5 +1,5 @@
 import { agents } from '../../services/kita/agents.ts'
-import type { AgentAccount, Limits } from '@binos/protocol/services/kita'
+import type { AgentAccount, Limits } from '../../contract.ts'
 import { ArrowsClockwiseIcon, CaretLeftIcon } from '@phosphor-icons/react'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'

@@ -1,6 +1,6 @@
-import type { Conversation } from '@binos/protocol/apps/kita'
+import type { Conversation } from '../../contract.ts'
 import { agents, defaultAgent } from '../../services/kita/agents.ts'
-import type { AgentId, Profile } from '@binos/protocol/services/kita'
+import type { AgentId, Profile } from '../../contract.ts'
 import { ArrowUpIcon, EyeSlashIcon } from '@phosphor-icons/react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'

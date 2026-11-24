@@ -1,5 +1,5 @@
-import type { PlayerCommand } from '@binos/protocol/apps/music'
-import type { PlayerState } from '@binos/protocol/apps/music'
+import type { PlayerCommand } from '../../contract.ts'
+import type { PlayerState } from '../../contract.ts'
 import type { MusicController } from './controller.ts'
 
 export function playerState(music: MusicController): PlayerState {

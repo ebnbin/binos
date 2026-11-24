@@ -19,6 +19,7 @@
     "../src/preview-info.ts",
     "../src/preview-instances.ts",
     "../src/apps/builds/types.ts",
-    "../src/protocol-id.ts"
+    "../src/protocol-id.ts",
+    "../src/contract"
   ]
 }

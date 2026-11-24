@@ -1,4 +1,4 @@
-import type { CodexAuth } from '@binos/protocol/services/kita'
+import type { CodexAuth } from '../../../contract.ts'
 import type { AgentView } from '../views.ts'
 import { CodexLogin } from './Login.tsx'
 

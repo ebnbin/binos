@@ -2,7 +2,7 @@ import { ArrowsClockwiseIcon, CheckIcon, CopyIcon, PlusIcon, TerminalIcon, XIcon
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import type { TerminalSession } from '@binos/protocol/apps/terminal'
+import type { TerminalSession } from '../../contract.ts'
 import { onChange } from '../../events.ts'
 import type { WindowContext } from '../types.ts'
 import { closeTerminal, createTerminal, openTerminal, readTerminals } from './transport.ts'

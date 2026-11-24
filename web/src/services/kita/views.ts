@@ -1,4 +1,4 @@
-import type { AgentAttention, AgentAuths, AgentId, AgentStatus } from '@binos/protocol/services/kita'
+import type { AgentAttention, AgentId, AgentStatus } from '../../contract.ts'
 import type { ComponentType } from 'react'
 import type { Attention, AuthRow, LoginAction } from './auth.ts'
 import { claudeView } from './claude/view.tsx'
@@ -14,7 +14,7 @@ export type AgentView<Auth> = {
   Login: ComponentType<{ fix: string; onClose: () => void }>
 }
 
-const views: { [K in AgentId]: AgentView<AgentAuths[K]> } = { claude: claudeView, codex: codexView }
+const views: { [K in AgentId]: AgentView<Required<AgentStatus['auth']>[K]> } = { claude: claudeView, codex: codexView }
 
 // 各个 agent 的登录状况形状不同，取出来交给它自己的那一份
 export function agentView(agent: AgentId, status: AgentStatus | undefined) {

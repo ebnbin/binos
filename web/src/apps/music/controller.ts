@@ -1,4 +1,4 @@
-import type { QueueOperation } from '@binos/protocol/apps/music'
+import type { QueueOperation } from '../../contract.ts'
 import type { MusicPlayer, MusicState, PlayerFactory, Track } from './types.ts'
 
 const initial: MusicState = { queue: [], index: -1, status: 'idle', positionMs: 0, durationMs: 0, volume: 0.7, repeat: 'off' }

@@ -1,6 +1,6 @@
-import type { PlayerCommand, TrackRef } from '@binos/protocol/apps/music'
+import type { PlayerCommand, TrackRef } from '../../contract/apps/music.js'
 
-export type { PlayerCommand } from '@binos/protocol/apps/music'
+export type { PlayerCommand } from '../../contract/apps/music.js'
 
 const fields = {
   ref: { type: 'object', required: ['provider', 'id'], additionalProperties: false, properties: { provider: { type: 'string', minLength: 1, maxLength: 100 }, id: { type: 'string', minLength: 1, maxLength: 500 } } },

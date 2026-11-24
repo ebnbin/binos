@@ -1,4 +1,4 @@
-import type { Attachment } from '@binos/protocol/services/kita'
+import type { Attachment } from '../../../contract.ts'
 import { FileTextIcon, XIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { FileBlock } from '../../preview/index.ts'

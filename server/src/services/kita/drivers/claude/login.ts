@@ -1,5 +1,5 @@
-export type { ClaudeLoginKind, ClaudeLoginStart } from '@binos/protocol/services/kita'
-import type { ClaudeLoginKind, ClaudeLoginStart } from '@binos/protocol/services/kita'
+export type { ClaudeLoginKind, ClaudeLoginStart } from '../../../../contract/services/kita.js'
+import type { ClaudeLoginKind, ClaudeLoginStart } from '../../../../contract/services/kita.js'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'

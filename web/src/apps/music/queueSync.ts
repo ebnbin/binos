@@ -1,5 +1,5 @@
 import { applyQueueOperation } from './queueOperation.ts'
-import type { QueueMutation, QueueOperation, QueueSnapshot, Track } from '@binos/protocol/apps/music'
+import type { QueueMutation, QueueOperation, QueueSnapshot, Track } from '../../contract.ts'
 
 export class QueueSync {
   private pending: QueueMutation[] = []

@@ -8,8 +8,8 @@ import { FilePreview } from '../../services/preview/index.ts'
 import type { WindowContext } from '../types.ts'
 import styles from './FilesApp.module.css'
 
-import type { FileQuery } from '@binos/protocol'
-import type { Directory, FileEntry, FileResults } from '@binos/protocol/apps/files'
+import type { FileQuery } from '../../contract.ts'
+import type { Directory, FileEntry, FileResults } from '../../contract.ts'
 
 type Entry = FileEntry
 type Listing = Directory

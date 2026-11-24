@@ -1,1 +1,1 @@
-export type { ConversationMessage, Conversation } from '@binos/protocol/apps/kita'
+export type { ConversationMessage, Conversation } from '../../contract/apps/kita.js'

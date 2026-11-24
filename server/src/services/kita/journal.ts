@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { Entry, Item, PageEvent, Turn } from '@binos/protocol/services/kita'
+import type { Entry, Item, PageEvent, Turn } from '../../contract/services/kita.js'
 
-export type { CallDetail, Item, PageEvent, SessionMetadata, Turn } from '@binos/protocol/services/kita'
+export type { CallDetail, Item, PageEvent, SessionMetadata, Turn } from '../../contract/services/kita.js'
 
 export type Event = {
   seq: number

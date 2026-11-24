@@ -11,6 +11,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src", "../design/logo.ts"],
-  "references": [{ "path": "../protocol" }]
+  "include": ["src", "../design/logo.ts"]
 }

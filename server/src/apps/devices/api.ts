@@ -3,10 +3,10 @@ import { badRequest, errorHandler, forbidden } from '../../errors.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
 import { parseRequest } from './protocol.js'
-import type { DevicesSnapshot } from '@binos/protocol/apps/devices'
+import type { DevicesSnapshot } from '../../contract/apps/devices.js'
 import type { DeviceModel, DeviceScreenshot, DisplayState, LeaseResult, Snapshot } from './types.js'
 
-export type { DevicesSnapshot } from '@binos/protocol/apps/devices'
+export type { DevicesSnapshot } from '../../contract/apps/devices.js'
 
 function valid(value: Record<string, unknown>) {
   try {

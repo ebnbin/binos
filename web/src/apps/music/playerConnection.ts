@@ -1,4 +1,4 @@
-import type { CommandResult, PlayerMessage, PlayerReport } from '@binos/protocol/apps/music'
+import type { CommandResult, PlayerMessage, PlayerReport } from '../../contract.ts'
 import { apiUrl, request } from '../../api.ts'
 import type { MusicController } from './controller.ts'
 import { executePlayerCommand, playerState } from './playerCommands.ts'
