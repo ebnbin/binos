@@ -26,7 +26,6 @@
     "youtubei.js": "^18.2.0"
   },
   "devDependencies": {
-    "@binos/protocol": "link:../protocol",
     "@types/node": "^26.6.5",
     "@types/ws": "^8.18.2",
     "oxlint": "^1.88.0",

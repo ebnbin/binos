@@ -1,1 +1,1 @@
-export type { MessageBody, RepositoryBody, SessionEdit, Upload, QueuedMessage, PullRequest, Project, SessionSummary, CodeUsage, SessionRef, SearchResult, SearchResults } from '@binos/protocol/apps/code'
+export type { MessageBody, RepositoryBody, SessionEdit, Upload, QueuedMessage, PullRequest, Project, SessionSummary, CodeUsage, SessionRef, SearchResult, SearchResults } from '../../contract/apps/code.js'

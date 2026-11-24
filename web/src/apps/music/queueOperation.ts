@@ -1,4 +1,4 @@
-import type { QueueOperation, Track } from '@binos/protocol/apps/music'
+import type { QueueOperation, Track } from '../../contract.ts'
 
 // 规则见契约里的 QueueOperation
 const maxQueueTracks = 500

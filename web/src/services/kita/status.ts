@@ -1,4 +1,4 @@
-import type { AgentStatus } from '@binos/protocol/services/kita'
+import type { AgentStatus } from '../../contract.ts'
 import { useSyncExternalStore } from 'react'
 import { onChange } from '../../events.ts'
 import { agentStatus } from './api.ts'

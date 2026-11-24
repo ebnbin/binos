@@ -1,4 +1,4 @@
-import type { AgentId } from '@binos/protocol/services/kita'
+import type { AgentId } from '../../contract.ts'
 import { errorMessage, request } from '../../api.ts'
 
 export async function listConversations() {

@@ -1,7 +1,7 @@
-import type { ClaudeLoginKind } from '@binos/protocol/services/kita'
+import type { ClaudeLoginKind } from '../../../contract.ts'
 import { errorMessage, request } from '../../../api.ts'
 
-export type { ClaudeLoginKind } from '@binos/protocol/services/kita'
+export type { ClaudeLoginKind } from '../../../contract.ts'
 
 // 在网页上登录 Claude：先拿到授权链接，用户授权后把代码贴回来
 export async function startClaudeLogin(kind: ClaudeLoginKind): Promise<{ id: string; url: string } | { error: string }> {

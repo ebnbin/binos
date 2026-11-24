@@ -1,5 +1,5 @@
-import type { Upload } from '@binos/protocol/apps/code'
-import type { AgentId } from '@binos/protocol/services/kita'
+import type { Upload } from '../../contract.ts'
+import type { AgentId } from '../../contract.ts'
 import { errorMessage, request } from '../../api.ts'
 
 // query：只要标题或对话内容里含有它的

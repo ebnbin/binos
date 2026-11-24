@@ -1,6 +1,6 @@
-import type { ArtifactSpec, BuildEnqueue, Settings, Target } from '@binos/protocol/apps/builds'
+import type { ArtifactSpec, BuildEnqueue, Settings, Target } from '../../contract/apps/builds.js'
 
-export type { Artifact, ArtifactSpec, Build, BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settings, Target } from '@binos/protocol/apps/builds'
+export type { Artifact, ArtifactSpec, Build, BuildEnqueue, BuildLogMessage, BuildsSnapshot, InstallLink, Settings, Target } from '../../contract/apps/builds.js'
 
 // 一个平台一个目标，排队时按这个顺序。web 只构建 PR 的提交：main 的 Web 就是上线服务部署的正式版
 export const targets = ['web', 'ios'] as const satisfies readonly Target[]

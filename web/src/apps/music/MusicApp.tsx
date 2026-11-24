@@ -1,6 +1,6 @@
 import { ArrowUpRightIcon, CheckIcon, DiscIcon, MagnifyingGlassIcon, MusicNoteIcon, PlaylistIcon, PlusIcon, SlidersHorizontalIcon, XIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
-import type { CatalogPage, Lyrics, ProviderInfo } from '@binos/protocol/apps/music'
+import type { CatalogPage, Lyrics, ProviderInfo } from '../../contract.ts'
 import type { WindowContext } from '../types.ts'
 import { trackKey } from './controller.ts'
 import { PlayerControls } from './Controls.tsx'

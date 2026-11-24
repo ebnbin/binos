@@ -1,9 +1,9 @@
 import type { ErrorHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
-import type { ApiError, ErrorCode } from '@binos/protocol/core'
+import type { ApiError, ErrorCode } from './contract/core.js'
 
-export type { ApiError, ErrorCode } from '@binos/protocol/core'
+export type { ApiError, ErrorCode } from './contract/core.js'
 
 export class ApiException extends HTTPException {
   readonly code: ErrorCode

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Build, BuildLogMessage, BuildsSnapshot, Target } from '@binos/protocol/apps/builds'
+import type { Build, BuildLogMessage, BuildsSnapshot, Target } from '../../contract.ts'
 import { apiUrl, readJson, request, type ApiResponse } from '../../api.ts'
 import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { Select } from '../../ui/Select.tsx'

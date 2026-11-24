@@ -1,4 +1,4 @@
-import type { SessionSummary } from '@binos/protocol/apps/code'
+import type { SessionSummary } from '../../../contract.ts'
 import * as Dropdown from '@radix-ui/react-dropdown-menu'
 import { ArchiveIcon, BoxArrowUpIcon, PencilSimpleIcon, PushPinIcon, PushPinSlashIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'

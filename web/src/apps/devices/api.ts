@@ -1,4 +1,4 @@
-import type { Models, Platform } from '@binos/protocol/apps/devices'
+import type { Models, Platform } from '../../contract.ts'
 import { ensureOk, readJson, request } from '../../api.ts'
 
 const failed = '设备操作失败'

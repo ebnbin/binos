@@ -1,4 +1,4 @@
-import type { Build, BuildsSnapshot } from '@binos/protocol/apps/builds'
+import type { Build, BuildsSnapshot } from '../../contract.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readJson, request } from '../../api.ts'
 import { onChange } from '../../events.ts'

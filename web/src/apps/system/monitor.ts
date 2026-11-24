@@ -1,4 +1,4 @@
-import type { MonitorStatus } from '@binos/protocol/apps/system'
+import type { MonitorStatus } from '../../contract.ts'
 import { useSyncExternalStore } from 'react'
 import { apiUrl, readJson, request } from '../../api.ts'
 import { connectEventSource } from '../../eventSource.ts'

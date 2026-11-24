@@ -1,4 +1,4 @@
-import type { Project, SessionSummary } from '@binos/protocol/apps/code'
+import type { Project, SessionSummary } from '../../contract.ts'
 import { useEffect, useRef, useState } from 'react'
 import { listProjects, listSessions, readSession } from './api.ts'
 import { onChange } from '../../events.ts'

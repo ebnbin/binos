@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import type { Entry, PageEvent } from '@binos/protocol/services/kita'
+import type { Entry, PageEvent } from '../../../contract.ts'
 import { splitTurns } from './transcript-index.ts'
 
 const time = new Date().toISOString()

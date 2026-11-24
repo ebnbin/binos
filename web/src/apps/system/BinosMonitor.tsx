@@ -1,4 +1,4 @@
-import type { MonitorStatus } from '@binos/protocol/apps/system'
+import type { MonitorStatus } from '../../contract.ts'
 import { CaretRightIcon } from '@phosphor-icons/react'
 import { useConnected } from '../../events.ts'
 import { useApplications } from '../index.ts'

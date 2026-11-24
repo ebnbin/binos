@@ -1,5 +1,5 @@
-export type { CodexLoginStart, CodexLoginStatus } from '@binos/protocol/services/kita'
-import type { CodexLoginStart, CodexLoginStatus } from '@binos/protocol/services/kita'
+export type { CodexLoginStart, CodexLoginStatus } from '../../../../contract/services/kita.js'
+import type { CodexLoginStart, CodexLoginStatus } from '../../../../contract/services/kita.js'
 import { randomUUID } from 'node:crypto'
 import { stripVTControlCharacters } from 'node:util'
 import { agentEnv } from '../index.js'

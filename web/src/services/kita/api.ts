@@ -1,4 +1,4 @@
-import type { PageEvent } from '@binos/protocol/services/kita'
+import type { PageEvent } from '../../contract.ts'
 import { apiUrl, errorMessage, request } from '../../api.ts'
 
 // 各个 agent 最近报告的额度和登录的状况；读不到时返回 undefined

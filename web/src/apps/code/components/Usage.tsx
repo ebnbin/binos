@@ -1,4 +1,4 @@
-import type { CodeUsage, SessionSummary } from '@binos/protocol/apps/code'
+import type { CodeUsage, SessionSummary } from '../../../contract.ts'
 import { agents } from '../../../services/kita/agents.ts'
 import { useEffect, useState } from 'react'
 import { Popover } from '../../../ui/Popover.tsx'

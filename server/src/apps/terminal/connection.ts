@@ -1,9 +1,9 @@
 import { spawn } from 'node-pty'
 import { socketName, terminalEnv, tmux } from './sessions.js'
 
-import type { TerminalClientMessage, TerminalServerMessage } from '@binos/protocol/apps/terminal'
+import type { TerminalClientMessage, TerminalServerMessage } from '../../contract/apps/terminal.js'
 
-export type { TerminalClientMessage, TerminalServerMessage } from '@binos/protocol/apps/terminal'
+export type { TerminalClientMessage, TerminalServerMessage } from '../../contract/apps/terminal.js'
 
 export function parseMessage(value: unknown): TerminalClientMessage | undefined {
   if (!value || typeof value !== 'object') return

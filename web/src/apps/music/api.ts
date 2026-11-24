@@ -1,4 +1,4 @@
-import type { CatalogPage, Lyrics, PlaybackSource, ProviderInfo, ProviderSettings, QueueMutation, QueueSnapshot } from '@binos/protocol/apps/music'
+import type { CatalogPage, Lyrics, PlaybackSource, ProviderInfo, ProviderSettings, QueueMutation, QueueSnapshot } from '../../contract.ts'
 import { errorMessage, request } from '../../api.ts'
 
 async function json<T>(response: Response): Promise<T> {

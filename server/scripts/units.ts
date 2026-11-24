@@ -2,8 +2,8 @@
 export type Unit = 'server' | 'web'
 export const units: Unit[] = ['server', 'web']
 
-// 影响页面构建结果的目录：页面、契约、设计源头
-const webInputs = /^(web|protocol|design)\//
+// 影响页面构建结果的目录：页面（包括从后端的 schema 生成的类型）和设计源头
+const webInputs = /^(web|design)\//
 // 页面、iOS 和设计源头不在后端里；其余的都可能影响后端，不细分
 const notServer = /^(web|ios|design)\//
 

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { ProviderInfo } from '@binos/protocol/apps/music'
+import type { ProviderInfo } from '../../contract.ts'
 import { onChange } from '../../events.ts'
 import { listProviders } from './api.ts'
 

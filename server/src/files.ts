@@ -1,7 +1,7 @@
 import { createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
-import type { FileInfo } from '@binos/protocol/core'
+import type { FileInfo } from './contract/core.js'
 import type { Context } from 'hono'
 import { notFound } from './errors.js'
 

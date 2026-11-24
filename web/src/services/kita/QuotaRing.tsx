@@ -1,4 +1,4 @@
-import type { Limits } from '@binos/protocol/services/kita'
+import type { Limits } from '../../contract.ts'
 import { windowsOf, windowState } from './quota.ts'
 import styles from './Quota.module.css'
 

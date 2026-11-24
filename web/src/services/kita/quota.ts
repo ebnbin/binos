@@ -1,4 +1,4 @@
-import type { Limits, QuotaWindow } from '@binos/protocol/services/kita'
+import type { Limits, QuotaWindow } from '../../contract.ts'
 import { useEffect, useState } from 'react'
 
 const hour = 3600_000

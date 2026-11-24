@@ -1,4 +1,4 @@
-import type { Profile } from '@binos/protocol/services/kita'
+import type { Profile } from '../../contract.ts'
 import { ImageSquareIcon, TrashIcon } from '@phosphor-icons/react'
 import { useRef, useState } from 'react'
 import { photoUrl, removePhoto, saveDescription, setAvatar, uploadPhoto } from '../../services/kita/api.ts'

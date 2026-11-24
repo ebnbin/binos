@@ -1,6 +1,6 @@
-import type { BrowserClientMessage } from '@binos/protocol/apps/browser'
+import type { BrowserClientMessage } from '../../contract/apps/browser.js'
 
-export type { BrowserClientMessage, BrowserServerMessage, BrowserState } from '@binos/protocol/apps/browser'
+export type { BrowserClientMessage, BrowserServerMessage, BrowserState } from '../../contract/apps/browser.js'
 
 export function navigationUrl(value: string) {
   const url = new URL(value)

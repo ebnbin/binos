@@ -1,4 +1,4 @@
-import type { AgentCatalog } from '@binos/protocol/services/kita'
+import type { AgentCatalog } from '../../contract.ts'
 import { useEffect, useState } from 'react'
 import { agentCatalogs } from './api.ts'
 

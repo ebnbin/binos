@@ -1,5 +1,5 @@
-import type { PageEvent } from '@binos/protocol/services/kita'
-import type { Attachment, Entry, Live, Status } from '@binos/protocol/services/kita'
+import type { PageEvent } from '../../../contract.ts'
+import type { Attachment, Entry, Live, Status } from '../../../contract.ts'
 import { CaretRightIcon } from '@phosphor-icons/react'
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode, RefObject } from 'react'
