@@ -8,7 +8,7 @@
 
 ```sh
 pnpm --filter @binos/server build
-node scripts/browser-extension.ts --install
+node server/scripts/browser-extension.ts --install
 ```
 
 安装器把扩展、本机通信宿主和依赖放入当前用户的 Application Support，并注册 Chrome Native Messaging。安装内容独立于 worktree，上线清理 worktree 不会影响连接。运行安装器不加 `--install` 可查看目标路径。

@@ -2,11 +2,11 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { rootFromEnv, rootLayout } from '../server/src/layout.ts'
-import { serverPort } from '../server/src/production.ts'
+import { rootFromEnv, rootLayout } from '../src/layout.ts'
+import { serverPort } from '../src/production.ts'
 
 const { deployDir, logsDir } = rootLayout(rootFromEnv())
-const repoDir = path.resolve(import.meta.dirname, '..')
+const repoDir = path.resolve(import.meta.dirname, '../..')
 const deployLog = path.join(logsDir, 'deploy.log')
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repoDir, encoding: 'utf8' }).trim()

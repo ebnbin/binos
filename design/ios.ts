@@ -1,9 +1,9 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { logoVariant } from '../design/logo.ts'
+import { logoVariant } from './logo.ts'
 
 const repoDir = path.resolve(import.meta.dirname, '..')
-export const logoPath = path.join(repoDir, 'design', 'logo.svg')
+export const logoPath = path.join(import.meta.dirname, 'logo.svg')
 export const iosDir = path.join(repoDir, 'ios', 'binOS')
 
 // Liquid Glass 的效果加在前景图层上，所以方块做成背景色，字形单独一层。Xcode 编译图标时不跟随软链接，所以生成后提交进仓库

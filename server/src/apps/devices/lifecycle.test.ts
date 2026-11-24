@@ -8,7 +8,7 @@ import type { LeaseResult, Snapshot } from './types.js'
 
 const root = mkdtempSync(path.join(os.tmpdir(), 'binos-device-lifecycle-'))
 const exec = promisify(execFile)
-const repo = path.resolve(import.meta.dirname, '../../../..')
+const repo = path.resolve(import.meta.dirname, '../../..')
 const env = { ...process.env, BINOS_ROOT: root, BINOS_TEST_INSTANCE: '1', BINOS_DEVICES_MODE: 'mock' }
 async function cli(...args: string[]) {
   const result = await exec(path.join(repo, 'bin/binos'), ['devices', ...args], { cwd: root, env, timeout: 15_000 })

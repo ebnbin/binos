@@ -14,6 +14,6 @@ it('协议登记了所有路由', () => {
   const registered = new Set(['Http', 'Sse', 'WebSockets'].flatMap((name) => Object.keys(definitions[name]?.properties ?? {})))
   // ALL 是中间件和兜底的「没有这个接口」
   const mounted = new Set(api.routes.filter((route) => route.method !== 'ALL').map((route) => `${route.method} ${route.path}`))
-  expect([...mounted].filter((route) => !registered.has(route)), '这些路由没有登记在 protocol/src/index.ts，登记后运行 pnpm protocol').toEqual([])
+  expect([...mounted].filter((route) => !registered.has(route)), '这些路由没有登记在 protocol/src/index.ts，登记后在 server/ 里运行 pnpm protocol').toEqual([])
   expect([...registered].filter((route) => !mounted.has(route)), 'protocol/src/index.ts 里登记了这些不存在的路由').toEqual([])
 })

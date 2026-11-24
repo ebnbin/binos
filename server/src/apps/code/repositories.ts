@@ -7,7 +7,7 @@ import { ApiException } from '../../errors.js'
 
 const run = promisify(execFile)
 export const repositoriesDir = path.join(appDir('code'), 'repositories')
-export const repoDir = process.env.BINOS_REPO_DIR ?? (isTestInstance ? codeDir : path.join(repositoriesDir, 'binos', 'main'))
+export const repoDir = process.env.BINOS_REPO_DIR ?? (isTestInstance ? path.dirname(codeDir) : path.join(repositoriesDir, 'binos', 'main'))
 
 // 准备不了仓库：message 是给用户看的原因
 export class RepositoryError extends ApiException {

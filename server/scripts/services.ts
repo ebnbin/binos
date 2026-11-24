@@ -4,8 +4,8 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { rootFromEnv, rootLayout } from '../server/src/layout.ts'
-import { serverLabel } from '../server/src/production.ts'
+import { rootFromEnv, rootLayout } from '../src/layout.ts'
+import { serverLabel } from '../src/production.ts'
 
 const { rootDir, binosDir, logsDir } = rootLayout(rootFromEnv())
 const agentsDir = path.join(os.homedir(), 'Library', 'LaunchAgents')
@@ -46,7 +46,7 @@ function plist(service: Service) {
   const logPath = path.join(logsDir, `${service.command}.log`)
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<!-- 由 binOS 仓库的 scripts/services.ts 生成，不要手动修改 -->
+<!-- 由 binOS 仓库的 server/scripts/services.ts 生成，不要手动修改 -->
 <plist version="1.0">
 <dict>
   <key>Label</key>

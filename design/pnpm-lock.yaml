@@ -166,130 +166,18 @@ importers:
 
   .:
     devDependencies:
-      '@types/node':
-        specifier: ^26.6.5
-        version: 26.6.5
       oxlint:
         specifier: ^1.88.0
         version: 1.88.0
-      ts-json-schema-generator:
-        specifier: ^2.9.0
-        version: 2.9.0
+      '@types/node':
+        specifier: ^26.6.5
+        version: 26.6.5
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
       vitest:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15))
-
-  protocol: {}
-
-  server:
-    dependencies:
-      '@hono/node-server':
-        specifier: ^2.1.5
-        version: 2.1.5(hono@4.13.13)
-      diff:
-        specifier: ^9.0.0
-        version: 9.0.0
-      hono:
-        specifier: ^4.13.13
-        version: 4.13.13
-      node-pty:
-        specifier: ^1.1.0
-        version: 1.1.0
-      playwright-core:
-        specifier: ^1.64.1
-        version: 1.64.1
-      ws:
-        specifier: ^8.22.0
-        version: 8.22.0
-      youtubei.js:
-        specifier: ^18.2.0
-        version: 18.2.0
-    devDependencies:
-      '@binos/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@types/ws':
-        specifier: ^8.18.2
-        version: 8.18.2
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
-
-  web:
-    dependencies:
-      '@phosphor-icons/react':
-        specifier: ^2.1.10
-        version: 2.1.10(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@radix-ui/react-checkbox':
-        specifier: ^1.4.1
-        version: 1.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@radix-ui/react-dropdown-menu':
-        specifier: ^2.2.1
-        version: 2.2.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@radix-ui/react-popover':
-        specifier: ^1.3.1
-        version: 1.3.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@radix-ui/react-select':
-        specifier: ^2.4.1
-        version: 2.4.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@xterm/addon-fit':
-        specifier: ^0.11.0
-        version: 0.11.0
-      '@xterm/xterm':
-        specifier: ^6.0.0
-        version: 6.0.0
-      diff:
-        specifier: ^9.0.0
-        version: 9.0.0
-      katex:
-        specifier: ^0.19.0
-        version: 0.19.0
-      mermaid:
-        specifier: ^12.2.0
-        version: 12.2.0
-      react:
-        specifier: ^19.2.8
-        version: 19.3.1
-      react-dom:
-        specifier: ^19.2.8
-        version: 19.3.1(react@19.3.1)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.3.0)(react@19.3.1)
-      rehype-katex:
-        specifier: ^7.0.1
-        version: 7.0.1
-      remark-gfm:
-        specifier: ^4.0.1
-        version: 4.0.1
-      remark-math:
-        specifier: ^6.0.0
-        version: 6.0.0
-      shiki:
-        specifier: ^4.5.0
-        version: 4.5.0
-    devDependencies:
-      '@binos/protocol':
-        specifier: workspace:*
-        version: link:../protocol
-      '@resvg/resvg-js':
-        specifier: ^2.6.2
-        version: 2.6.2
-      '@types/react':
-        specifier: ^19.3.0
-        version: 19.3.0
-      '@types/react-dom':
-        specifier: ^19.2.7
-        version: 19.3.0(@types/react@19.3.0)
-      '@vitejs/plugin-react':
-        specifier: ^6.1.2
-        version: 6.1.2(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15))
-      vite:
-        specifier: ^8.3.4
-        version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15)
 
 packages:
 

@@ -1,13 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import type { BuildsSnapshot } from '../server/src/apps/builds/types.ts'
-import { rootFromEnv, rootLayout } from '../server/src/layout.ts'
-import { previewUrl } from '../server/src/preview-info.ts'
+import type { BuildsSnapshot } from '../src/apps/builds/types.ts'
+import { rootFromEnv, rootLayout } from '../src/layout.ts'
+import { previewUrl } from '../src/preview-info.ts'
 
 // 给出当前分支 PR 最新提交的预览；PR 合并或关闭后由构建服务和上线脚本删除
 const { binosDir } = rootLayout(rootFromEnv())
-const repoDir = path.resolve(import.meta.dirname, '..')
+const repoDir = path.resolve(import.meta.dirname, '../..')
 
 const git = (...args: string[]) => execFileSync('git', args, { cwd: repoDir, encoding: 'utf8' }).trim()
 const short = (commit: string) => commit.slice(0, 7)

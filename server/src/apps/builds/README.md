@@ -9,7 +9,7 @@ Code 的「构建」页面管理 binOS 的 Web 和 iOS 构建，「设备」页�
 
 构建机需要 Xcode 27.1 及 iOS 27 SDK。版本名沿用工程配置，构建号由服务持久化的递增序号注入。
 
-每个目标的构建命令在 `types.ts` 的 `targetScripts` 中登记：Web 是 `scripts/web-build.ts`，iOS 是 `scripts/mobile-build.sh`，提交里有这个脚本才构建这个目标。命令在指定提交的干净 worktree 中执行，`BINOS_BUILD_OUTPUT` 指定产物目录，`BINOS_BUILD_NUMBER` 指定构建号，PR 的构建另有 `BINOS_BUILD_PR`。每个目标在 `targetArtifacts` 中声明产物的类型和平台：安装包（`install`）是产物目录里的文件，只有声明的文件算产物；链接（`link`）是外部打开的地址。退出码为零且声明的产物都已生成才算成功。
+每个目标的构建命令在 `types.ts` 的 `targetScripts` 中登记：Web 是 `server/scripts/web-build.ts`，iOS 是 `ios/build.sh`，提交里有这个脚本才构建这个目标。命令在指定提交的干净 worktree 中执行，`BINOS_BUILD_OUTPUT` 指定产物目录，`BINOS_BUILD_NUMBER` 指定构建号，PR 的构建另有 `BINOS_BUILD_PR`。每个目标在 `targetArtifacts` 中声明产物的类型和平台：安装包（`install`）是产物目录里的文件，只有声明的文件算产物；链接（`link`）是外部打开的地址。退出码为零且声明的产物都已生成才算成功。
 
 ## 调度与数据
 

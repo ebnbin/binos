@@ -18,7 +18,7 @@ if (!process.argv.includes('--install')) {
 mkdirSync(target, { recursive: true, mode: 0o700 })
 cpSync(path.join(source, 'extensions/browser'), extension, { recursive: true })
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-for (const file of ['native-host.js', 'relay-path.js']) cpSync(path.join(source, 'server/dist/apps/browser', file), path.join(target, file))
+for (const file of ['native-host.js', 'relay-path.js']) cpSync(path.join(source, 'dist/apps/browser', file), path.join(target, file))
 mkdirSync(path.join(target, 'node_modules'), { recursive: true })
 cpSync(realpathSync(path.join(source, 'server/node_modules/ws')), path.join(target, 'node_modules/ws'), { recursive: true })
 writeFileSync(path.join(target, 'package.json'), JSON.stringify({ type: 'module' }))
