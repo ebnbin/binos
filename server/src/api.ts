@@ -62,7 +62,7 @@ export function createApi(authorize: MiddlewareHandler = requireOwner) {
       }),
     )
 
-  // app 的路由不在 AppType 里，页面用各个 app 自己导出的类型
+  // app 的路由运行时挂上去，不在 api 的类型里，protocol.ts 按挂载的位置逐个核对
   for (const app of serverApps) {
     api.route(`/apps/${app.id}`, app.api)
   }
@@ -74,4 +74,3 @@ export function createApi(authorize: MiddlewareHandler = requireOwner) {
 }
 
 export const api = createApi()
-export type AppType = typeof api

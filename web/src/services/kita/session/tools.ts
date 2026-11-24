@@ -1,4 +1,4 @@
-import type { BrowserOperation, Entry, LineCount } from '@binos/server/services/kita/types'
+import type { BrowserOperation, Entry, LineCount } from '@binos/protocol/services/kita'
 import type { Icon } from '@phosphor-icons/react'
 import { AppWindowIcon, FilePlusIcon, FileTextIcon, GlobeIcon, ImageIcon, ListChecksIcon, MagnifyingGlassIcon, PackageIcon, PencilSimpleLineIcon, RobotIcon, SparkleIcon, TerminalWindowIcon, WrenchIcon } from '@phosphor-icons/react'
 

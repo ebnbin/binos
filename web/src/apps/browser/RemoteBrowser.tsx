@@ -1,7 +1,7 @@
 import { ArrowClockwiseIcon, ArrowLeftIcon, ArrowRightIcon, KeyboardIcon, XIcon } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, RefObject } from 'react'
-import type { BrowserState, BrowserClientMessage, BrowserServerMessage } from '@binos/server/apps/browser/protocol'
+import type { BrowserState, BrowserClientMessage, BrowserServerMessage } from '@binos/protocol/apps/browser'
 import { IconButton } from '../../ui/IconButton.tsx'
 import type { WindowContext } from '../types.ts'
 import { addressRoute, browserAddress, routeAddress } from './address.ts'

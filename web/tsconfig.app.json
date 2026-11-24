@@ -12,5 +12,5 @@
     "jsx": "react-jsx"
   },
   "include": ["src"],
-  "references": [{ "path": "../server" }]
+  "references": [{ "path": "../protocol" }]
 }

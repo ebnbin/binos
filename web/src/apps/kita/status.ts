@@ -1,4 +1,4 @@
-import type { Activity } from '@binos/server/services/kita/types'
+import type { Activity } from '@binos/protocol/services/kita'
 import type { ApplicationDefinition } from '../types.ts'
 
 // 喜多现在在做什么，按各个 app 里真实在回答的 session 说

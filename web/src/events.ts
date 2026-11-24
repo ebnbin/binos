@@ -1,4 +1,4 @@
-import type { ChangeEvent } from '@binos/server/types'
+import type { ChangeEvent } from '@binos/protocol/core'
 import { useSyncExternalStore } from 'react'
 import { eventsUrl, getVersion } from './api.ts'
 import { connectEventSource } from './eventSource.ts'

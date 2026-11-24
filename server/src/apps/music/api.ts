@@ -115,4 +115,3 @@ export function createMusicApi(adapters: MusicProvider[], players = new MusicPla
     })
 }
 export const musicApi = createMusicApi([youtubeMusic, youtubeOfficial])
-export type MusicApi = typeof musicApi

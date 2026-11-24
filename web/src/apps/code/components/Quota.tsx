@@ -1,5 +1,5 @@
-import { agents, agentIds } from '@binos/server/services/kita/types'
-import type { Limits, AgentId } from '@binos/server/services/kita/types'
+import { agents, agentIds } from '../../../services/kita/agents.ts'
+import type { Limits, AgentId } from '@binos/protocol/services/kita'
 import { Popover } from '../../../ui/Popover.tsx'
 import { formatSpan, summary, useMinuteNow } from '../../../services/kita/quota.ts'
 import { useAgentStatus } from '../../../services/kita/status.ts'

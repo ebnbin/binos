@@ -1,4 +1,4 @@
-import type { MonitorStatus } from '@binos/server/apps/system/types'
+import type { MonitorStatus } from '@binos/protocol/apps/system'
 import { CpuIcon, HardDriveIcon, MemoryIcon, NetworkIcon, PlugChargingIcon } from '@phosphor-icons/react'
 import { bytes } from './format.ts'
 import styles from './Monitor.module.css'

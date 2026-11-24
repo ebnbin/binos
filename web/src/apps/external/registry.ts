@@ -1,4 +1,4 @@
-import type { BuiltinApp, ExternalApp } from '@binos/server/types'
+import type { BuiltinApp, ExternalApp } from '@binos/protocol/core'
 import { useSyncExternalStore } from 'react'
 import { readApps, writeRegistry } from '../../api.ts'
 import { onChange } from '../../events.ts'

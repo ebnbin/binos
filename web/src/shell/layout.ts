@@ -1,4 +1,4 @@
-import type { JsonValue } from '@binos/server/types'
+import type { JsonValue } from '@binos/protocol/core'
 
 // 桌面分栏和窗口分屏的规格，只做计算，不读写存储
 

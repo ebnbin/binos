@@ -1,3 +1,5 @@
+export type { CodexLoginStart, CodexLoginStatus } from '@binos/protocol/services/kita'
+import type { CodexLoginStart, CodexLoginStatus } from '@binos/protocol/services/kita'
 import { randomUUID } from 'node:crypto'
 import { stripVTControlCharacters } from 'node:util'
 import { agentEnv } from '../index.js'
@@ -27,8 +29,6 @@ function end(id: string) {
   killTerminal(login)
 }
 
-export type CodexLoginStart = { id: string; url: string; code: string }
-export type CodexLoginStatus = { status: 'waiting' | 'done' } | { status: 'failed'; error: string }
 
 // 开始登录：返回这次登录的编号、要打开的网址和要输入的码
 export async function startCodexLogin(): Promise<CodexLoginStart> {

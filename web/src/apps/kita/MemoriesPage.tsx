@@ -1,5 +1,5 @@
-import type { Conversation } from '@binos/server/apps/kita/types'
-import type { Memory, MemorySource } from '@binos/server/services/kita/types'
+import type { Conversation } from '@binos/protocol/apps/kita'
+import type { Memory, MemorySource } from '@binos/protocol/services/kita'
 import { ArrowUUpLeftIcon, CheckIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { addMemory, removeMemory, revertMemory, updateMemory } from '../../services/kita/api.ts'

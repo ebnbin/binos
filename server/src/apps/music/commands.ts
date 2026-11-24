@@ -1,6 +1,7 @@
-import type { TrackRef } from './types.js'
+import type { PlayerCommand, TrackRef } from '@binos/protocol/apps/music'
 
-type Fields = { ref: TrackRef; positionMs: number; volume: number; repeat: 'off' | 'all' | 'one' }
+export type { PlayerCommand } from '@binos/protocol/apps/music'
+
 const fields = {
   ref: { type: 'object', required: ['provider', 'id'], additionalProperties: false, properties: { provider: { type: 'string', minLength: 1, maxLength: 100 }, id: { type: 'string', minLength: 1, maxLength: 500 } } },
   positionMs: { type: 'number', minimum: 0 },
@@ -9,8 +10,7 @@ const fields = {
 } as const
 const actions = {
   play: [], pause: [], stop: [], next: [], previous: [], select: ['ref'], seek: ['positionMs'], volume: ['volume'], repeat: ['repeat'],
-} as const satisfies Record<string, readonly (keyof Fields)[]>
-export type PlayerCommand = { [K in keyof typeof actions]: { type: K } & Pick<Fields, (typeof actions)[K][number]> }[keyof typeof actions]
+} as const satisfies { [K in PlayerCommand['type']]: readonly Exclude<keyof Extract<PlayerCommand, { type: K }>, 'type'>[] }
 
 export const playerCommandSchema = {
   oneOf: Object.entries(actions).map(([type, keys]) => ({

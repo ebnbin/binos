@@ -182,6 +182,8 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(tsx@4.23.15))
 
+  protocol: {}
+
   server:
     dependencies:
       '@hono/node-server':
@@ -206,6 +208,9 @@ importers:
         specifier: ^18.2.0
         version: 18.2.0
     devDependencies:
+      '@binos/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       '@types/ws':
         specifier: ^8.18.2
         version: 8.18.2
@@ -239,9 +244,6 @@ importers:
       diff:
         specifier: ^9.0.0
         version: 9.0.0
-      hono:
-        specifier: ^4.13.13
-        version: 4.13.13
       katex:
         specifier: ^0.19.0
         version: 0.19.0
@@ -270,9 +272,9 @@ importers:
         specifier: ^4.5.0
         version: 4.5.0
     devDependencies:
-      '@binos/server':
+      '@binos/protocol':
         specifier: workspace:*
-        version: link:../server
+        version: link:../protocol
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2

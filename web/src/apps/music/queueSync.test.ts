@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import type { QueueMutation, QueueSnapshot, Track } from '@binos/server/apps/music/types'
+import type { QueueMutation, QueueSnapshot, Track } from '@binos/protocol/apps/music'
 import { QueueSync } from './queueSync.ts'
 const track = (id: string): Track => ({ ref: { provider: 'audio', id }, title: id, artists: [], externalUrl: `https://example.com/${id}` })
 afterEach(() => vi.useRealTimers())

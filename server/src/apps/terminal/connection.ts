@@ -1,8 +1,9 @@
 import { spawn } from 'node-pty'
 import { socketName, terminalEnv, tmux } from './sessions.js'
 
-export type TerminalServerMessage = { type: 'output'; data: string } | { type: 'ready' | 'ping' | 'exit' } | { type: 'error'; message: string }
-export type TerminalClientMessage = { type: 'input'; data: string } | { type: 'resize'; cols: number; rows: number } | { type: 'ack'; size: number } | { type: 'ping' }
+import type { TerminalClientMessage, TerminalServerMessage } from '@binos/protocol/apps/terminal'
+
+export type { TerminalClientMessage, TerminalServerMessage } from '@binos/protocol/apps/terminal'
 
 export function parseMessage(value: unknown): TerminalClientMessage | undefined {
   if (!value || typeof value !== 'object') return

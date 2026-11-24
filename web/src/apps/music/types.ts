@@ -1,7 +1,7 @@
-import type { PlaybackStatus, Track, TrackRef } from '@binos/server/apps/music/types'
+import type { PlaybackStatus, Track, TrackRef } from '@binos/protocol/apps/music'
 export type { Track, TrackRef }
 
-export type { PlaybackStatus } from '@binos/server/apps/music/types'
+export type { PlaybackStatus } from '@binos/protocol/apps/music'
 export type PlayerEvent = { controls?: { seek: boolean; volume: boolean }; embedEngine?: string; status?: PlaybackStatus; positionMs?: number; durationMs?: number; error?: string }
 
 export interface MusicPlayer {

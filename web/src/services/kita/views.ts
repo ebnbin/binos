@@ -1,4 +1,4 @@
-import type { AgentAttention, AgentAuths, AgentId, AgentStatus } from '@binos/server/services/kita/types'
+import type { AgentAttention, AgentAuths, AgentId, AgentStatus } from '@binos/protocol/services/kita'
 import type { ComponentType } from 'react'
 import type { Attention, AuthRow, LoginAction } from './auth.ts'
 import { claudeView } from './claude/view.tsx'
