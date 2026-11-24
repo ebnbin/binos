@@ -1,5 +1,5 @@
 import source from '../../../design/logo.svg?raw'
-import { logoVariant } from '../logo.ts'
+import { logoVariant } from '../../../design/logo.ts'
 import styles from './BrandMark.module.css'
 
 const svg = logoVariant(source, { rounded: true })

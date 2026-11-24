@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { logoVariant } from '../web/src/logo.ts'
+import { logoVariant } from '../design/logo.ts'
 
 const repoDir = path.resolve(import.meta.dirname, '..')
 export const logoPath = path.join(repoDir, 'design', 'logo.svg')

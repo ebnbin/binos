@@ -1,4 +1,4 @@
-// 圆角只用于 binOS 自己画的方块（favicon、BrandMark）；交给系统的图标用全方形，由系统加圆角
+// logo.svg 的各种用法，web 和 iOS 的生成脚本共用。圆角只用于 binOS 自己画的方块（favicon、BrandMark）；交给系统的图标用全方形，由系统加圆角
 const radius = 8
 
 export function logoVariant(source: string, { rounded = false, dark = false }: { rounded?: boolean; dark?: boolean } = {}) {
