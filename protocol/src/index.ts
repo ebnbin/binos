@@ -30,7 +30,7 @@ import type {
   Turn,
 } from './services/kita.js'
 
-// 客户端收发的全部 JSON：pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 server/src/protocol-id.ts。
+// 客户端收发的全部 JSON：在 server/ 里运行 pnpm protocol 由它生成 server/protocol.schema.json，schema 的标识见 server/src/protocol-id.ts。
 // server 挂上的每个路由都登记在 Http、Sse 或 WebSockets 里，server/src/protocol.ts 和 protocol.test.ts 检查；带查询参数的另外登记在 Queries 里。
 // http 的 request 是 JSON 请求体（请求体是文件本身时没有），成功时：有 response 的返回这个 JSON，
 // file 是响应体为文件本身（图片、音频、日志……），两样都没有的是 204、没有响应体。出错时（4xx、5xx）所有接口的响应体都是 error

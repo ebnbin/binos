@@ -7,10 +7,10 @@ it('按改动的文件判断两端要不要重新上线', () => {
   expect(needsDeploy('server', ['web/src/main.tsx'])).toBe(false)
   expect(needsDeploy('web', ['server/src/api.ts', 'ios/binOS/RootView.swift'])).toBe(false)
   expect(needsDeploy('server', ['server/src/api.ts'])).toBe(true)
-  for (const file of ['protocol/src/index.ts', 'pnpm-lock.yaml', 'package.json', 'tsconfig.base.json']) {
-    expect([needsDeploy('server', [file]), needsDeploy('web', [file])]).toEqual([true, true])
-  }
-  expect(needsDeploy('web', ['design/logo.svg'])).toBe(true)
+  expect([needsDeploy('server', ['protocol/src/index.ts']), needsDeploy('web', ['protocol/src/index.ts'])]).toEqual([true, true])
+  expect([needsDeploy('server', ['server/pnpm-lock.yaml']), needsDeploy('web', ['server/pnpm-lock.yaml'])]).toEqual([true, false])
+  expect([needsDeploy('server', ['web/pnpm-lock.yaml']), needsDeploy('web', ['web/pnpm-lock.yaml'])]).toEqual([false, true])
+  expect([needsDeploy('server', ['design/logo.svg']), needsDeploy('web', ['design/logo.svg'])]).toEqual([false, true])
   expect(needsDeploy('server', ['ios/binOS/RootView.swift'])).toBe(false)
   expect([needsDeploy('server', undefined), needsDeploy('web', undefined)]).toEqual([true, true])
   expect([needsDeploy('server', []), needsDeploy('web', [])]).toEqual([false, false])

@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { protocolId, schemaPath } from '../server/src/protocol-id.ts'
+import { protocolId, schemaPath } from '../src/protocol-id.ts'
 import { generateSchema } from './protocol.ts'
 
-const repoDir = path.resolve(import.meta.dirname, '..')
+const repoDir = path.resolve(import.meta.dirname, '../..')
 const schemaFile = path.relative(repoDir, schemaPath)
 const schema = readFileSync(schemaPath, 'utf8')
 
@@ -16,7 +16,7 @@ const clients = [
 
 it('schema 和 protocol/src/index.ts 一致', () => {
   const fresh = generateSchema()
-  expect(fresh === schema ? '' : `${schemaFile} 不是最新的，运行 pnpm protocol 重新生成。有变化的部分：${changes(schema, fresh).join('、')}`).toBe('')
+  expect(fresh === schema ? '' : `${schemaFile} 不是最新的，在 server/ 里运行 pnpm protocol 重新生成。有变化的部分：${changes(schema, fresh).join('、')}`).toBe('')
 }, 60_000)
 
 for (const client of clients) {

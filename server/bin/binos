@@ -42,13 +42,13 @@ case "$1" in
     service=$1
     shift
     if [ -f "$build/VERSION" ]; then
-      exec node "$build/server/dist/apps/$service/cli.js" "$@"
+      exec node "$build/dist/apps/$service/cli.js" "$@"
     else
-      exec node --import "$build/server/node_modules/tsx/dist/loader.mjs" "$build/server/src/apps/$service/cli.ts" "$@"
+      exec node --import "$build/node_modules/tsx/dist/loader.mjs" "$build/src/apps/$service/cli.ts" "$@"
     fi
     ;;
   server)
-    exec node "$build/server/dist/index.js"
+    exec node "$build/dist/index.js"
     ;;
   tunnel)
     # 令牌在钥匙串里，启动时取出交给 cloudflared，不写进文件和命令行参数
@@ -73,7 +73,7 @@ case "$1" in
     mkdir -p "$deploy_dir/tmp"
     work=$(mktemp -d "$deploy_dir/tmp/XXXXXX")
     git clone -q --depth 1 "$repo" "$work/repo"
-    exec node "$work/repo/scripts/deploy.ts" deploy
+    exec node "$work/repo/server/scripts/deploy.ts" deploy
     ;;
   version)
     cat "$build/VERSION"

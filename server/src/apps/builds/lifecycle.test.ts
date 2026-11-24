@@ -7,7 +7,7 @@ import { afterAll, expect, it } from 'vitest'
 import type { BuildsSnapshot } from './types.js'
 const exec = promisify(execFile)
 const root = mkdtempSync(path.join(os.tmpdir(), 'binos-builds-test-'))
-const repo = path.resolve(import.meta.dirname, '../../../..')
+const repo = path.resolve(import.meta.dirname, '../../..')
 const env = { ...process.env, BINOS_ROOT: root, BINOS_TEST_INSTANCE: '1' }
 const cli = async (...args: string[]) => JSON.parse((await exec(path.join(repo, 'bin/binos'), ['builds', ...args], { env, timeout: 15_000 })).stdout) as BuildsSnapshot
 async function until(test: () => Promise<boolean>) { for (let i = 0; i < 120; i++) { if (await test()) return; await new Promise((r) => setTimeout(r, 100)) } throw new Error('构建验证超时') }

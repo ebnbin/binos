@@ -1,0 +1,4 @@
+# esbuild 的平台二进制通过可选依赖安装，不需要它的安装脚本
+allowBuilds:
+  esbuild: false
+  node-pty: true

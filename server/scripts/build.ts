@@ -6,8 +6,9 @@ import { setTimeout as sleep } from 'node:timers/promises'
 
 const run = (command: string, args: string[], cwd: string) => execFileSync(command, args, { cwd, stdio: 'inherit' })
 
-// 在 workDir 里构建完整的仓库，返回两端的构建结果，都在 workDir 里。server 只放运行需要的部分：命令行 bin/binos、
-// server 和它的生产依赖、扩展；web 是页面的构建产物，version.json 是页面用来发现新版本的。workDir 由调用方清理
+// 在 workDir 里构建完整的仓库，返回两端的构建结果，都在 workDir 里。server 是只放运行需要的部分的 server 包：
+// 命令行 bin/binos、构建结果、schema、扩展和按锁文件只装的生产依赖；web 是页面的构建产物，version.json 是页面用来发现新版本的。
+// workDir 由调用方清理
 export function buildUnits(repoDir: string, commit: string, workDir: string) {
   const source = path.join(workDir, 'source')
   const server = path.join(workDir, 'build')
@@ -17,12 +18,18 @@ export function buildUnits(repoDir: string, commit: string, workDir: string) {
   const archive = path.join(workDir, 'source.tar')
   execFileSync('git', ['archive', '--output', archive, commit], { cwd: repoDir })
   run('tar', ['-xf', archive, '-C', source], source)
-  run('pnpm', ['install', '--frozen-lockfile'], source)
-  run('pnpm', ['build'], source)
-  run('pnpm', ['--filter', '@binos/server', '--prod', 'deploy', path.join(server, 'server')], source)
-  preparePty(path.join(server, 'server', 'package.json'))
-  cpSync(path.join(source, 'extensions'), path.join(server, 'extensions'), { recursive: true })
-  cpSync(path.join(source, 'bin'), path.join(server, 'bin'), { recursive: true })
+  // 两端各自安装、各自构建；后端的构建顺带构建它引用的契约
+  for (const side of ['server', 'web']) {
+    run('pnpm', ['install', '--frozen-lockfile'], path.join(source, side))
+    run('pnpm', ['build'], path.join(source, side))
+  }
+  mkdirSync(server)
+  for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'protocol.schema.json', 'dist', 'bin', 'extensions']) {
+    cpSync(path.join(source, 'server', file), path.join(server, file), { recursive: true })
+  }
+  // 安装脚本只准备开发用的 node-pty，构建里直接做
+  run('pnpm', ['install', '--prod', '--frozen-lockfile', '--ignore-scripts'], server)
+  preparePty(path.join(server, 'package.json'))
   writeFileSync(path.join(server, 'VERSION'), commit + '\n')
   cpSync(path.join(source, 'web', 'dist'), web, { recursive: true })
   writeFileSync(path.join(web, 'VERSION'), commit + '\n')

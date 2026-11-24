@@ -14,7 +14,7 @@ function bridge() {
     tabs: { create: vi.fn<() => Promise<{ id: number }>>(async () => ({ id: next++ })), remove: vi.fn<() => void>(), onRemoved: { addListener: vi.fn<() => void>() }, onCreated: { addListener: vi.fn<() => void>() } },
     debugger: { attach: vi.fn<() => void>(), sendCommand: async ({ tabId }: { tabId: number }) => ({ targetInfo: { targetId: `target-${tabId}`, browserContextId: 'default', type: 'page' } }), onEvent: { addListener: vi.fn<() => void>() }, onDetach: { addListener: vi.fn<() => void>() } },
   }
-  vm.runInNewContext(readFileSync(new URL('../../../../extensions/browser/worker.js', import.meta.url), 'utf8'), { chrome, crypto: webcrypto, navigator: { userAgent: 'Chrome/155' }, setTimeout: vi.fn<() => void>(), clearTimeout: vi.fn<() => void>() })
+  vm.runInNewContext(readFileSync(new URL('../../../extensions/browser/worker.js', import.meta.url), 'utf8'), { chrome, crypto: webcrypto, navigator: { userAgent: 'Chrome/155' }, setTimeout: vi.fn<() => void>(), clearTimeout: vi.fn<() => void>() })
   let id = 0
   async function command(clientId: string, method: string, params = {}, sessionId?: string) {
     const current = ++id

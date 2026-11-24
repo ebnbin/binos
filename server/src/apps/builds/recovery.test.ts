@@ -6,13 +6,13 @@ import { promisify } from 'node:util'
 import { afterAll, expect, it } from 'vitest'
 import type { BuildsSnapshot } from './types.js'
 const root = mkdtempSync(path.join(os.tmpdir(), 'binos-build-recovery-'))
-const fixture = path.join(root, 'repo'); mkdirSync(path.join(fixture, 'scripts'), { recursive: true })
+const fixture = path.join(root, 'repo'); mkdirSync(path.join(fixture, 'ios'), { recursive: true })
 const git = (...args: string[]) => execFileSync('git', args, { cwd: fixture, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 git('init', '-b', 'main'); git('config', 'user.email', 'test@example.invalid'); git('config', 'user.name', 'Test')
-writeFileSync(path.join(fixture, 'scripts/mobile-build.sh'), 'echo running\nsleep 60\n')
+writeFileSync(path.join(fixture, 'ios/build.sh'), 'echo running\nsleep 60\n')
 git('add', '.'); git('commit', '-m', 'fixture'); const commit = git('rev-parse', 'HEAD')
 const exec = promisify(execFile)
-const repo = path.resolve(import.meta.dirname, '../../../..')
+const repo = path.resolve(import.meta.dirname, '../../..')
 const env = { ...process.env, BINOS_ROOT: root, BINOS_TEST_INSTANCE: '1', BINOS_BUILDS_MODE: 'real', BINOS_BUILDS_REPO: fixture }
 const cli = async (...args: string[]) => JSON.parse((await exec(path.join(repo, 'bin/binos'), ['builds', ...args], { env, timeout: 15_000 })).stdout) as BuildsSnapshot
 async function until(test: () => Promise<boolean>) { for (let i = 0; i < 180; i++) { if (await test()) return; await new Promise((r) => setTimeout(r, 100)) } throw new Error('恢复验证超时') }

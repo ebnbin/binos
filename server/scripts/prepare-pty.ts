@@ -16,5 +16,5 @@ export function preparePty(serverPackage: string) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  preparePty(fileURLToPath(new URL('../server/package.json', import.meta.url)))
+  preparePty(fileURLToPath(new URL('../package.json', import.meta.url)))
 }

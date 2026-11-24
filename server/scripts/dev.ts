@@ -1,11 +1,12 @@
 import { spawn } from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
-import { rootLayout } from '../server/src/layout.ts'
+import { rootLayout } from '../src/layout.ts'
 import { freePort } from './net.ts'
 
-const worktreeDir = path.resolve(import.meta.dirname, '..')
-const rootDir = path.join(worktreeDir, '.test-instance')
+const serverDir = path.resolve(import.meta.dirname, '..')
+const webDir = path.resolve(serverDir, '../web')
+const rootDir = path.join(serverDir, '.test-instance')
 
 const production = process.env.BINOS_ROOT ? rootLayout(process.env.BINOS_ROOT) : undefined
 const agentsDir = process.env.BINOS_AGENTS_DIR ?? production?.agentsDir
@@ -18,8 +19,8 @@ const serverPort = await freePort()
 const webPort = await freePort()
 
 const children = [
-  spawn('pnpm', ['--filter', '@binos/server', 'dev'], {
-    cwd: worktreeDir,
+  spawn('pnpm', ['watch'], {
+    cwd: serverDir,
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -29,8 +30,8 @@ const children = [
       PORT: String(serverPort),
     },
   }),
-  spawn('pnpm', ['--filter', '@binos/web', 'dev', '--port', String(webPort), '--strictPort'], {
-    cwd: worktreeDir,
+  spawn('pnpm', ['dev', '--port', String(webPort), '--strictPort'], {
+    cwd: webDir,
     stdio: 'inherit',
     env: { ...process.env, BINOS_SERVER_PORT: String(serverPort) },
   }),

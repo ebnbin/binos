@@ -79,7 +79,7 @@ const forward: MiddlewareHandler = async (c, next) => {
   try {
     res = await proxy(`http://127.0.0.1:${port}${pathname}${search}`, c.req.raw)
   } catch {
-    return c.text(`${name} 的预览没有在运行，在 PR 的 worktree 里运行 pnpm preview 重新启动`, 502)
+    return c.text(`${name} 的预览没有在运行，在 PR 的 worktree 的 server/ 里运行 pnpm preview 重新启动`, 502)
   }
   return res.body ? new Response(endQuietlyOnAbort(res.body, c.req.raw.signal), res) : res
 }

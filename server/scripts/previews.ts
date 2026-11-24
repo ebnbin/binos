@@ -1,10 +1,10 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { closeSync, existsSync, openSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { previewDirName, previewInfoPath } from '../server/src/preview-info.ts'
-import type { PreviewInfo } from '../server/src/preview-info.ts'
-import { previewPaths, readJson, runningPreviewServer, stopPreviewDevices, stopPreviewServer } from '../server/src/preview-instances.ts'
-import { acquireProcessLock } from '../server/src/process.ts'
+import { previewDirName, previewInfoPath } from '../src/preview-info.ts'
+import type { PreviewInfo } from '../src/preview-info.ts'
+import { previewPaths, readJson, runningPreviewServer, stopPreviewDevices, stopPreviewServer } from '../src/preview-instances.ts'
+import { acquireProcessLock } from '../src/process.ts'
 import { buildCommit, isHealthy } from './build.ts'
 import { freePort } from './net.ts'
 
@@ -20,7 +20,7 @@ export function startPreviewServer(options: {
 }) {
   const log = openSync(options.serverLog, 'a')
   try {
-    const child = spawn(process.execPath, [path.join(options.buildDir, 'server', 'dist', 'index.js')], {
+    const child = spawn(process.execPath, [path.join(options.buildDir, 'dist', 'index.js')], {
       cwd: options.dir,
       detached: true,
       stdio: ['ignore', log, log],

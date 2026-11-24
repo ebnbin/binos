@@ -1,6 +1,17 @@
 {
-  "extends": "../tsconfig.base.json",
   "compilerOptions": {
+    "target": "es2024",
+    "lib": [
+      "ES2024"
+    ],
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "composite": true,
     "emitDeclarationOnly": true,
     "module": "nodenext",
@@ -9,5 +20,7 @@
     "outDir": "./dist",
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
