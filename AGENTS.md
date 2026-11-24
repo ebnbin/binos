@@ -9,7 +9,7 @@ binOS 是运行在 macOS 上、通过浏览器使用的个人操作系统。用�
 - `System/binos`：正在运行的 binOS 的后端和命令行，由上线服务装进来。launchd 的三个服务都运行其中的 `bin/binos`：`app.binos.server` 运行 `server`（后端），`app.binos.tunnel` 运行 `tunnel`（Cloudflare Tunnel），`app.binos.deploy` 每 60 秒运行一次 `deploy`（GitHub 上的 main 有新提交，就取它的源码构建，只上线改动了的后端或页面）
 - `System/web`：正在运行的页面，和后端分开上线，由后端提供，换页面不重启后端
 - `Library/`：系统数据，包括 session 记录
-- `Library/Apps/code/repositories/binos/`：binOS 的仓库。`.git/` 是仓库本身（裸仓库），其余每个子目录是它的一个 worktree。仓库里 `server/`、`web/`、`design/` 各自是独立的工程，`protocol/` 是 server 和 web 共用的契约
+- `Library/Apps/code/repositories/binos/`：binOS 的仓库。`.git/` 是仓库本身（裸仓库），其余每个子目录是它的一个 worktree。仓库里 `server/`、`web/`、`design/` 各自是独立的工程；后端生成的 `server/protocol.schema.json` 是对外公开的契约，web 和 iOS 都从它得到自己的类型
 - `Library/Apps/code/repositories/binos/main/`：main 分支的 worktree，只读。binOS 的 session 从这里启动
 - `Library/Apps/code/repositories/binos/<分支名>/`：每项改动一个 worktree
 - `Library/Services/deploy/`：上线服务的数据。`previous/` 是后端的上一个版本，`previous-web/` 是页面的上一个版本，`deployed` 记着已经上线的 main 的提交，`last.json` 记着上一次上线换了哪几端，`tmp/` 是上线过程中的临时文件，`failed` 记着上线失败或被回退的提交，main 停在这个提交时不再自动上线
@@ -32,6 +32,6 @@ binOS 是运行在 macOS 上、通过浏览器使用的个人操作系统。用�
 - 代码是 SSOT：注释只写读代码得不到的信息，测试只用于防范不写就难以发现的问题，PR 描述只写改动目的和核心行为变化。
 - 遵循所用工具和框架的官方最佳实践
 - 代码、注释、提交信息和 PR 描述只写结论和现状，不写讨论过程和被放弃的方案
-- 客户端收发的数据结构都登记在 `protocol/src/index.ts`。改了它、在 `server/` 里运行 `pnpm protocol` 生成的 schema 变了时，在同一个 PR 里同步更新 `ios/` 的模型和协议标识；做不到时在 PR 描述里说明
+- 客户端收发的数据结构都登记在 `server/src/contract/index.ts`。改了它、在 `server/` 里运行 `pnpm protocol` 生成的 schema 变了时，在同一个 PR 里到 `web/` 运行 `pnpm contract` 重新生成并跟着改，同时更新 `ios/` 的模型和协议标识；做不到时在 PR 描述里说明
 - 外部 app 的清单（`Library/binos/apps.json`）是私有数据，可能有不公开的 app：其中的名称、网址等信息不写进代码、注释、提交信息和 PR 描述
 - 仓库之外的改动没有 PR 和回退兜底：删除或改写 `Library/`、`Agents/` 里的数据，修改 launchd 服务、钥匙串、Cloudflare 或 GitHub 的设置之前，先征得用户同意
