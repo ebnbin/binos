@@ -21,7 +21,7 @@ afterAll(async () => {
   await new Promise((r) => setTimeout(r, 200)); rmSync(root, { recursive: true, force: true })
 })
 it('runner 意外退出后结束遗留构建进程组并标记中断', async () => {
-  const b = (await cli('enqueue', commit, 'android')).builds[0]
+  const b = (await cli('enqueue', commit, 'ios')).builds[0]
   const resultDir = path.join(root, 'Library/Apps/builds/results', b.id)
   await until(async () => existsSync(path.join(resultDir, 'child.json')))
   const child = JSON.parse(readFileSync(path.join(resultDir, 'child.json'), 'utf8'))
