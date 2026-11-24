@@ -1,6 +1,6 @@
 import type { ChangeEvent } from '@binos/protocol/core'
 import { useSyncExternalStore } from 'react'
-import { eventsUrl, getVersion } from './api.ts'
+import { eventsUrl, readVersions } from './api.ts'
 import { connectEventSource } from './eventSource.ts'
 import type { ConnectionProgress } from './eventSource.ts'
 
@@ -11,21 +11,22 @@ const listeners = new Set<Listener>()
 const connectionListeners = new Set<() => void>()
 let connected = true
 let progress: ConnectionProgress = 'connecting'
-// 页面打开期间上线了新版本。连接断开再连上通常就是后端重启了，这时比较版本
+// 页面打开期间上线了新的页面，或者后端换了协议。页面和后端各自上线：后端重启后会重连，这时比较；
+// 只换页面时后端不重启，所以切回页面时和每隔一段时间也比较
 let updated = false
-let version: string | undefined
+let loaded: { web?: string; protocol?: string } | undefined
 let started = false
+const checkInterval = 5 * 60_000
 
 const notifyConnection = () => connectionListeners.forEach((listener) => listener())
 
 async function checkVersion() {
-  const current = await getVersion()
-  if (current === undefined) {
-    return
-  }
-  if (version === undefined) {
-    version = current
-  } else if (current !== version && !updated) {
+  const current = await readVersions()
+  // 第一次读到的是页面打开时的版本
+  const opened = { web: loaded?.web ?? current.web, protocol: loaded?.protocol ?? current.protocol }
+  loaded = opened
+  const changed = (key: 'web' | 'protocol') => current[key] !== undefined && current[key] !== opened[key]
+  if ((changed('web') || changed('protocol')) && !updated) {
     updated = true
     notifyConnection()
   }
@@ -36,6 +37,10 @@ function start() {
     return
   }
   started = true
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void checkVersion()
+  })
+  setInterval(() => void checkVersion(), checkInterval)
   connectEventSource(eventsUrl, {
     onOpen: () => {
       void checkVersion()

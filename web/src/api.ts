@@ -70,9 +70,13 @@ export async function ensureOk(res: Response | undefined, fallback: string): Pro
   return res
 }
 
-export async function getVersion(): Promise<string | undefined> {
-  const res = await request('GET /api/health').catch(() => undefined)
-  return res?.ok ? (await res.json()).version : undefined
+// 正在提供的页面的版本（上线时写下的 version.json，开发时没有）和后端的协议标识；读不到的是 undefined
+export async function readVersions(): Promise<{ web?: string; protocol?: string }> {
+  const [web, health] = await Promise.all([
+    fetch('/version.json', { cache: 'no-store' }).then((res) => (res.ok ? (res.json() as Promise<{ version?: string }>) : undefined)).catch(() => undefined),
+    request('GET /api/health').then((res) => (res.ok ? res.json() : undefined)).catch(() => undefined),
+  ])
+  return { web: web?.version, protocol: health?.protocol }
 }
 
 export function eventsUrl() {

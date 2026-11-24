@@ -8,7 +8,7 @@ import type { Context } from 'hono'
 import { downloadsRouter } from './apps/builds/install.js'
 import { api, createApi } from './api.js'
 import { errorHandler } from './errors.js'
-import { apiSocketPath, codeDir, libraryDir, serverLockPath } from './paths.js'
+import { apiSocketPath, codeDir, isTestInstance, libraryDir, serverLockPath, webDir } from './paths.js'
 import { previewProxy } from './previews.js'
 import { acquireProcessLock } from './process.js'
 import { serverPort } from './production.js'
@@ -43,9 +43,9 @@ for (const app of serverApps) {
 
 const app = new Hono().onError(errorHandler()).use(downloadsRouter).use(previewProxy).route('/', api)
 
-// 开发时页面由 Vite 提供，没有 web/dist
-const webDist = path.join(codeDir, 'web', 'dist')
-if (existsSync(webDist)) {
+// 正式版的页面单独上线到 webDir，上线时整个目录替换，不重启后端。测试实例和预览用自己构建的 web/dist，开发时页面由 Vite 提供，没有 web/dist
+const webDist = isTestInstance ? path.join(codeDir, 'web', 'dist') : webDir
+if (!isTestInstance || existsSync(webDist)) {
   // 文件名带内容哈希的资源可以长期缓存，index.html 每次都要重新取，才能拿到新版本
   const setCache = (file: string, c: Context) =>
     c.header('Cache-Control', file.includes('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache')
