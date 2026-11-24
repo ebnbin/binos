@@ -6,12 +6,13 @@ binOS 是运行在 macOS 上、通过浏览器使用的个人操作系统。用�
 
 根目录由环境变量 `BINOS_ROOT` 指定。
 
-- `System/binos`：正在运行的 binOS，由上线服务装进来。launchd 的三个服务都运行其中的 `bin/binos`：`app.binos.server` 运行 `server`（后端），`app.binos.tunnel` 运行 `tunnel`（Cloudflare Tunnel），`app.binos.deploy` 每 60 秒运行一次 `deploy`（GitHub 上的 main 有新提交，就取它的源码构建并上线）
+- `System/binos`：正在运行的 binOS 的后端和命令行，由上线服务装进来。launchd 的三个服务都运行其中的 `bin/binos`：`app.binos.server` 运行 `server`（后端），`app.binos.tunnel` 运行 `tunnel`（Cloudflare Tunnel），`app.binos.deploy` 每 60 秒运行一次 `deploy`（GitHub 上的 main 有新提交，就取它的源码构建，只上线改动了的后端或页面）
+- `System/web`：正在运行的页面，和后端分开上线，由后端提供，换页面不重启后端
 - `Library/`：系统数据，包括 session 记录
 - `Library/Apps/code/repositories/binos/`：binOS 的仓库。`.git/` 是仓库本身（裸仓库），其余每个子目录是它的一个 worktree
 - `Library/Apps/code/repositories/binos/main/`：main 分支的 worktree，只读。binOS 的 session 从这里启动
 - `Library/Apps/code/repositories/binos/<分支名>/`：每项改动一个 worktree
-- `Library/Services/deploy/`：上线服务的数据。`previous/` 是上一个版本，`tmp/` 是上线过程中的临时文件，`failed` 记着上线失败或被回退的提交，main 停在这个提交时不再自动上线
+- `Library/Services/deploy/`：上线服务的数据。`previous/` 是后端的上一个版本，`previous-web/` 是页面的上一个版本，`deployed` 记着已经上线的 main 的提交，`last.json` 记着上一次上线换了哪几端，`tmp/` 是上线过程中的临时文件，`failed` 记着上线失败或被回退的提交，main 停在这个提交时不再自动上线
 - `Library/binos/logs/`：launchd 服务的输出，`server.log`、`tunnel.log`、`deploy.log`
 - `Agents/`：Claude Code、Codex 自己的配置目录，包括登录凭证和它们的会话记录。路径和钥匙串里的凭证、会话的续接绑定在一起，不能挪动
 
