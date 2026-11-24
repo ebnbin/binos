@@ -3493,7 +3493,6 @@
       "type": "string",
       "enum": [
         "web",
-        "android",
         "ios"
       ]
     },
@@ -3518,10 +3517,7 @@
             },
             "platform": {
               "type": "string",
-              "enum": [
-                "android",
-                "ios"
-              ]
+              "const": "ios"
             }
           },
           "required": [

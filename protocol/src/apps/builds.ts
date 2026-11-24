@@ -1,7 +1,7 @@
 // 一个平台一个目标，排队时按 server/src/apps/builds/types.ts 里 targets 的顺序
-export type Target = 'web' | 'android' | 'ios'
+export type Target = 'web' | 'ios'
 // 产物按用途分类，页面据此决定怎么展示：install 是装到设备上的安装包，link 是外部打开的链接
-type InstallSpec = { name: string; kind: 'install'; platform: 'android' | 'ios' }
+type InstallSpec = { name: string; kind: 'install'; platform: 'ios' }
 type LinkSpec = { name: string; kind: 'link'; platform: 'web' }
 export type ArtifactSpec = InstallSpec | LinkSpec
 export type Artifact = (InstallSpec & { size: number; sha256: string }) | (LinkSpec & { url: string })

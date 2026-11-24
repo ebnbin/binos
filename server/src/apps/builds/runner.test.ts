@@ -10,12 +10,12 @@ const source = path.join(root, 'source'); const output = path.join(root, 'output
 mkdirSync(path.join(source, 'scripts'), { recursive: true }); mkdirSync(output)
 const entry = path.join(import.meta.dirname, 'runner.ts')
 const loader = path.resolve(import.meta.dirname, '../../../node_modules/tsx/dist/loader.mjs')
-const args = ['--import', loader, entry, source, output, result, 'android', '1', 'real']
+const args = ['--import', loader, entry, source, output, result, 'ios', '1', 'real']
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 it('脚本退出为零但缺少预期产物时拒绝成功', async () => {
   writeFileSync(path.join(source, 'scripts/mobile-build.sh'), 'echo hello\n')
   await exec(process.execPath, args)
-  expect(JSON.parse(readFileSync(result, 'utf8'))).toMatchObject({ status: 'failed', artifacts: [], error: '构建没有生成 binos-android-debug.apk' })
+  expect(JSON.parse(readFileSync(result, 'utf8'))).toMatchObject({ status: 'failed', artifacts: [], error: '构建没有生成 binos-ios-adhoc.ipa' })
   expect(readFileSync(path.join(root, 'build.log'), 'utf8')).toContain('hello')
 })
 it('取消会结束构建子进程组并保存终态', async () => {

@@ -47,8 +47,9 @@ export class Manager {
     if (existsSync(statePath) && !stored) throw new Error('构建登记簿损坏，已停止以保留原数据')
     if (stored && stored.mode !== (mock ? 'mock' : 'real')) throw new Error('构建数据目录不能混用真实和模拟模式')
     this.state = stored ?? { mode: mock ? 'mock' : 'real', builds: [], settings: { automatic }, sequence: 0 }
-    // iOS 原先分成模拟器编译和 Ad Hoc 两个目标：Ad Hoc 的记录归入 ios，没有产物的模拟器编译记录删除
-    const legacy = (b: Build) => (b.target as string) === 'ios-simulator' && b.status !== 'running'
+    // iOS 原先分成模拟器编译和 Ad Hoc 两个目标：Ad Hoc 的记录归入 ios，没有产物的模拟器编译记录删除。
+    // Android 的原生客户端已经移除，它的构建记录和产物一并删除
+    const legacy = (b: Build) => ['ios-simulator', 'android'].includes(b.target as string) && b.status !== 'running'
     for (const b of this.state.builds.filter(legacy)) rmSync(path.join(resultsDir, b.id), { recursive: true, force: true, maxRetries: 3 })
     this.state.builds = this.state.builds.filter((b) => !legacy(b))
     for (const b of this.state.builds) { if (!targets.includes(b.target)) b.target = 'ios'; b.artifacts = declared(b.target, b.artifacts) }

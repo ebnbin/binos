@@ -5,7 +5,7 @@ import { ArrowsClockwiseIcon } from '@phosphor-icons/react'
 import { Select } from '../../ui/Select.tsx'
 import styles from './builds.module.css'
 import { useBuilds } from './useBuilds.ts'
-const targetLabels: Record<Target, string> = { web: 'Web', android: 'Android', ios: 'iOS' }
+const targetLabels: Record<Target, string> = { web: 'Web', ios: 'iOS' }
 const statusLabels = { queued: '排队中', running: '构建中', success: '成功', failed: '失败', cancelled: '已取消', interrupted: '已中断' }
 const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 type Group = { key: string; kind: 'main' | 'pr' | 'manual'; pr?: number; commits: Build[][] }
@@ -25,7 +25,7 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
   const { data, error, setError, update } = useBuilds()
   const [busy, setBusy] = useState(false)
   const [ref, setRef] = useState(initialRef)
-  const [target, setTarget] = useState<Target | 'both'>('both')
+  const [target, setTarget] = useState<Target>('ios')
   const [filter, setFilter] = useState(initialRef.startsWith('pr/') ? 'pr' : 'main')
   const [log, setLog] = useState<Build>()
   const [text, setText] = useState('')
@@ -75,32 +75,30 @@ export function BuildsPage({ initialRef = 'main' }: { initialRef?: string }) {
         ...b.artifacts.map((a) => a.kind === 'link' ? new URL(a.url).host : `${a.name} · ${formatSize(a.size)}`),
       ].filter(Boolean).join(' · ')}</small>
       {b.error && <p className={styles.error}>{b.error}</p>}
-      {/* 产物按钮跟在操作后面：Android 下载安装包，iOS 无线安装（下载的 IPA 在设备上装不上），Web 打开预览 */}
+      {/* 产物按钮跟在操作后面：iOS 无线安装（下载的 IPA 在设备上装不上），Web 打开预览 */}
       <div className={styles.actions}>
         <button className={styles.button} onClick={() => { setText('读取日志…'); setLog(b) }}>查看日志</button>
         {['queued', 'running'].includes(b.status) ? <button className={styles.destructive} disabled={busy} onClick={() => void act(() => request('POST /api/apps/builds/:id/cancel', { params: { id: b.id } }))}>取消</button> : <button className={styles.button} disabled={busy} onClick={() => void act(() => request('POST /api/apps/builds/:id/retry', { params: { id: b.id } }))}>重新构建</button>}
         {b.artifacts.map((a) => a.kind === 'link'
           ? live.has(b.id) && <a className={styles.tinted} key={a.name} href={a.url} target="_blank" rel="noreferrer">打开预览 ↗</a>
-          : a.platform === 'android'
-            ? <a className={styles.tinted} key={a.name} href={apiUrl('GET /api/apps/builds/:id/artifacts/:name', { params: { id: b.id, name: a.name } }).pathname} download title={`SHA-256: ${a.sha256}`}>下载</a>
-            : data?.mode === 'real' && <button className={styles.tinted} key={a.name} disabled={busy} onClick={() => void install(b.id)} title="仅限描述文件内已注册的设备，安装链接有效期 24 小时">安装</button>)}
+          : data?.mode === 'real' && <button className={styles.tinted} key={a.name} disabled={busy} onClick={() => void install(b.id)} title="仅限描述文件内已注册的设备，安装链接有效期 24 小时">安装</button>)}
       </div>
     </article>
   }
   async function act(send: () => Promise<ApiResponse<BuildsSnapshot>>) { setBusy(true); try { update(await readJson(await send(), '请求失败')); setError('') } catch (e) { setError(String(e)) } finally { setBusy(false) } }
   return <section className={styles.page}>
     <div className={styles.content}>
-    <header className={styles.header}><div><h1>构建</h1><p>Android 与 iOS 的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act(() => request('POST /api/apps/builds/poll'))}><ArrowsClockwiseIcon size={14} />检查更新</button></header>
+    <header className={styles.header}><div><h1>构建</h1><p>iOS 与 Web 预览的持续集成、日志和产物</p></div><button className={styles.glassButton} disabled={busy} onClick={() => void act(() => request('POST /api/apps/builds/poll'))}><ArrowsClockwiseIcon size={14} />检查更新</button></header>
     {data?.mode === 'mock' && <p className={styles.notice}>预览模式：模拟构建，与正式构建及签名隔离。</p>}
     {error && <p role="alert" className={styles.alert}>{error}</p>}
     {data?.pollError && <p role="alert" className={styles.alert}>检查仓库失败：{data.pollError}</p>}
     {data && <div className={styles.block}><div className={styles.group}>
       <label className={styles.row}>自动构建 main 和 PR<input className={styles.switch} type="checkbox" role="switch" checked={data.settings.automatic} disabled={busy} onChange={(e) => void act(() => request('PUT /api/apps/builds/settings', { json: { automatic: e.target.checked } }))} /></label>
     </div>{data.checkedAt && <small className={styles.footer}>上次检查：{new Date(data.checkedAt).toLocaleString()}</small>}</div>}
-    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act(() => request('POST /api/apps/builds', { json: { ref: ref.trim(), targets: target === 'both' ? ['android', 'ios'] : [target] } })) }}>
+    <form className={styles.block} onSubmit={(e) => { e.preventDefault(); void act(() => request('POST /api/apps/builds', { json: { ref: ref.trim(), targets: [target] } })) }}>
       <div className={styles.group}>
         <label className={styles.row}>构建来源<input className={styles.field} aria-label="构建来源" required value={ref} onChange={(e) => setRef(e.target.value)} placeholder="main、pr/编号、完整提交号" /></label>
-        <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={(value) => setTarget(value as Target | 'both')} options={[{ value: 'both', label: 'Android + iOS' }, ...Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))]} /></div>
+        <div className={styles.row}>构建目标<Select label="构建目标" value={target} onValueChange={(value) => setTarget(value as Target)} options={Object.entries(targetLabels).map(([key, label]) => ({ value: key, label }))} /></div>
         <div className={styles.submitRow}><button className={styles.prominent} disabled={busy || !data} type="submit">开始构建</button></div>
       </div>
     </form>

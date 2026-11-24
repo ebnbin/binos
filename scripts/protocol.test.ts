@@ -12,7 +12,6 @@ const schema = readFileSync(schemaPath, 'utf8')
 // 原生客户端各自写着它适配的协议标识
 const clients = [
   { name: 'iOS', file: 'ios/binOS/Core/Protocol.swift', pattern: /\bprotocolID\s*=\s*"([0-9a-f]{12})"/, example: 'static let protocolID = "<标识>"' },
-  { name: 'Android', file: 'android/app/src/main/java/app/binos/net/Protocol.kt', pattern: /\bPROTOCOL_ID\s*=\s*"([0-9a-f]{12})"/, example: 'const val PROTOCOL_ID = "<标识>"' },
 ]
 
 it('schema 和 protocol/src/index.ts 一致', () => {
