@@ -3,7 +3,7 @@ import { Resvg } from '@resvg/resvg-js'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
-import { logoVariant } from './src/logo.ts'
+import { logoVariant } from '../design/logo.ts'
 
 // https://vite.dev/config/
 export default defineConfig({
