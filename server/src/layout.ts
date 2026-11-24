@@ -9,6 +9,8 @@ export function rootLayout(root: string) {
     rootDir,
     // 正在运行的 binOS：上线服务装进来的构建，launchd 运行其中的 bin/binos
     binosDir: path.join(rootDir, 'System', 'binos'),
+    // 正式版的页面：和后端分开上线，后端从这里提供
+    webDir: path.join(rootDir, 'System', 'web'),
     previewsDir: path.join(rootDir, 'System', 'previews'),
     libraryDir,
     // 第三方 agent 自己的目录，每个 agent 一个子目录
@@ -26,7 +28,7 @@ export function rootLayout(root: string) {
     // agent 服务的数据：thread、额度和登录的状况
     kitaServiceDir: path.join(libraryDir, 'Services', 'kita'),
     devicesServiceDir: path.join(libraryDir, 'Services', 'devices'),
-    // 上线服务的数据：上一个版本、上线过程中的临时文件、上线失败的提交和锁
+    // 上线服务的数据：已经上线的提交、各端的上一个版本、上线过程中的临时文件、上线失败的提交和锁
     deployDir: path.join(libraryDir, 'Services', 'deploy'),
   }
 }

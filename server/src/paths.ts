@@ -7,7 +7,7 @@ export const apiSocketPath = localApiSocketPath(layout.rootDir)
 
 export const isTestInstance = process.env.BINOS_TEST_INSTANCE === '1'
 
-export const { accessPath, devicesServiceDir, kitaServiceDir, libraryDir, previewsDir, registryPath, serverLockPath } = layout
+export const { accessPath, devicesServiceDir, kitaServiceDir, libraryDir, previewsDir, registryPath, serverLockPath, webDir } = layout
 // 内置 app 的数据目录，每个 app 一个，里面怎么组织由 app 自己决定
 export const appDir = (id: string) => path.join(layout.appsDir, id)
 // 当前运行的代码：测试实例是被测试的 worktree，正式版是 System/binos

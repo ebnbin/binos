@@ -65,7 +65,9 @@ case "$1" in
       echo "查不到 main 的最新提交" >&2
       exit 1
     fi
-    if [ "$commit" = "$(cat "$BINOS_ROOT/System/binos/VERSION" 2>/dev/null)" ] || [ "$commit" = "$(cat "$deploy_dir/failed" 2>/dev/null)" ]; then
+    # 已经上线的提交记在 deployed 里；只改了页面的提交不换后端，System/binos 的版本会比它旧
+    deployed=$(cat "$deploy_dir/deployed" 2>/dev/null || cat "$BINOS_ROOT/System/binos/VERSION" 2>/dev/null)
+    if [ "$commit" = "$deployed" ] || [ "$commit" = "$(cat "$deploy_dir/failed" 2>/dev/null)" ]; then
       exit 0
     fi
     mkdir -p "$deploy_dir/tmp"
