@@ -1,6 +1,7 @@
 import { createReadStream, statSync } from 'node:fs'
 import path from 'node:path'
 import { Readable } from 'node:stream'
+import type { FileInfo } from '@binos/protocol/core'
 import type { Context } from 'hono'
 import { notFound } from './errors.js'
 
@@ -28,8 +29,6 @@ const inlineTypes: Record<string, string> = {
   json: 'text/plain; charset=utf-8',
 }
 
-// 带 ?info=1 时返回的文件信息
-export type FileInfo = { size: number; modified: string; type: string }
 
 export function serveFile(c: Context, filePath: string, immutable = false) {
   const inline = inlineTypes[path.extname(filePath).slice(1).toLowerCase()]

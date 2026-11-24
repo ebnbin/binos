@@ -8,7 +8,7 @@ import { FilePreview } from '../../services/preview/index.ts'
 import type { WindowContext } from '../types.ts'
 import styles from './FilesApp.module.css'
 
-import type { Directory, FileEntry, FileResults, FileTransfer, FileTrash } from '@binos/server/apps/files/types'
+import type { Directory, FileEntry, FileResults, FileTransfer, FileTrash } from '@binos/protocol/apps/files'
 
 type Entry = FileEntry
 type Listing = Directory

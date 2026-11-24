@@ -1,34 +1,9 @@
 import type { ErrorHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import type { ApiError, ErrorCode } from '@binos/protocol/core'
 
-// 出错时的 code 是稳定的机器可读标识，客户端按它决定怎么处理；message 是给用户看的中文
-export type ErrorCode =
-  | 'invalid-input'
-  | 'unauthorized'
-  | 'forbidden'
-  | 'not-found'
-  | 'conflict'
-  // 要操作的东西已经不在了（比如排队的消息已经发出去）
-  | 'gone'
-  | 'too-large'
-  | 'unsupported-media-type'
-  // 正在回答，这时做不了
-  | 'answering'
-  // 正忙着另一件事，稍后重试
-  | 'busy'
-  // 数量到了上限
-  | 'capacity'
-  // 依赖的服务（agent、外部来源）这时用不了
-  | 'unavailable'
-  | 'configuration'
-  | 'unsupported'
-  | 'quota'
-  | 'network'
-  | 'internal'
-
-// 所有 JSON 接口出错时的响应体
-export type ApiError = { error: { code: ErrorCode; message: string } }
+export type { ApiError, ErrorCode } from '@binos/protocol/core'
 
 export class ApiException extends HTTPException {
   readonly code: ErrorCode

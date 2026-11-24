@@ -32,5 +32,3 @@ export const claudeApi = new Hono()
     cancelClaudeLogin(c.req.param('id'))
     return c.body(null, 204)
   })
-
-export type ClaudeApi = typeof claudeApi

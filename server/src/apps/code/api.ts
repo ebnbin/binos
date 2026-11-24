@@ -243,5 +243,3 @@ export const codeApi = new Hono()
     }
     return c.body(null, 204)
   })
-
-export type CodeApi = typeof codeApi

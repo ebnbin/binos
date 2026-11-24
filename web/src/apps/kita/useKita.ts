@@ -1,5 +1,5 @@
-import type { Conversation } from '@binos/server/apps/kita/types'
-import type { Activity, Memory, Profile } from '@binos/server/services/kita/types'
+import type { Conversation } from '@binos/protocol/apps/kita'
+import type { Activity, Memory, Profile } from '@binos/protocol/services/kita'
 import { useEffect, useRef, useState } from 'react'
 import { onChange } from '../../events.ts'
 import { kitaActivity, listMemories, readProfile } from '../../services/kita/api.ts'

@@ -217,5 +217,3 @@ export const kitaApi = new Hono()
 for (const driver of Object.values(drivers)) {
   kitaApi.route(`/${driver.id}`, driver.api)
 }
-
-export type KitaApi = typeof kitaApi

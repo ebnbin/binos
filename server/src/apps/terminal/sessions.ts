@@ -1,3 +1,4 @@
+import type { TerminalSession } from '@binos/protocol/apps/terminal'
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -11,7 +12,6 @@ export const tmux = ['/opt/homebrew/bin/tmux', '/usr/local/bin/tmux', '/usr/bin/
 // 正式版、开发和每个 PR 各自使用一个 tmux server，名称跨 binOS 更新保持不变。
 export const socketName = `binos-${createHash('sha256').update(appDir('terminal')).digest('hex').slice(0, 16)}`
 export const sessionPattern = /^terminal-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-export type TerminalSession = { id: string; created: number; cwd: string; command: string }
 
 export function terminalEnv(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {

@@ -6,31 +6,6 @@
     "dist",
     "protocol.schema.json"
   ],
-  "exports": {
-    "./api": "./src/api.ts",
-    "./types": "./src/types.ts",
-    "./errors": "./src/errors.ts",
-    "./services/kita/api": "./src/services/kita/api.ts",
-    "./services/kita/types": "./src/services/kita/types.ts",
-    "./services/kita/journal": "./src/services/kita/journal.ts",
-    "./services/kita/drivers/claude/api": "./src/services/kita/drivers/claude/api.ts",
-    "./services/kita/drivers/codex/api": "./src/services/kita/drivers/codex/api.ts",
-    "./apps/code/api": "./src/apps/code/api.ts",
-    "./apps/code/types": "./src/apps/code/types.ts",
-    "./apps/kita/api": "./src/apps/kita/api.ts",
-    "./apps/kita/types": "./src/apps/kita/types.ts",
-    "./apps/music/api": "./src/apps/music/api.ts",
-    "./apps/music/types": "./src/apps/music/types.ts",
-    "./apps/system/types": "./src/apps/system/types.ts",
-    "./apps/terminal/types": "./src/apps/terminal/sessions.ts",
-    "./apps/devices/api": "./src/apps/devices/api.ts",
-    "./apps/devices/types": "./src/apps/devices/types.ts",
-    "./apps/builds/types": "./src/apps/builds/types.ts",
-    "./apps/files/types": "./src/apps/files/types.ts",
-    "./apps/music/commands": "./src/apps/music/commands.ts",
-    "./apps/music/queue-operation": "./src/apps/music/queue-operation.ts",
-    "./apps/browser/protocol": "./src/apps/browser/protocol.ts"
-  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -b",
@@ -46,6 +21,7 @@
     "youtubei.js": "^18.2.0"
   },
   "devDependencies": {
+    "@binos/protocol": "workspace:*",
     "@types/ws": "^8.18.2",
     "tsx": "^4.23.15"
   }

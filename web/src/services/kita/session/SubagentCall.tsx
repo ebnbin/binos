@@ -1,4 +1,4 @@
-import type { TaskProgress } from '@binos/server/services/kita/types'
+import type { TaskProgress } from '@binos/protocol/services/kita'
 import { RobotIcon, ScrollIcon } from '@phosphor-icons/react'
 import type { ReactNode } from 'react'
 import { formatDuration, formatTokens } from '../../../ui/format.ts'

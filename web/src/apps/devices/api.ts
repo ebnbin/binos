@@ -1,5 +1,5 @@
-import type { DevicesSnapshot } from '@binos/server/apps/devices/api'
-import type { DeviceModel, DisplayState, LeaseResult, Models, Platform } from '@binos/server/apps/devices/types'
+import type { DevicesSnapshot } from '@binos/protocol/apps/devices'
+import type { DeviceModel, DisplayState, LeaseResult, Models, Platform } from '@binos/protocol/apps/devices'
 import { errorMessage } from '../../api.ts'
 
 const base = '/api/apps/devices'

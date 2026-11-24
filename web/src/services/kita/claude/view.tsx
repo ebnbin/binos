@@ -1,4 +1,4 @@
-import type { ClaudeAuth } from '@binos/server/services/kita/types'
+import type { ClaudeAuth } from '@binos/protocol/services/kita'
 import { formatMoment } from '../../../ui/time.ts'
 import { daysLeft } from '../auth.ts'
 import type { AgentView } from '../views.ts'

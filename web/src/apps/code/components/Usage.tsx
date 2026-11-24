@@ -1,5 +1,5 @@
-import type { CodeUsage, SessionSummary } from '@binos/server/apps/code/types'
-import { agents } from '@binos/server/services/kita/types'
+import type { CodeUsage, SessionSummary } from '@binos/protocol/apps/code'
+import { agents } from '../../../services/kita/agents.ts'
 import { useEffect, useState } from 'react'
 import { Popover } from '../../../ui/Popover.tsx'
 import { codeUsage } from '../api.ts'

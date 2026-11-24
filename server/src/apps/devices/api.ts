@@ -3,7 +3,10 @@ import { badRequest, errorHandler, forbidden } from '../../errors.js'
 import { readSession, sessionExists, sessionOf, sessionTitle } from '../code/sessions.js'
 import { adminDeviceRequest, deviceRequest } from './client.js'
 import { parseRequest } from './protocol.js'
+import type { DevicesSnapshot } from '@binos/protocol/apps/devices'
 import type { DeviceModel, DeviceScreenshot, DisplayState, LeaseResult, Snapshot } from './types.js'
+
+export type { DevicesSnapshot } from '@binos/protocol/apps/devices'
 
 function valid(value: Record<string, unknown>) {
   try {
@@ -13,7 +16,6 @@ function valid(value: Record<string, unknown>) {
   }
 }
 
-export type DevicesSnapshot = Snapshot & { owners: Record<string, { session: number; title: string }> }
 async function snapshot(discovery: boolean): Promise<DevicesSnapshot> {
   const status = await deviceRequest<Snapshot>({ action: discovery ? 'discover' : 'status' })
   const owners: DevicesSnapshot['owners'] = {}
@@ -63,4 +65,3 @@ export const devicesApi = new Hono()
     const { image, mime, at } = await adminDeviceRequest<DeviceScreenshot>({ action: 'screenshot', device: c.req.param('id'), ...(display && { display }) })
     return c.body(Buffer.from(image, 'base64'), 200, { 'Content-Type': mime, 'Last-Modified': new Date(at).toUTCString() })
   })
-export type DevicesApi = typeof devicesApi

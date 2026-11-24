@@ -1,4 +1,4 @@
-import type { PageEvent } from '@binos/server/services/kita/journal'
+import type { PageEvent } from '@binos/protocol/services/kita'
 import type { ToolResult } from './tools.ts'
 
 // 一轮：turnId 相同的连续事件，第一条 session 条目自成一组（id 为空串）。

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import type { Entry } from './types.js'
+import type { Entry, Item, PageEvent, Turn } from '@binos/protocol/services/kita'
 
-export type SessionMetadata = Extract<Entry, { type: 'session' }> & { format: 1; id: string }
+export type { CallDetail, Item, PageEvent, SessionMetadata, Turn } from '@binos/protocol/services/kita'
 
 export type Event = {
   seq: number
@@ -12,8 +12,6 @@ export type Event = {
   data: Entry
 }
 
-export type Turn = { id: string; startedAt: string; finishedAt?: string; outcome?: 'stopped' | 'error'; error?: string }
-export type Item = { id: string; turnId: string | null; kind: 'input' | 'text' | 'thinking' | 'tool' | 'compact'; entries: Entry[] }
 
 // 原始协议的一行可能生成多条记录；它们作为同一批提交，重启时才能按 offset 安全地去重。
 export type EventBatch = { events: Event[] }
@@ -76,18 +74,10 @@ function tail(text: string, limit: number) {
   return newline >= 0 && newline < kept.length - 1 ? kept.slice(newline + 1) : kept
 }
 
-// 客户端看到的事件。seq 是在对话里的位置，从 1 开始；turnId 是所属的一轮，第一条 session 条目没有；
-// itemId 是所属的条目，一次工具调用和它的结果相同，session、turn_end、agent_session 没有；
-// parentId 是子 agent 的条目所属的那次工具调用的 itemId
-export type PageEvent = Pick<Event, 'seq' | 'turnId' | 'itemId' | 'data'> & { parentId?: string }
-
 export function pageEvent({ seq, turnId, itemId, data }: Event): PageEvent {
   const parent = 'parent' in data && data.parent ? data.parent : undefined
   return { seq, turnId, itemId, ...(parent && { parentId: callItemId(turnId, parent) }), data }
 }
-
-// 一次工具调用和它的结果，完整的
-export type CallDetail = { call: PageEvent; result?: PageEvent }
 
 // 流和分段读取里的事件：过长的命令和工具输出省略掉，长会话里它们占了绝大部分的体积
 export function clipEvent(event: PageEvent): PageEvent {

@@ -15,5 +15,3 @@ export const codexApi = new Hono()
     cancelCodexLogin(c.req.param('id'))
     return c.body(null, 204)
   })
-
-export type CodexApi = typeof codexApi

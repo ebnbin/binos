@@ -56,5 +56,3 @@ export const kitaAppApi = new Hono()
     if (!deleted) throw new ApiException(409, 'answering', '正在回答的对话不能删除')
     return c.body(null, 204)
   })
-
-export type KitaAppApi = typeof kitaAppApi

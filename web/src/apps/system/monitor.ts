@@ -1,4 +1,4 @@
-import type { MonitorStatus } from '@binos/server/apps/system/types'
+import type { MonitorStatus } from '@binos/protocol/apps/system'
 import { useSyncExternalStore } from 'react'
 import { errorMessage } from '../../api.ts'
 import { connectEventSource } from '../../eventSource.ts'

@@ -1,4 +1,4 @@
-import type { Profile } from '@binos/server/services/kita/types'
+import type { Profile } from '@binos/protocol/services/kita'
 import { CatIcon } from '@phosphor-icons/react'
 import type { CSSProperties } from 'react'
 import { photoUrl } from '../../services/kita/api.ts'

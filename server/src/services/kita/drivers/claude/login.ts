@@ -1,3 +1,5 @@
+export type { ClaudeLoginKind, ClaudeLoginStart } from '@binos/protocol/services/kita'
+import type { ClaudeLoginKind, ClaudeLoginStart } from '@binos/protocol/services/kita'
 import { randomUUID } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -14,7 +16,6 @@ import { claudeAuth, storeToken } from './auth.js'
 // 两者都给出授权链接，用户在自己的浏览器里授权（哪台设备都行，授权后的页面直接显示代码），把代码贴回网页交给它。
 // 这些命令是交互式的，在伪终端里跑（见 ../pty.ts）
 
-export type ClaudeLoginKind = 'login' | 'token'
 
 type Login = Terminal & {
   kind: ClaudeLoginKind
@@ -82,7 +83,6 @@ function end(id: string) {
   }
 }
 
-export type ClaudeLoginStart = { id: string; url: string }
 
 // 开始登录：返回这次登录的编号和授权链接
 export async function startClaudeLogin(kind: ClaudeLoginKind): Promise<ClaudeLoginStart> {

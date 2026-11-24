@@ -1,5 +1,5 @@
-import { agentIds } from '@binos/server/services/kita/types'
-import type { AgentId } from '@binos/server/services/kita/types'
+import { agentIds } from '../../../services/kita/agents.ts'
+import type { AgentId } from '@binos/protocol/services/kita'
 import { WarningCircleIcon } from '@phosphor-icons/react'
 import { useState } from 'react'
 import { useHourlyNow } from '../../../services/kita/auth.ts'

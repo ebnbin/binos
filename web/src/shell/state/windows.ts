@@ -1,4 +1,4 @@
-import type { JsonValue } from '@binos/server/types'
+import type { JsonValue } from '@binos/protocol/core'
 import { useSyncExternalStore } from 'react'
 import { normalizeGroups, normalizeWorkspace } from '../layout.ts'
 import type { SplitGroup, Workspace } from '../layout.ts'

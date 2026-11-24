@@ -1,4 +1,4 @@
-import type { Project, SessionSummary } from '@binos/server/apps/code/types'
+import type { Project, SessionSummary } from '@binos/protocol/apps/code'
 import { ArrowUpRightIcon, ChatTextIcon, MagnifyingGlassIcon, UserIcon } from '@phosphor-icons/react'
 import type { searchContent } from '../api.ts'
 import { Spinner } from '../../../ui/Spinner.tsx'
