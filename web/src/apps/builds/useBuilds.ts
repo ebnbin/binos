@@ -1,16 +1,7 @@
 import type { Build, BuildsSnapshot } from '@binos/protocol/apps/builds'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { errorMessage } from '../../api.ts'
+import { readJson, request } from '../../api.ts'
 import { onChange } from '../../events.ts'
-
-export const buildsBase = '/api/apps/builds'
-
-// 读取构建，或者做一个操作，都返回操作后的快照。route 是 buildsBase 之后的部分
-export async function buildsRequest(route = '', method = 'GET', body: unknown = {}): Promise<BuildsSnapshot> {
-  const r = await fetch(buildsBase + route, method === 'GET' ? undefined : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-  if (!r.ok) throw new Error(await errorMessage(r, '请求失败'))
-  return r.json()
-}
 
 // 构建状态变化时后端发 builds 通知；重新连上和切回页面时也重读，补上可能漏掉的通知
 export function useBuilds(enabled = true) {
@@ -19,7 +10,7 @@ export function useBuilds(enabled = true) {
   const latest = useRef(0)
   const load = useCallback(async () => {
     const version = ++latest.current
-    try { const result = await buildsRequest(); if (latest.current === version) { setData(result); setError('') } }
+    try { const result = await readJson(await request('GET /api/apps/builds'), '请求失败'); if (latest.current === version) { setData(result); setError('') } }
     catch (e) { if (latest.current === version) setError(String(e)) }
   }, [])
   const update = useCallback((result: BuildsSnapshot) => { latest.current++; setData(result) }, [])

@@ -145,7 +145,7 @@ export type LiveEvent =
   | { type: 'file'; path: string; name: string }
 
 // 订阅 session 收到的：event 是新记下的一条；live 是订阅时（以及一轮开始和结束时）的临时内容，null 表示没在回答；
-// 其余是临时内容的变化。记成条目的思考和文字取代对应的临时内容。
+// 其余是临时内容的变化。记成条目的思考和文字取代对应的临时内容：不属于子 agent 的 thinking 条目清空 thinking，text 条目清空 text 和 files。
 // window：第一次订阅（只要最后几轮）时最先收到，events 从一轮的开头起，第一条的 seq 大于 1 时前面还有更早的，session 是第一条条目；
 // events：断线续传时补发的，一次发完
 export type KitaSessionEvent =

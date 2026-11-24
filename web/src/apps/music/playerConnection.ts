@@ -1,8 +1,8 @@
 import type { CommandResult, PlayerMessage, PlayerReport } from '@binos/protocol/apps/music'
+import { apiUrl, request } from '../../api.ts'
 import type { MusicController } from './controller.ts'
 import { executePlayerCommand, playerState } from './playerCommands.ts'
 
-const base = '/api/apps/music'
 export function connectPlayer(music: MusicController, refreshQueue: () => Promise<boolean>) {
   let closed = false
   let playerId: string | undefined
@@ -12,16 +12,16 @@ export function connectPlayer(music: MusicController, refreshQueue: () => Promis
   let busy = false
   let stateReportPending = false
   const label = /Android/i.test(navigator.userAgent) ? 'Android' : /iPhone|iPad/i.test(navigator.userAgent) ? 'iOS' : /Macintosh/i.test(navigator.userAgent) ? 'Mac 浏览器' : '浏览器'
-  const source = new EventSource(`${base}/players/connect?label=${encodeURIComponent(label)}`)
+  const source = new EventSource(apiUrl('GET /api/apps/music/players/connect', { query: { label } }))
   const report = (result?: PlayerReport['result']) => {
     const id = playerId
     if (!id || closed || !result && stateReportPending) return Promise.resolve()
     if (!result) stateReportPending = true
     reports = reports.catch(() => {}).then(async () => {
       if (id !== playerId || closed) return
-      const response = await fetch(`${base}/players/${id}/report`, {
-        method: 'POST', signal: AbortSignal.timeout(5000), headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ state: playerState(music), ...(result && { result }) }),
+      const response = await request('POST /api/apps/music/players/:id/report', {
+        params: { id }, signal: AbortSignal.timeout(5000),
+        json: { state: playerState(music), ...(result && { result }) },
       })
       if (!response.ok) throw new Error('播放器状态同步失败。')
     }).finally(() => { if (!result) stateReportPending = false })
@@ -38,8 +38,8 @@ export function connectPlayer(music: MusicController, refreshQueue: () => Promis
       acquired = true
       if (!await refreshQueue()) throw new Error('共享队列尚未同步，请重试。')
       // 服务端确认期限，避免设备时钟偏差或网络缓冲导致执行过期指令。
-      const latest = await fetch(`${base}/commands/${command.id}`, { signal: AbortSignal.timeout(3000) })
-      if (!latest.ok || (await latest.json() as CommandResult).status !== 'pending' || signal.aborted) return
+      const latest = await request('GET /api/apps/music/commands/:id', { params: { id: command.id }, signal: AbortSignal.timeout(3000) })
+      if (!latest.ok || (await latest.json()).status !== 'pending' || signal.aborted) return
       await executePlayerCommand(music, command.command, signal)
     } catch (reason) {
       error = (reason instanceof Error ? reason.message : '播放指令执行失败。').slice(0, 2000)

@@ -31,7 +31,7 @@ function remember(thread: string, content: KitaSessionContent) {
 
 const cached = (thread: string | undefined) => (thread === undefined ? undefined : cache.get(thread))
 
-// 记成条目的思考和文字取代对应的临时内容，和后端一致
+// 记成条目的思考和文字取代对应的临时内容，规则见契约里的 KitaSessionEvent
 function applyItem(live: Live | null, item: Entry): Live | null {
   if (!live || ('parent' in item && item.parent)) {
     return live

@@ -1,4 +1,4 @@
-import type { Http } from '@binos/protocol'
+import type { Http, Queries, Sse, WebSockets } from '@binos/protocol'
 import type { ExtractSchema, MergePath } from 'hono/types'
 import type { JSONParsed } from 'hono/utils/types'
 import type { api } from './api.js'
@@ -46,4 +46,5 @@ type Same<A, B> = (<T>() => T extends Plain<A> ? 1 : 2) extends <T>() => T exten
 type Checked = Exclude<{ [K in keyof Http]: Http[K] extends { response: unknown } ? K : never }[keyof Http], Unchecked>
 type Mismatch = { [K in Checked & keyof Actual]: Same<JSONParsed<Http[K]['response']>, Actual[K]> extends true ? never : K }[Checked & keyof Actual]
 type Assert<T extends never> = T
-export type RoutesMatch = [Assert<Mismatch>, Assert<Exclude<keyof Actual, keyof Http>>, Assert<Exclude<Checked, keyof Actual>>]
+// Queries 里的都要是登记了的路由
+export type RoutesMatch = [Assert<Mismatch>, Assert<Exclude<keyof Actual, keyof Http>>, Assert<Exclude<Checked, keyof Actual>>, Assert<Exclude<keyof Queries, keyof Http | keyof Sse | keyof WebSockets>>]

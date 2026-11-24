@@ -16,13 +16,17 @@
         },
         "websocket": {
           "$ref": "#/definitions/WebSockets"
+        },
+        "query": {
+          "$ref": "#/definitions/Queries"
         }
       },
       "required": [
         "http",
         "error",
         "sse",
-        "websocket"
+        "websocket",
+        "query"
       ],
       "additionalProperties": false
     },
@@ -6984,6 +6988,216 @@
         "canBack",
         "canForward"
       ],
+      "additionalProperties": false
+    },
+    "Queries": {
+      "type": "object",
+      "properties": {
+        "GET /api/kita/sessions/:id/events": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "before": {
+              "type": "string"
+            },
+            "limit": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/kita/sessions/:id/files/:file": {
+          "$ref": "#/definitions/FileQuery"
+        },
+        "GET /api/kita/profile/photos/:file": {
+          "$ref": "#/definitions/FileQuery"
+        },
+        "GET /api/kita/sessions/:id/stream": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "tail": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "DELETE /api/kita/memories/:id": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/apps/builds/:id/log/stream": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/sessions": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/apps/code/search": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "q"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/devices/:id/screenshot": {
+          "type": "object",
+          "properties": {
+            "display": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/apps/files": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "GET /api/apps/files/download": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "info": {
+              "type": "string",
+              "const": "1"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ]
+        },
+        "POST /api/apps/files/upload": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/players/connect": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/providers/:provider/stream": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/music/providers/:provider/:operation": {
+          "type": "object",
+          "properties": {
+            "q": {
+              "type": "string"
+            },
+            "page": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "q"
+          ],
+          "additionalProperties": false
+        },
+        "GET /api/apps/browser/socket": {
+          "type": "object",
+          "properties": {
+            "session": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "GET /api/kita/sessions/:id/events",
+        "GET /api/kita/sessions/:id/files/:file",
+        "GET /api/kita/profile/photos/:file",
+        "GET /api/kita/sessions/:id/stream",
+        "DELETE /api/kita/memories/:id",
+        "GET /api/apps/builds/:id/log/stream",
+        "GET /api/apps/code/sessions",
+        "GET /api/apps/code/search",
+        "GET /api/apps/devices/:id/screenshot",
+        "GET /api/apps/files",
+        "GET /api/apps/files/download",
+        "POST /api/apps/files/upload",
+        "GET /api/apps/music/players/connect",
+        "GET /api/apps/music/providers/:provider/stream",
+        "GET /api/apps/music/providers/:provider/:operation",
+        "GET /api/apps/browser/socket"
+      ],
+      "additionalProperties": false
+    },
+    "FileQuery": {
+      "type": "object",
+      "properties": {
+        "info": {
+          "type": "string",
+          "const": "1"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
       "additionalProperties": false
     }
   }

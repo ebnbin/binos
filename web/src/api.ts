@@ -1,4 +1,4 @@
-import type { Http, Sse, WebSockets } from '@binos/protocol'
+import type { Http, Queries, Sse, WebSockets } from '@binos/protocol'
 import type { ApiError, AppRegistry, Apps } from '@binos/protocol/core'
 
 type Route = keyof Http | keyof Sse | keyof WebSockets
@@ -6,14 +6,19 @@ type PathParams<Path extends string> = Path extends `${string}:${infer Name}/${i
 type Params<R extends Route> = PathParams<R extends `${string} ${infer Path}` ? Path : never>
 type Body<R extends keyof Http> = Http[R] extends { request: infer Request } ? Request : undefined
 type ResponseBody<R extends keyof Http> = Http[R] extends { response: infer Response } ? Response : never
+// json() 是登记的响应体
+export type ApiResponse<T> = Omit<Response, 'json'> & { json(): Promise<T> }
 
-type Query = Record<string, string | undefined>
-type UrlOptions<R extends Route> = ([Params<R>] extends [never] ? { params?: undefined } : { params: Record<Params<R>, string> }) & { query?: Query }
-type RequestOptions<R extends keyof Http> = UrlOptions<R> & (Body<R> extends undefined ? { json?: undefined } : { json: Body<R> }) & { signal?: AbortSignal }
-// 没有路径参数也没有请求体时可以不传
-type Optional<R extends keyof Http, Options> = [Params<R>] extends [never] ? (Body<R> extends undefined ? [options?: Options] : [options: Options]) : [options: Options]
+// 契约里没登记的部分不能传，登记了但全是可选的可以不传
+type ParamsOption<R extends Route> = [Params<R>] extends [never] ? { params?: undefined } : { params: Record<Params<R>, string> }
+type QueryOption<R extends Route> = R extends keyof Queries ? (Partial<Queries[R]> extends Queries[R] ? { query?: Queries[R] } : { query: Queries[R] }) : { query?: undefined }
+// 请求体是 JSON 的接口用 json；请求体是文件本身的接口用 body，另外的请求头放在 headers
+type BodyOption<R extends keyof Http> = Body<R> extends undefined ? { json?: undefined; body?: Blob; headers?: Record<string, string> } : { json: Body<R>; body?: undefined; headers?: undefined }
+type UrlOptions<R extends Route> = ParamsOption<R> & QueryOption<R>
+type RequestOptions<R extends keyof Http> = UrlOptions<R> & BodyOption<R> & { signal?: AbortSignal }
+type Args<Options> = Partial<Options> extends Options ? [options?: Options] : [options: Options]
 
-function url(route: string, params: Record<string, string> = {}, query: Query = {}) {
+function url(route: string, params: Record<string, string> = {}, query: Record<string, string | undefined> = {}) {
   const result = new URL(route.slice(route.indexOf(' ') + 1).replace(/:(\w+)/g, (_, name: string) => encodeURIComponent(params[name])), window.location.origin)
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) result.searchParams.set(key, value)
@@ -22,15 +27,25 @@ function url(route: string, params: Record<string, string> = {}, query: Query = 
 }
 
 // 契约里登记的接口的网址：params 填进路径里 :name 的位置，query 里 undefined 的不带
-export function apiUrl<R extends Route>(route: R, ...[options]: [Params<R>] extends [never] ? [options?: UrlOptions<R>] : [options: UrlOptions<R>]): URL {
+export function apiUrl<R extends Route>(route: R, ...[options]: Args<UrlOptions<R>>): URL {
   return url(route, options?.params, options?.query)
 }
 
-// 按契约请求一个接口，成功时 json() 是登记的响应体。写操作都带上 JSON 的 Content-Type，后端以此拒绝跨站请求
-export function request<R extends keyof Http>(route: R, ...[options]: Optional<R, RequestOptions<R>>): Promise<Omit<Response, 'json'> & { json(): Promise<ResponseBody<R>> }> {
+// 契约里登记的 WebSocket 的网址，和页面一样用 wss 或 ws
+export function socketUrl<R extends keyof WebSockets>(route: R, ...[options]: Args<UrlOptions<R>>): URL {
+  const result = url(route, options?.params, options?.query)
+  result.protocol = result.protocol === 'https:' ? 'wss:' : 'ws:'
+  return result
+}
+
+// 按契约请求一个接口，成功时 json() 是登记的响应体。写操作都带上 Content-Type，后端以此拒绝跨站请求
+export function request<R extends keyof Http>(route: R, ...[options]: Args<RequestOptions<R>>): Promise<ApiResponse<ResponseBody<R>>> {
   const method = route.slice(0, route.indexOf(' '))
   const init: RequestInit = { method, signal: options?.signal }
-  if (method !== 'GET') {
+  if (options?.body) {
+    init.headers = { 'Content-Type': 'application/octet-stream', ...options.headers }
+    init.body = options.body
+  } else if (method !== 'GET') {
     init.headers = { 'Content-Type': 'application/json' }
     if (options?.json !== undefined) init.body = JSON.stringify(options.json)
   }
@@ -41,6 +56,12 @@ export function request<R extends keyof Http>(route: R, ...[options]: Optional<R
 export async function errorMessage(res: Response | undefined, fallback: string): Promise<string> {
   const body = (await res?.json().catch(() => undefined)) as Partial<ApiError> | undefined
   return body?.error?.message ?? (res ? `${fallback}（${res.status}）` : `${fallback}（网络错误）`)
+}
+
+// 成功时读出 JSON 响应体，不成功时抛出带着原因的 Error
+export async function readJson<T>(res: ApiResponse<T>, fallback: string): Promise<T> {
+  if (!res.ok) throw new Error(await errorMessage(res, fallback))
+  return res.json()
 }
 
 // 不成功时抛出带着原因的 Error
