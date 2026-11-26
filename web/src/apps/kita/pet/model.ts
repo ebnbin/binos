@@ -15,7 +15,7 @@ const palette = {
   ear: srgb(0.66, 0.53, 0.48),
 }
 
-const ellipsoid = (a: number, b: number, c: number, detail = 1) => new THREE.SphereGeometry(1, Math.round(40 * detail), Math.round(28 * detail)).scale(a, b, c)
+const ellipsoid = (a: number, b: number, c: number, detail = 1) => new THREE.SphereGeometry(1, Math.round(56 * detail), Math.round(40 * detail)).scale(a, b, c)
 // 骨头沿局部 -y，从关节往下长
 const bone = (length: number, radius: number) => new THREE.CapsuleGeometry(radius, length, 6, 18).translate(0, -length / 2, 0)
 
@@ -49,7 +49,7 @@ export interface Pose {
 
 export const poses = {
   stand: { hipsX: -11, hipsY: 22, pitch: 0, front: 10.5, frontWidth: 3.6, hind: -12.5, hindWidth: 4.2, hindFlat: 0, neckPitch: -0.12, tailLift: -0.85, tailCurl: 0.11, tailWrap: 0.02, eyes: 1 },
-  walk: { hipsX: -11, hipsY: 22, pitch: 0, front: 10.5, frontWidth: 3.4, hind: -12.5, hindWidth: 4, hindFlat: 0, neckPitch: -0.15, tailLift: 1.2, tailCurl: -0.06, tailWrap: 0, eyes: 1 },
+  walk: { hipsX: -11, hipsY: 21.5, pitch: -0.03, front: 10.5, frontWidth: 3.2, hind: -11.5, hindWidth: 3.8, hindFlat: 0, neckPitch: -0.45, tailLift: -0.3, tailCurl: 0.05, tailWrap: 0, eyes: 1 },
   sit: { hipsX: -8, hipsY: 7.5, pitch: 0.62, front: 12, frontWidth: 2.8, hind: -1.5, hindWidth: 5.4, hindFlat: 1, neckPitch: -0.05, tailLift: -0.35, tailCurl: 0, tailWrap: 0.2, eyes: 1 },
   loaf: { hipsX: -11, hipsY: 8.5, pitch: 0, front: 11, frontWidth: 3, hind: -5, hindWidth: 5.6, hindFlat: 1, neckPitch: -0.02, tailLift: -0.1, tailCurl: 0, tailWrap: 0.26, eyes: 0.85 },
   sleep: { hipsX: -11, hipsY: 7.5, pitch: 0, front: 11, frontWidth: 3, hind: -5, hindWidth: 5.8, hindFlat: 1, neckPitch: -0.38, tailLift: -0.1, tailCurl: 0, tailWrap: 0.3, eyes: 0 },
@@ -106,7 +106,7 @@ export class CatModel {
     this.buildHead()
     for (const side of [1, -1] as const) {
       this.legs.push(this.buildLeg(this.chest, [3, -6, side * 4], false, side))
-      this.legs.push(this.buildLeg(this.hips, [0, -3, side * 4.6], true, side))
+      this.legs.push(this.buildLeg(this.hips, [1, -3.5, side * 4.4], true, side))
     }
     this.buildTail()
     this.root.updateMatrixWorld(true)
@@ -115,6 +115,7 @@ export class CatModel {
 
   private part(parent: THREE.Object3D, region: Region, geometry: THREE.BufferGeometry, position: [number, number, number], length: number, comb: [number, number, number], density: number, ring = 0) {
     const material = furMaterial(length, new THREE.Vector3(...comb), density)
+    material.userData.density = density
     const count = geometry.getAttribute('position').count
     const mesh = new THREE.Mesh(furGeometry(geometry, new Float32Array(count * 3), new Float32Array(count).fill(1)), material)
     mesh.position.set(...position)
@@ -150,15 +151,15 @@ export class CatModel {
   }
 
   private buildLeg(parent: THREE.Object3D, pivot: [number, number, number], hind: boolean, side: 1 | -1): Leg {
-    const lengths: [number, number, number] = hind ? [9.5, 9.5, 6.5] : [8.6, 8.6, 0]
+    const lengths: [number, number, number] = hind ? [9, 9.5, 7] : [7.3, 7.3, 0]
     const upper = new THREE.Group()
     upper.position.set(...pivot)
     parent.add(upper)
-    this.part(upper, hind ? 'hindUpper' : 'frontUpper', bone(lengths[0], hind ? 3.4 : 2.4), [0, 0, 0], hind ? 3 : 1.5, [0, -1, 0], 2.8)
+    this.part(upper, hind ? 'hindUpper' : 'frontUpper', bone(lengths[0], hind ? 2.3 : 2.2), [0, 0, 0], hind ? 1.9 : 1.4, [0, -1, 0], 2.8)
     const lower = new THREE.Group()
     lower.position.y = -lengths[0]
     upper.add(lower)
-    this.part(lower, hind ? 'hindLower' : 'frontLower', bone(lengths[1], hind ? 1.8 : 1.6), [0, 0, 0], hind ? 1.9 : 0.9, [0, -1, 0], 3.2, lengths[0])
+    this.part(lower, hind ? 'hindLower' : 'frontLower', bone(lengths[1], hind ? 1.5 : 1.4), [0, 0, 0], hind ? 1.5 : 0.9, [0, -1, 0], 3.2, lengths[0])
     let foot: THREE.Group | undefined
     let end: THREE.Group = lower
     let endLength = lengths[1]
@@ -166,7 +167,7 @@ export class CatModel {
       foot = new THREE.Group()
       foot.position.y = -lengths[1]
       lower.add(foot)
-      this.part(foot, 'hindFoot', bone(lengths[2], 1.3), [0, 0, 0], 0.8, [0, -1, 0], 3.5, lengths[0] + lengths[1])
+      this.part(foot, 'hindFoot', bone(lengths[2], 1.1), [0, 0, 0], 0.7, [0, -1, 0], 3.5, lengths[0] + lengths[1])
       end = foot
       endLength = lengths[2]
     }
@@ -249,6 +250,13 @@ export class CatModel {
     this.placeTail(pose, gait, time)
   }
 
+  // 一根毛约占 3 个物理像素：太细会闪，太粗像毛线
+  setStrandScale(devicePixelsPerCm: number) {
+    for (const material of this.materials) {
+      material.uniforms.uDensity.value = material.userData.density * devicePixelsPerCm / 8
+    }
+  }
+
   setPupil(size: number) {
     for (const material of this.eyeMaterials) {
       material.uniforms.uPupil.value = size
@@ -268,33 +276,45 @@ export class CatModel {
 
   private placeLeg(leg: Leg, pose: Pose, gait: Gait) {
     const front = !leg.hind
-    // 横向步态：左后、左前、右后、右前
+    // 横向步态：左后、左前、右后、右前依次落地
     const offset = (leg.side === 1 ? 0 : 0.5) + (front ? 0.25 : 0)
     const phase = (gait.phase + offset) % 1
-    const stance = 0.62
+    const stance = 0.66
     let forward: number
     let lift = 0
+    // 腿离地时脚腕往后折、落地前再伸开
+    let fold = 0
+    let push = 0
     if (phase < stance) {
-      forward = gait.stride * (0.5 - phase / stance)
+      const progress = phase / stance
+      forward = gait.stride * (0.5 - progress)
+      push = smoothstep(0.6, 1, progress)
     } else {
       const swing = (phase - stance) / (1 - stance)
       forward = gait.stride * (-0.5 + swing * swing * (3 - 2 * swing))
-      lift = Math.sin(swing * Math.PI) * 3.5
+      lift = Math.sin(Math.pow(swing, 0.8) * Math.PI) * (front ? 3.6 : 3)
+      fold = Math.sin(Math.min(1, swing * 1.25) * Math.PI)
     }
-    const x = (front ? pose.front : pose.hind) + forward * gait.amount
+    const walk = gait.amount
+    lift *= walk
+    fold *= walk
+    push *= walk
+    const x = (front ? pose.front : pose.hind) + forward * walk
     const width = front ? pose.frontWidth : pose.hindWidth
-    const target = new THREE.Vector3(x, 1.15 + lift * gait.amount, leg.side * width)
+    const target = new THREE.Vector3(x, 1.15 + lift, leg.side * width)
     const parent = leg.upper.parent!
-    const world = this.root.localToWorld(target.clone())
-    const local = parent.worldToLocal(world)
+    const local = parent.worldToLocal(this.root.localToWorld(target.clone()))
+    const groundToParent = -(leg.hind ? this.hips.rotation.z : this.hips.rotation.z + this.chest.rotation.z)
+    const axis = new THREE.Vector3(0, 0, 1)
     const pivot = leg.upper.position
-    let end = local
+    let end: THREE.Vector3
+    // 后腿的跗骨：站着时脚跟高高抬起、略向后斜，蹬地时更斜，抬腿时往后折；坐下趴下时平放在地上
+    const metatarsal = leg.lengths[2]
+    const heel = THREE.MathUtils.lerp(0.36, 1.42, pose.hindFlat) + push * 0.35 - fold * 1.05
     if (leg.hind) {
-      // 后腿的跗骨：站着时斜着立起，坐下趴下时平放
-      const flat = pose.hindFlat
-      end = local.clone().add(new THREE.Vector3(-2.4 - flat * 3.9, 6 - flat * 5, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), -this.hips.rotation.z))
+      end = local.clone().add(new THREE.Vector3(-Math.sin(heel) * metatarsal, Math.cos(heel) * metatarsal, 0).applyAxisAngle(axis, groundToParent))
     } else {
-      end = local.clone().add(new THREE.Vector3(0, 0.6, 0))
+      end = local.clone().add(new THREE.Vector3(fold * 1.2, 0.6 + fold * 0.8, 0).applyAxisAngle(axis, groundToParent))
     }
     const [l1, l2] = leg.lengths
     const dx = end.x - pivot.x
@@ -302,6 +322,7 @@ export class CatModel {
     const distance = Math.min(l1 + l2 - 0.05, Math.max(Math.abs(l1 - l2) + 0.5, Math.hypot(dx, dy)))
     const base = Math.atan2(dy, dx)
     const bend = Math.acos(Math.min(1, Math.max(-1, (l1 * l1 + distance * distance - l2 * l2) / (2 * l1 * distance))))
+    // 后腿膝盖朝前，前腿肘朝后
     const upperAngle = base + (leg.hind ? bend : -bend)
     const jointX = pivot.x + Math.cos(upperAngle) * l1
     const jointY = pivot.y + Math.sin(upperAngle) * l1
@@ -314,8 +335,8 @@ export class CatModel {
       leg.foot.rotation.set(0, 0, footAngle - lowerAngle)
       lastAngle = footAngle
     }
-    const parentPitch = leg.hind ? this.hips.rotation.z : this.hips.rotation.z + this.chest.rotation.z
-    leg.paw.rotation.set(0, 0, -(lastAngle + Math.PI / 2) - parentPitch)
+    // 着地时脚掌平贴地面，抬起时脚尖朝下
+    leg.paw.rotation.set(0, 0, -(lastAngle + Math.PI / 2) + groundToParent - fold * (front ? 1.25 : 0.9) - push * 0.5)
   }
 
   private placeTail(pose: Pose, gait: Gait, time: number) {

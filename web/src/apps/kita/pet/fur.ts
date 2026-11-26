@@ -66,17 +66,27 @@ const furFragment = /* glsl */ `
   void main() {
     // 地面以下不画：趴下时压在地上的毛被截平
     if (vWorldY < 0.0) discard;
+    // 每个格子里一根毛，位置随机；越往外层越细，边缘按像素宽度做抗锯齿，不会闪
     vec3 q = vBase * uDensity;
-    float strand = max(hash13(floor(q)), hash13(floor(q * 1.73) + 19.0) * 0.92);
+    vec3 cell = floor(q);
+    vec3 jitter = vec3(hash13(cell + 3.1), hash13(cell + 7.7), hash13(cell + 11.3)) - 0.5;
+    float d = length(fract(q) - 0.5 - jitter * 0.45);
+    float strand = hash13(cell);
+    float alpha = 1.0;
     if (vLayer > 0.0) {
-      if (vLength < 0.06 || vLayer > strand) discard;
+      float t = vLayer / (0.55 + 0.45 * strand);
+      if (vLength < 0.06 || t > 1.0) discard;
+      float radius = mix(0.78, 0.2, t);
+      float width = fwidth(d) + 0.03;
+      alpha = 1.0 - smoothstep(radius - width, radius + width, d);
+      if (alpha < 0.02) discard;
     }
     vec3 n = normalize(vNormal);
     float wrap = clamp(dot(n, uKey) * 0.55 + 0.45, 0.0, 1.0);
     vec3 ambient = mix(uGround, uSky, n.y * 0.5 + 0.5) * 0.55;
     // 越靠近毛根越暗，模拟毛与毛之间的遮挡
-    float occlusion = mix(0.32, 1.0, pow(vLayer, 0.8));
-    vec3 albedo = vColor * (0.82 + 0.36 * hash13(floor(q) + 7.0)) * mix(0.92, 1.1, vLayer);
+    float occlusion = mix(0.42, 1.0, pow(vLayer, 0.7));
+    vec3 albedo = vColor * (0.9 + 0.2 * hash13(cell + 5.0)) * mix(0.94, 1.08, vLayer);
     vec3 color = albedo * (uKeyColor * wrap + ambient) * occlusion;
     // 毛的高光沿着毛的方向拉长（Kajiya-Kay）
     vec3 h = normalize(uKey + uView);
@@ -87,11 +97,15 @@ const furFragment = /* glsl */ `
     gl_FragColor = vec4(color, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
+    gl_FragColor = vec4(gl_FragColor.rgb * alpha, alpha);
   }
 `
 
 export function furMaterial(length: number, comb: THREE.Vector3, density: number) {
   return new THREE.ShaderMaterial({
+    // 画布是透明的，毛边要按预乘透明度混合，才不会把背景透出来、颜色发白
+    transparent: true,
+    premultipliedAlpha: true,
     vertexShader: furVertex,
     fragmentShader: furFragment,
     uniforms: {

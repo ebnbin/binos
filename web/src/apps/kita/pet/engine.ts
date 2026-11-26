@@ -7,8 +7,8 @@ import { Purr } from './purr.ts'
 
 // 俯视地面的角度：既能看清侧面，往屏幕上方走也有纵深
 const elevation = 0.38
-const walkSpeed = 34
-const stride = 17
+const walkSpeed = 26
+const stride = 15
 
 // 离开桌面再回来时接着上次的位置和姿势
 let memory: { x: number; z: number; heading: number; posture: Posture } | undefined
@@ -82,6 +82,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     height = Math.max(1, rect.height)
     scale = Math.min(2.8, Math.max(1.5, Math.min(width, height) / 320))
     renderer.setSize(width, height, false)
+    cat.setStrandScale(scale * renderer.getPixelRatio())
     camera.left = -width / 2 / scale
     camera.right = width / 2 / scale
     camera.top = height / 2 / scale
@@ -244,7 +245,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     const effort = Math.max(state.speed, (Math.abs(turning) / Math.max(dt, 1e-4)) * 9)
     state.gait.amount = approach(state.gait.amount, effort > 1.5 ? 1 : 0, 5, dt)
     state.gait.stride = Math.min(stride, Math.max(7, effort * 0.55))
-    state.gait.phase = (state.gait.phase + dt * (0.62 * Math.max(effort, 4)) / state.gait.stride * (state.gait.amount > 0.05 ? 1 : 0)) % 1
+    state.gait.phase = (state.gait.phase + dt * (0.66 * Math.max(effort, 4)) / state.gait.stride * (state.gait.amount > 0.05 ? 1 : 0)) % 1
 
     for (const key of Object.keys(targetPose) as (keyof Pose)[]) {
       state.pose[key] = approach(state.pose[key], targetPose[key], key === 'eyes' ? 6 : 2.6, dt)
