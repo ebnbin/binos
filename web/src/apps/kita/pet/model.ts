@@ -117,6 +117,7 @@ export class CatModel {
   private readonly eyeMaterials: THREE.ShaderMaterial[] = []
   private readonly furParts: { mesh: THREE.Mesh; region: Region; ring: number; base: THREE.BufferGeometry; length: number }[] = []
   private readonly temp = new THREE.Vector3()
+  private readonly tailRaise = new Array<number>(tailSegments).fill(0)
 
   constructor() {
     this.root.add(this.hips)
@@ -150,6 +151,8 @@ export class CatModel {
     const mesh = new THREE.Mesh(furGeometry(geometry, new Float32Array(count * 3), new Float32Array(count).fill(1)), material)
     mesh.position.set(...position)
     mesh.frustumCulled = false
+    // 毛是半透明的：固定绘制顺序，免得每帧按距离重排，重叠处的毛边忽闪
+    mesh.renderOrder = this.furParts.length
     parent.add(mesh)
     this.materials.push(material)
     this.furParts.push({ mesh, region, ring, base: geometry, length })
@@ -258,7 +261,7 @@ export class CatModel {
   }
 
   // 每帧按姿势摆好全身
-  apply(pose: Pose, legs: Record<LegName, LegTarget>, body: BodyMotion, look: Look, time: number, breath: number) {
+  apply(pose: Pose, legs: Record<LegName, LegTarget>, body: BodyMotion, look: Look, time: number, breath: number, dt: number) {
     const pitch = pose.pitch + body.pitch
     this.hips.position.set(pose.hipsX, pose.hipsY + body.bob, 0)
     this.hips.rotation.set(body.roll, body.yaw, pitch)
@@ -281,7 +284,7 @@ export class CatModel {
     for (const eye of this.eyes) {
       eye.scale.y = Math.max(0.06, pose.eyes)
     }
-    this.placeTail(pose, body)
+    this.placeTail(pose, body, dt)
   }
 
   // 一根毛约占 3 个物理像素：太细会闪，太粗像毛线
@@ -351,25 +354,41 @@ export class CatModel {
     leg.paw.rotation.set(0, 0, -(lastAngle + Math.PI / 2) + groundToParent - target.fold * (front ? 1.25 : 0.9) - target.push * 0.5)
   }
 
-  private placeTail(pose: Pose, body: BodyMotion) {
+  private placeTail(pose: Pose, body: BodyMotion, dt: number) {
     for (let index = 0; index < this.tail.length; index++) {
       const segment = this.tail[index]
       const wave = Math.sin(body.tailPhase - index * 0.45) * body.tailSway * (0.3 + index / this.tail.length)
       segment.rotation.set(0, (index === 0 ? 0 : pose.tailWrap) + wave, index === 0 ? -pose.tailLift : -pose.tailCurl)
     }
-    // 尾巴不穿过地面：哪一节压到地下就往上抬
-    for (let index = 0; index < this.tail.length; index++) {
-      const segment = this.tail[index]
-      for (let attempt = 0; attempt < 6; attempt++) {
-        segment.updateMatrixWorld(true)
-        const tip = this.temp.set(-tailLength, 0, 0).applyMatrix4(segment.matrixWorld)
-        const floor = this.root.worldToLocal(tip).y
-        if (floor > 2.2) {
-          break
-        }
-        segment.rotation.z -= 0.12
-      }
+    // 尾巴不穿过地面：压到地下的那一节往上抬，抬的角度二分求出；每节抬多少随时间渐变，贴地的折点不会在相邻几节之间跳来跳去，短暂压进地面的部分本来就不画
+    const tip = this.temp
+    const floor = 2.2
+    const height = (segment: THREE.Group, raise: number, base: number) => {
+      segment.rotation.z = base - raise
+      segment.updateMatrix()
+      segment.matrixWorld.multiplyMatrices(segment.parent!.matrixWorld, segment.matrix)
+      return this.root.worldToLocal(tip.set(-tailLength, 0, 0).applyMatrix4(segment.matrixWorld)).y
     }
+    this.root.updateMatrixWorld(true)
+    this.tail.forEach((segment, index) => {
+      const base = segment.rotation.z
+      let needed = 0
+      if (height(segment, 0, base) < floor) {
+        let low = 0
+        let high = 1.6
+        for (let step = 0; step < 10; step++) {
+          const middle = (low + high) / 2
+          if (height(segment, middle, base) >= floor) {
+            high = middle
+          } else {
+            low = middle
+          }
+        }
+        needed = high
+      }
+      this.tailRaise[index] += (needed - this.tailRaise[index]) * (1 - Math.exp(-12 * dt))
+      height(segment, this.tailRaise[index], base)
+    })
   }
 
   dispose() {

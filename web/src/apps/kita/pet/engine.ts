@@ -29,6 +29,8 @@ interface Jump {
   toZ: number
   height: number
   duration: number
+  // 蹲下和腾空时慢慢转向这个朝向
+  heading: number
   // 落地后接着跑
   carry: boolean
 }
@@ -36,7 +38,7 @@ interface Jump {
 // 身体在做什么：在地上、蹲下蓄力、腾空、落地缓冲、被拎着、掉下来
 type Motion =
   | { kind: 'ground' }
-  | { kind: 'crouch'; until: number; jump: Jump; wiggle: boolean }
+  | { kind: 'crouch'; from: number; until: number; jump: Jump; wiggle: boolean }
   | { kind: 'air'; jump: Jump; t: number }
   | { kind: 'land'; until: number }
   | { kind: 'held' }
@@ -84,6 +86,9 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     heading: saved?.heading ?? -Math.PI / 2 + 0.7,
     speed: 0,
     turnRate: 0,
+    turnSign: 0,
+    poseVelocity: {} as Partial<Record<keyof Pose, number>>,
+    tailSway: stillBody.tailSway,
     posture: saved?.posture ?? ('sit' as Posture),
     postureUntil: 0,
     activity: { kind: 'rest' } as Activity,
@@ -113,6 +118,8 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     swing: 0,
   }
   const pointer = { inside: false, x: 0, y: 0, movedAt: -10, eventAt: 0, restAt: -10, restX: 0, restY: 0, speed: 0, vx: 0 }
+  const lerp = THREE.MathUtils.lerp
+  const fade: { kind: Motion['kind']; from: number; legs?: Record<LegName, LegTarget>; body?: BodyMotion; lastLegs?: Record<LegName, LegTarget>; lastBody?: BodyMotion } = { kind: 'ground', from: -1 }
   // 按在猫身上：还没分清是点一下还是拎起来
   let press: { x: number; y: number; at: number } | undefined
 
@@ -203,13 +210,27 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     state.activity = { kind: 'go', x: clampX(x), z: clampZ(z), speed, then, face, leap }
   }
 
-  function jump(toX: number, toZ: number, height: number, options: { crouch?: number; wiggle?: boolean; carry?: boolean } = {}) {
-    const target = { fromX: state.x, fromZ: state.z, toX: clampX(toX), toZ: clampZ(toZ), height, duration: 2 * Math.sqrt((2 * height) / gravity), carry: options.carry ?? false }
+  function jump(toX: number, toZ: number, height: number, options: { crouch?: number; wiggle?: boolean; carry?: boolean; face?: number } = {}) {
+    const x = clampX(toX)
+    const z = clampZ(toZ)
+    const heading = options.face ?? (Math.hypot(x - state.x, z - state.z) > 2 ? Math.atan2(-(z - state.z), x - state.x) : state.heading)
+    const target = { fromX: state.x, fromZ: state.z, toX: x, toZ: z, height, duration: 2 * Math.sqrt((2 * height) / gravity), heading, carry: options.carry ?? false }
     if (options.crouch) {
-      state.motion = { kind: 'crouch', until: time + options.crouch, jump: target, wiggle: options.wiggle ?? false }
+      state.motion = { kind: 'crouch', from: time, until: time + options.crouch, jump: target, wiggle: options.wiggle ?? false }
     } else {
       state.motion = { kind: 'air', jump: target, t: 0 }
     }
+  }
+
+  // 转身有角加速度：从静止慢慢转起来，快到时慢下来，转速不会突变
+  function rotate(diff: number, maxRate: number, dt: number) {
+    const wanted = Math.max(-maxRate, Math.min(maxRate, diff * 7))
+    state.turnRate = toward(state.turnRate, wanted, 28 * dt)
+    state.heading += state.turnRate * dt
+  }
+
+  function turnToward(heading: number, dt: number) {
+    rotate(wrapAngle(heading - state.heading), 7, dt)
   }
 
   function startZoomies() {
@@ -306,7 +327,6 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
           // 够近了：压低身子扭扭屁股，扑过去
           const reach = Math.min(100, Math.max(30, distance - 12))
           const angle = Math.atan2(-(prey.z - state.z), prey.x - state.x)
-          state.heading = angle
           jump(state.x + Math.cos(angle) * reach, state.z - Math.sin(angle) * reach, 12 + reach * 0.09, { crouch: random(0.45, 0.9), wiggle: true })
           state.huntRestAt = time + 0.9
           if (activity.toy) {
@@ -329,11 +349,13 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     if (activity.kind === 'hunt' && distance <= 75) {
       desired = Math.atan2(-dz, dx)
     }
-    const diff = wrapAngle(desired - state.heading)
-    const maxTurn = (state.speed > 150 ? 3 : 3.8) * dt
-    const turning = standing || speed === 0 ? Math.max(-maxTurn, Math.min(maxTurn, diff)) : 0
-    state.heading += turning
-    state.turnRate = turning / Math.max(dt, 1e-4)
+    let diff = wrapAngle(desired - state.heading)
+    // 目标几乎在正后方时，往左往右差不多远：沿着已经在转的方向转下去，不左右来回抽
+    if (Math.abs(diff) > 2.6 && state.turnSign !== 0 && Math.sign(diff) !== state.turnSign) {
+      diff += state.turnSign * Math.PI * 2
+    }
+    rotate(standing || speed === 0 ? diff : 0, state.speed > 150 ? 3 : 3.8, dt)
+    state.turnSign = Math.abs(state.turnRate) > 0.05 ? Math.sign(state.turnRate) : Math.abs(diff) < 0.05 ? 0 : state.turnSign
     let wanted = 0
     if (standing && distance > 3) {
       // 方向不对先减速转弯；快到时按能刹住的速度减速
@@ -470,14 +492,15 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
         body = { ...stillBody, tailPhase: state.tailClock }
         if (motion.wiggle) {
           // 扑之前屁股左右扭，尾巴尖抖
-          body.yaw = Math.sin(time * 18) * 0.06
-          body.roll = Math.sin(time * 18) * 0.04
+          const envelope = Math.sin(Math.PI * Math.min(1, (time - motion.from) / (motion.until - motion.from)))
+          body.yaw = Math.sin(time * 18) * 0.06 * envelope
+          body.roll = Math.sin(time * 18) * 0.04 * envelope
           body.tailSway = 0.12
           state.tailClock += dt * 9
         }
+        turnToward(motion.jump.heading, dt)
         if (time >= motion.until) {
           state.motion = { kind: 'air', jump: motion.jump, t: 0 }
-          state.heading = Math.abs(motion.jump.toX - motion.jump.fromX) + Math.abs(motion.jump.toZ - motion.jump.fromZ) > 2 ? Math.atan2(-(motion.jump.toZ - motion.jump.fromZ), motion.jump.toX - motion.jump.fromX) : state.heading
         }
         break
       }
@@ -485,6 +508,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
         motion.t += dt
         const { jump: arc } = motion
         const a = Math.min(1, motion.t / arc.duration)
+        turnToward(arc.heading, dt)
         state.x = clampX(THREE.MathUtils.lerp(arc.fromX, arc.toX, a))
         state.z = clampZ(THREE.MathUtils.lerp(arc.fromZ, arc.toZ, a))
         state.y = 4 * arc.height * a * (1 - a)
@@ -492,7 +516,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
         poseRate = 10
         legs = airLegs(state.pose, a)
         state.tailClock += dt * 3
-        body = { ...stillBody, pitch: 0.55 * (0.45 - a), flex: 0.2 * Math.sin(Math.PI * a), tailSway: 0.1, tailPhase: state.tailClock }
+        body = { ...stillBody, pitch: 0.3 * Math.sin(Math.PI * 2 * a), flex: 0.2 * Math.sin(Math.PI * a), tailSway: 0.1, tailPhase: state.tailClock }
         if (a >= 1) {
           state.y = 0
           state.speed = arc.carry ? Math.hypot(arc.toX - arc.fromX, arc.toZ - arc.fromZ) / arc.duration : 0
@@ -518,7 +542,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
         raycaster.setFromCamera(ndc(pointer.x + rect.left, pointer.y + rect.top), camera)
         const grab = raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -state.z), new THREE.Vector3())
         if (grab) {
-          state.x = grab.x - Math.cos(state.heading) * 8
+          state.x = clampX(grab.x - Math.cos(state.heading) * 8)
           state.y = Math.max(0, grab.y - 31)
         }
         state.swing = approach(state.swing, Math.max(-0.4, Math.min(0.4, -pointer.vx * 0.0006)), 5, dt)
@@ -551,8 +575,40 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     }
 
     for (const key of Object.keys(targetPose) as (keyof Pose)[]) {
-      state.pose[key] = approach(state.pose[key], targetPose[key], key === 'eyes' ? 6 : poseRate, dt)
+      if (key === 'eyes') {
+        state.pose[key] = approach(state.pose[key], targetPose[key], 6, dt)
+        continue
+      }
+      // 临界阻尼的弹簧：姿势变化从静止起步、平稳停下，速度连续，不会一开始就猛地一甩
+      const omega = poseRate * 1.6
+      const velocity = (state.poseVelocity[key] ?? 0) + (omega * omega * (targetPose[key] - state.pose[key]) - 2 * omega * (state.poseVelocity[key] ?? 0)) * dt
+      state.poseVelocity[key] = velocity
+      state.pose[key] += velocity * dt
     }
+    // 尾巴摆动的幅度在状态之间渐变，不突然变大变小
+    state.tailSway = approach(state.tailSway, body.tailSway, 4, dt)
+    body.tailSway = state.tailSway
+    // 换动作的一瞬间（蹲下、腾空、落地、被拎起），身体和四条腿从上一刻的样子过渡过去，不跳
+    if (state.motion.kind !== fade.kind) {
+      fade.kind = state.motion.kind
+      fade.from = time
+      fade.legs = fade.lastLegs
+      fade.body = fade.lastBody
+    }
+    const blend = smoothstep(0, 0.18, time - fade.from)
+    if (blend < 1 && fade.legs && fade.body) {
+      const from = fade.body
+      body = { ...body, bob: lerp(from.bob, body.bob, blend), pitch: lerp(from.pitch, body.pitch, blend), roll: lerp(from.roll, body.roll, blend), yaw: lerp(from.yaw, body.yaw, blend), flex: lerp(from.flex, body.flex, blend) }
+      const mixed = {} as Record<LegName, LegTarget>
+      for (const name of legNames) {
+        const a = fade.legs[name]
+        const b = legs[name]
+        mixed[name] = { x: lerp(a.x, b.x, blend), y: lerp(a.y, b.y, blend), fold: lerp(a.fold, b.fold, blend), push: lerp(a.push, b.push, blend), reach: lerp(a.reach, b.reach, blend) }
+      }
+      legs = mixed
+    }
+    fade.lastLegs = legs
+    fade.lastBody = body
     state.body = body
     if (state.motion.kind === 'ground' || state.motion.kind === 'land') {
       body.tailPhase = state.tailClock
@@ -609,7 +665,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
     const breath = Math.sin(time * Math.PI * 2 * breathRate)
     cat.root.position.set(state.x, state.y, state.z)
     cat.root.rotation.y = state.heading
-    cat.apply({ ...state.pose, eyes }, legs, body, state.look, time, breath)
+    cat.apply({ ...state.pose, eyes }, legs, body, state.look, time, breath, dt)
     const lying = smoothstep(16, 9, state.pose.hipsY)
     const lift = Math.max(0, 1 - state.y / 90)
     shadow.position.y = 0.05 - state.y
@@ -643,7 +699,8 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
       hop()
     } else if (roll < 0.7) {
       const angle = state.heading + Math.PI + random(-0.5, 0.5)
-      jump(state.x + Math.cos(angle) * 45, state.z - Math.sin(angle) * 45, 22, { crouch: 0.08 })
+      // 吓得往后跳，脸还朝着原来的方向
+      jump(state.x + Math.cos(angle) * 45, state.z - Math.sin(angle) * 45, 22, { crouch: 0.08, face: state.heading })
     }
   }
 
