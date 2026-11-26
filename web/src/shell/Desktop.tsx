@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import type { CSSProperties } from 'react'
 import { findApplication, useApplications } from '../apps/index.ts'
 import type { ApplicationDefinition } from '../apps/types.ts'
@@ -12,6 +13,8 @@ import { column, desktopColumns, packColumn, splitColumns } from './layout.ts'
 const cell = 70
 const gap = 16
 const margin = (column.min - cell * 4 - gap * 3) / 2
+
+const DesktopPet = lazy(() => import('../apps/kita/pet/DesktopPet.tsx'))
 
 export function Desktop({ width, onOpen }: { width: number; onOpen: (app: string, route?: string) => void }) {
   const apps = useApplications()
@@ -33,26 +36,31 @@ export function Desktop({ width, onOpen }: { width: number; onOpen: (app: string
   } as CSSProperties
 
   return (
-    <div className={styles.desktop} style={vars}>
-      <div className={styles.columns}>
-        {columns.map((column, index) => (
-          <div key={index} className={styles.grid} style={{ gridTemplateRows: `repeat(${column.rows}, var(--cell))` }}>
-            {column.items.map((item, itemIndex) => {
-              const place = column.placements[itemIndex]
-              return (
-                <Entry
-                  key={item.id}
-                  item={item}
-                  apps={apps}
-                  style={{ gridArea: `${place.row + 1} / ${place.column + 1} / span ${place.height} / span ${place.width}` }}
-                  onOpen={onOpen}
-                />
-              )
-            })}
-          </div>
-        ))}
+    <>
+      <div className={styles.desktop} style={vars}>
+        <div className={styles.columns}>
+          {columns.map((column, index) => (
+            <div key={index} className={styles.grid} style={{ gridTemplateRows: `repeat(${column.rows}, var(--cell))` }}>
+              {column.items.map((item, itemIndex) => {
+                const place = column.placements[itemIndex]
+                return (
+                  <Entry
+                    key={item.id}
+                    item={item}
+                    apps={apps}
+                    style={{ gridArea: `${place.row + 1} / ${place.column + 1} / span ${place.height} / span ${place.width}` }}
+                    onOpen={onOpen}
+                  />
+                )
+              })}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+      <Suspense>
+        <DesktopPet />
+      </Suspense>
+    </>
   )
 }
 
