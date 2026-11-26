@@ -45,6 +45,7 @@ const furVertex = /* glsl */ `
 
 const furFragment = /* glsl */ `
   uniform float uDensity;
+  uniform float uUndercoat;
   uniform vec3 uKey;
   uniform vec3 uKeyColor;
   uniform vec3 uSky;
@@ -67,26 +68,37 @@ const furFragment = /* glsl */ `
   void main() {
     // 地面以下不画：趴下时压在地上的毛被截平
     if (vWorldY < 0.0) discard;
-    // 每个格子里一根毛，位置随机；越往外层越细，边缘按像素宽度做抗锯齿，不会闪
+    // 靠近皮肤的一段是实心的底绒，外面才是一根根的毛：长毛下面不会透出后面的东西
+    // 每个格子里两根毛，位置随机；越往外层越细，边缘按像素宽度做抗锯齿，不会闪
     vec3 q = vBase * uDensity;
     vec3 cell = floor(q);
-    vec3 jitter = vec3(hash13(cell + 3.1), hash13(cell + 7.7), hash13(cell + 11.3)) - 0.5;
-    float d = length(fract(q) - 0.5 - jitter * 0.45);
     float strand = hash13(cell);
     float alpha = 1.0;
     if (vLayer > 0.0) {
-      float t = vLayer / (0.55 + 0.45 * strand);
-      if (vLength < 0.06 || t > 1.0) discard;
-      float radius = mix(0.78, 0.2, t);
-      float width = fwidth(d) + 0.03;
-      alpha = 1.0 - smoothstep(radius - width, radius + width, d);
-      if (alpha < 0.02) discard;
+      if (vLength < 0.06) discard;
+      float outer = (vLayer - uUndercoat) / (1.0 - uUndercoat);
+      if (outer > 0.0) {
+        alpha = 0.0;
+        for (int index = 0; index < 2; index++) {
+          vec3 shifted = q + float(index) * vec3(0.5, 0.37, 0.61);
+          vec3 lattice = floor(shifted) + float(index) * 17.0;
+          vec3 jitter = vec3(hash13(lattice + 3.1), hash13(lattice + 7.7), hash13(lattice + 11.3)) - 0.5;
+          float d = length(fract(shifted) - 0.5 - jitter * 0.45);
+          float t = outer / (0.5 + 0.5 * hash13(lattice));
+          if (t <= 1.0) {
+            float radius = mix(0.58, 0.14, t);
+            float width = fwidth(d) + 0.03;
+            alpha = max(alpha, 1.0 - smoothstep(radius - width, radius + width, d));
+          }
+        }
+        if (alpha < 0.02) discard;
+      }
     }
     vec3 n = normalize(vNormal);
     float wrap = clamp(dot(n, uKey) * 0.55 + 0.45, 0.0, 1.0);
     vec3 ambient = mix(uGround, uSky, n.y * 0.5 + 0.5) * 0.55;
     // 越靠近毛根越暗，模拟毛与毛之间的遮挡
-    float occlusion = mix(0.42, 1.0, pow(vLayer, 0.7));
+    float occlusion = mix(0.34, 1.0, pow(vLayer, 0.6));
     vec3 albedo = vColor * (0.9 + 0.2 * hash13(cell + 5.0)) * mix(0.94, 1.08, vLayer);
     vec3 color = albedo * (uKeyColor * wrap + ambient) * occlusion;
     // 毛的高光沿着毛的方向拉长（Kajiya-Kay）
@@ -114,6 +126,7 @@ export function furMaterial(length: number, comb: THREE.Vector3, density: number
       uComb: { value: comb.clone().normalize() },
       uGravity: { value: new THREE.Vector3(0, -1, 0) },
       uDensity: { value: density },
+      uUndercoat: { value: 0.22 },
       uKey: { value: light.key },
       uKeyColor: { value: light.keyColor },
       uSky: { value: light.sky },

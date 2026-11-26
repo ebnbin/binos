@@ -156,7 +156,7 @@ export function coatPainter(profile: CatProfile) {
         const period = point.tailLength / Math.max(1, pattern.tailRings)
         const rings = smoothstep(0.15, 0.6, Math.cos((2 * Math.PI * (along - period * 0.5)) / period))
         const tip = smoothstep(point.tailLength - pattern.tailTip - 1, point.tailLength - pattern.tailTip + 1, along)
-        result.lerp(palette.light, underside * 0.35).lerp(palette.stripe, Math.max(rings * 0.85, tip * 0.8))
+        result.lerp(palette.light, underside * 0.35).lerp(palette.stripe, Math.max(rings * 0.85, tip * 0.6))
         length = fur.tail * (1 - 0.45 * smoothstep(0.5, 1, along / point.tailLength))
         break
       }
