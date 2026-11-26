@@ -4,6 +4,7 @@ import { bodyMotion, cadence, gaitWeights, legNames, legTargets, tailRate } from
 import { CatModel, poses, stillBody } from './model.ts'
 import type { BodyMotion, LegName, LegTarget, Look, Pose, Posture } from './model.ts'
 import { smoothstep } from './noise.ts'
+import type { CatProfile } from './profile.ts'
 import { Purr } from './purr.ts'
 
 // 俯视地面的角度：既能看清侧面，往屏幕上方走也有纵深
@@ -44,7 +45,8 @@ type Motion =
   | { kind: 'held' }
   | { kind: 'fall'; vy: number }
 
-export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
+export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement, profile: CatProfile) {
+  const { traits } = profile
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.toneMapping = THREE.ACESFilmicToneMapping
@@ -61,7 +63,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
   camera.position.copy(view).multiplyScalar(1000)
   camera.lookAt(0, 0, 0)
 
-  const cat = new CatModel()
+  const cat = new CatModel(profile)
   cat.setView(view)
   scene.add(cat.root)
   const shadow = groundShadow()
@@ -241,7 +243,8 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
 
   function decide() {
     const idle = time - state.lastTouch
-    state.decideAt = time + random(2, 5)
+    // 越好动换事越勤
+    state.decideAt = time + random(2, 5) * (1.6 - traits.activity)
     if (state.posture === 'sleep') {
       if (time < state.sleepUntil) {
         return
@@ -257,7 +260,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
       return
     }
     const resting = time - pointer.restAt < 10 && pointer.inside
-    if (resting && Math.random() < 0.35) {
+    if (resting && Math.random() < traits.affection * 0.45) {
       const point = floorAt(pointer.restX, pointer.restY)
       if (point && Math.hypot(point.x - state.x, point.z - state.z) > 45) {
         const away = Math.atan2(state.z - point.z, state.x - point.x)
@@ -265,34 +268,39 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
         return
       }
     }
-    if (state.posture === 'loaf' && idle > 50 && Math.random() < 0.5) {
+    if (state.posture === 'loaf' && idle > THREE.MathUtils.lerp(90, 30, traits.sleepiness) && Math.random() < traits.sleepiness) {
       state.posture = 'sleep'
       state.sleepUntil = time + random(40, 120)
       return
     }
-    const roll = Math.random()
+    // 各种事按脾气加权抽一件
     const spot = randomSpot()
-    if (roll < 0.22) {
-      go(spot.x, spot.z, speeds.walk, Math.random() < 0.6 ? 'sit' : 'loaf', facingViewer())
-    } else if (roll < 0.33) {
-      go(spot.x, spot.z, speeds.trot, 'sit', facingViewer())
-    } else if (roll < 0.41 && time - state.lastZoomies > 20) {
-      startZoomies()
-    } else if (roll < 0.49) {
-      // 扑一个看不见的小虫子
-      const distance = random(50, 100)
-      const angle = state.heading + random(-0.6, 0.6)
-      state.activity = { kind: 'hunt', toy: { x: clampX(state.x + Math.cos(angle) * distance), z: clampZ(state.z - Math.sin(angle) * distance) } }
-    } else if (roll < 0.54) {
-      hop()
-    } else if (roll < 0.58) {
-      rest('stretch', 1.6)
-    } else if (roll < 0.76) {
-      rest('sit')
-    } else if (roll < 0.9) {
-      rest('loaf')
-    } else {
-      rest('stand')
+    const choices: [number, () => void][] = [
+      [0.22 * traits.activity * 1.6, () => go(spot.x, spot.z, speeds.walk, Math.random() < 0.6 ? 'sit' : 'loaf', facingViewer())],
+      [0.11 * traits.activity * 1.6, () => go(spot.x, spot.z, speeds.trot, 'sit', facingViewer())],
+      [time - state.lastZoomies > 20 ? 0.08 * traits.playfulness * 1.6 : 0, startZoomies],
+      [
+        0.08 * traits.playfulness * 1.6,
+        () => {
+          // 扑一个看不见的小虫子
+          const distance = random(50, 100)
+          const angle = state.heading + random(-0.6, 0.6)
+          state.activity = { kind: 'hunt', toy: { x: clampX(state.x + Math.cos(angle) * distance), z: clampZ(state.z - Math.sin(angle) * distance) } }
+        },
+      ],
+      [0.05 * traits.playfulness * 1.6, hop],
+      [0.04, () => rest('stretch', 1.6)],
+      [0.18, () => rest('sit')],
+      [0.14 * (0.6 + traits.sleepiness * 0.8), () => rest('loaf')],
+      [0.1, () => rest('stand')],
+    ]
+    let roll = Math.random() * choices.reduce((sum, [weight]) => sum + weight, 0)
+    for (const [weight, action] of choices) {
+      roll -= weight
+      if (roll <= 0) {
+        action()
+        return
+      }
     }
   }
 
@@ -432,7 +440,7 @@ export function startPet(canvas: HTMLCanvasElement, surface: HTMLElement) {
   function step(dt: number) {
     // 抚摸
     if (state.stroke > 0) {
-      state.pet = Math.min(1, state.pet + state.stroke * 0.005)
+      state.pet = Math.min(1, state.pet + state.stroke * 0.005 * (0.5 + traits.affection))
       state.stroke = 0
       state.lastTouch = time
     }

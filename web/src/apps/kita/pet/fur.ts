@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { Rgb } from './profile.ts'
 
 // 毛发用分层外壳：同一块身体按法线往外画很多层，每层按噪声挖掉一部分，越外层留下的越少，看起来就是一根根毛
 export const shellCount = 30
@@ -154,6 +155,8 @@ const eyeVertex = /* glsl */ `
 // 眼睛朝局部 +x：黄绿色虹膜、竖瞳孔、角膜高光
 const eyeFragment = /* glsl */ `
   uniform float uPupil;
+  uniform vec3 uInner;
+  uniform vec3 uOuter;
   uniform vec3 uKey;
   uniform vec3 uView;
   varying vec3 vLocal;
@@ -163,7 +166,7 @@ const eyeFragment = /* glsl */ `
     vec3 p = normalize(vLocal);
     float r = length(p.yz);
     float angle = atan(p.y, p.z);
-    vec3 iris = mix(vec3(0.62, 0.56, 0.12), vec3(0.34, 0.42, 0.10), smoothstep(0.15, 0.75, r));
+    vec3 iris = mix(uInner, uOuter, smoothstep(0.15, 0.75, r));
     iris *= 0.85 + 0.15 * sin(angle * 37.0) * sin(angle * 11.0 + r * 20.0);
     iris *= 1.0 - smoothstep(0.62, 0.84, r) * 0.65;
     vec3 color = p.x > 0.0 ? iris : vec3(0.02);
@@ -171,21 +174,23 @@ const eyeFragment = /* glsl */ `
     color = mix(vec3(0.008), color, smoothstep(0.92, 1.08, pupil));
     vec3 n = normalize(vNormal);
     float diffuse = clamp(dot(n, uKey) * 0.5 + 0.5, 0.0, 1.0);
-    color *= 0.45 + 0.75 * diffuse;
+    color *= 0.4 + 0.6 * diffuse;
     vec3 h = normalize(uKey + uView);
-    float spec = pow(max(dot(n, h), 0.0), 220.0) * 2.2 + pow(max(dot(n, h), 0.0), 24.0) * 0.08;
+    float spec = pow(max(dot(n, h), 0.0), 260.0) * 1.4 + pow(max(dot(n, h), 0.0), 24.0) * 0.05;
     gl_FragColor = vec4(color + spec, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
 `
 
-export function eyeMaterial() {
+export function eyeMaterial(colors: { inner: Rgb; outer: Rgb }) {
   return new THREE.ShaderMaterial({
     vertexShader: eyeVertex,
     fragmentShader: eyeFragment,
     uniforms: {
       uPupil: { value: 0.3 },
+      uInner: { value: new THREE.Color().setRGB(...colors.inner, THREE.SRGBColorSpace) },
+      uOuter: { value: new THREE.Color().setRGB(...colors.outer, THREE.SRGBColorSpace) },
       uKey: { value: light.key },
       uView: { value: new THREE.Vector3(0, 0, 1) },
     },

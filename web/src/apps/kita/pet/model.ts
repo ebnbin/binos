@@ -1,19 +1,14 @@
 import * as THREE from 'three'
+import { coatPainter } from './coat.ts'
+import type { Region } from './coat.ts'
 import { eyeMaterial, furGeometry, furMaterial } from './fur.ts'
-import { fbm, smoothstep } from './noise.ts'
+import { smoothstep } from './noise.ts'
+import type { CatProfile } from './profile.ts'
 
 // 喜多：长毛棕色虎斑猫。单位是厘米，猫的局部空间里 +x 朝前、+y 朝上，原点在两前爪和两后爪中间的地面上
 
-type Region = 'torso' | 'chest' | 'neck' | 'head' | 'cheek' | 'muzzle' | 'ear' | 'frontUpper' | 'frontLower' | 'hindUpper' | 'hindLower' | 'hindFoot' | 'paw' | 'tail'
 
 const srgb = (r: number, g: number, b: number) => new THREE.Color().setRGB(r, g, b, THREE.SRGBColorSpace)
-const palette = {
-  base: srgb(0.42, 0.37, 0.31),
-  warm: srgb(0.52, 0.43, 0.33),
-  dark: srgb(0.1, 0.085, 0.07),
-  cream: srgb(0.8, 0.76, 0.68),
-  ear: srgb(0.66, 0.53, 0.48),
-}
 
 const ellipsoid = (a: number, b: number, c: number, detail = 1) => new THREE.SphereGeometry(1, Math.round(56 * detail), Math.round(40 * detail)).scale(a, b, c)
 // 骨头沿局部 -y，从关节往下长
@@ -98,7 +93,6 @@ export interface Look {
   pitch: number
 }
 
-const tailSegments = 13
 const tailLength = 2.5
 
 export class CatModel {
@@ -115,37 +109,41 @@ export class CatModel {
   private readonly tail: THREE.Group[] = []
   private readonly materials: THREE.ShaderMaterial[] = []
   private readonly eyeMaterials: THREE.ShaderMaterial[] = []
-  private readonly furParts: { mesh: THREE.Mesh; region: Region; ring: number; base: THREE.BufferGeometry; length: number }[] = []
+  private readonly furParts: { mesh: THREE.Mesh; region: Region; ring: number; base: THREE.BufferGeometry }[] = []
   private readonly temp = new THREE.Vector3()
-  private readonly tailRaise = new Array<number>(tailSegments).fill(0)
+  private readonly tailRaise: number[]
+  private readonly profile: CatProfile
 
-  constructor() {
+  constructor(profile: CatProfile) {
+    this.profile = profile
+    this.tailRaise = new Array<number>(profile.shape.tail.segments).fill(0)
     this.root.add(this.hips)
     this.hips.position.set(poses.stand.hipsX, poses.stand.hipsY, 0)
-    this.torso = this.part(this.hips, 'torso', ellipsoid(15, 8.2, 7.2, 1.3), [9.5, 0.5, 0], 2.6, [-1, -0.5, 0], 2.6)
+    this.torso = this.part(this.hips, 'torso', ellipsoid(15, 8.2, 7.2, 1.3), [9.5, 0.5, 0], [-1, -0.5, 0], 2.6)
     this.hips.add(this.chest)
     this.chest.position.set(19, 0, 0)
-    this.part(this.chest, 'chest', ellipsoid(8.5, 9, 7.3), [1.5, 0, 0], 3, [-0.4, -1, 0], 2.6)
+    this.part(this.chest, 'chest', ellipsoid(8.5, 9, 7.3), [1.5, 0, 0], [-0.4, -1, 0], 2.6)
     this.chest.add(this.neck)
     this.neck.position.set(7.5, 3.5, 0)
-    this.part(this.neck, 'neck', ellipsoid(5.5, 5.8, 5.4), [0.5, 0.5, 0], 3.6, [-0.6, -1, 0], 2.6)
+    this.part(this.neck, 'neck', ellipsoid(5.5, 5.8, 5.4), [0.5, 0.5, 0], [-0.6, -1, 0], 2.6)
     this.neck.add(this.head)
     this.head.position.set(5.5, 3, 0)
-    this.head.scale.setScalar(1.15)
+    this.head.scale.setScalar(this.profile.shape.head)
     this.buildHead()
     for (const side of [1, -1] as const) {
       this.legs.push(this.buildLeg(this.chest, [3, -3, side * 4], false, side))
       this.legs.push(this.buildLeg(this.hips, [1, -0.5, side * 4.2], true, side))
       // 臀部的大块肌肉，把后大腿包在身体轮廓里
-      this.part(this.hips, 'torso', ellipsoid(6.8, 7.6, 3.8), [1.8, -2.2, side * 3.1], 2.4, [-1, -0.7, 0], 2.6)
+      this.part(this.hips, 'torso', ellipsoid(6.8, 7.6, 3.8), [1.8, -2.2, side * 3.1], [-1, -0.7, 0], 2.6)
     }
     this.buildTail()
     this.root.updateMatrixWorld(true)
     this.paint()
   }
 
-  private part(parent: THREE.Object3D, region: Region, geometry: THREE.BufferGeometry, position: [number, number, number], length: number, comb: [number, number, number], density: number, ring = 0) {
-    const material = furMaterial(length, new THREE.Vector3(...comb), density)
+  // 毛长按顶点写在 furScale 里（厘米），材质里的长度系数固定为 1
+  private part(parent: THREE.Object3D, region: Region, geometry: THREE.BufferGeometry, position: [number, number, number], comb: [number, number, number], density: number, ring = 0) {
+    const material = furMaterial(1, new THREE.Vector3(...comb), density)
     material.userData.density = density
     const count = geometry.getAttribute('position').count
     const mesh = new THREE.Mesh(furGeometry(geometry, new Float32Array(count * 3), new Float32Array(count).fill(1)), material)
@@ -155,29 +153,32 @@ export class CatModel {
     mesh.renderOrder = this.furParts.length
     parent.add(mesh)
     this.materials.push(material)
-    this.furParts.push({ mesh, region, ring, base: geometry, length })
+    this.furParts.push({ mesh, region, ring, base: geometry })
     this.hitTargets.push(mesh)
     return mesh
   }
 
   private buildHead() {
     const head = this.head
-    this.part(head, 'head', ellipsoid(5.2, 4.7, 5.5, 1.3), [0, 0, 0], 1.1, [-1, -0.2, 0], 4)
-    this.part(head, 'muzzle', ellipsoid(2.5, 2.1, 2.9), [4, -1.5, 0], 0.6, [-0.3, -1, 0], 5)
+    this.part(head, 'head', ellipsoid(5.2, 4.7, 5.5, 1.3), [0, 0, 0], [-1, -0.2, 0], 4)
+    this.part(head, 'muzzle', ellipsoid(2.5, 2.1, 2.9), [4, -1.5, 0], [-0.3, -1, 0], 5)
     for (const side of [1, -1]) {
-      this.part(head, 'cheek', ellipsoid(3.2, 3, 2.6), [0.8, -1.7, side * 3.3], 2.4, [-1, -0.6, side * 0.6], 3.5)
-      const ear = this.part(head, 'ear', new THREE.ConeGeometry(2.3, 6.4, 24, 4).scale(0.42, 1, 1), [-0.4, 5.2, side * 2.6], 0.35, [0, 1, 0], 5)
-      ear.rotation.set(side * -0.32, 0, -0.12)
+      this.part(head, 'cheek', ellipsoid(3.2, 3, 2.6), [0.8, -1.7, side * 3.3], [-1, -0.6, side * 0.6], 3.5)
+      const { height, width, tilt } = this.profile.shape.ear
+      // 耳朵：底宽、尖，开口朝前；圆锥压扁成薄片，底部埋进头里
+      const ear = this.part(head, 'ear', new THREE.ConeGeometry(width, height, 24, 6).scale(0.42, 1, 1).translate(0, height / 2 - 1.2, 0), [-0.6, 3.6, side * 3.1], [0.1, 1, -side * 0.25], 5)
+      // 耳尖往外倾
+      ear.rotation.set(side * tilt, 0, -0.12)
       this.ears.push(ear)
-      const eyeMaterialInstance = eyeMaterial()
+      const eyeMaterialInstance = eyeMaterial(this.profile.eyes)
       this.eyeMaterials.push(eyeMaterialInstance)
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(1.42, 32, 24), eyeMaterialInstance)
-      eye.position.set(3.75, 0.95, side * 2.2)
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(1.3, 32, 24), eyeMaterialInstance)
+      eye.position.set(3.6, 0.95, side * 2.2)
       eye.rotation.y = side * -0.42
       head.add(eye)
       this.eyes.push(eye)
     }
-    const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14).scale(0.55, 0.42, 0.72), new THREE.MeshStandardMaterial({ color: srgb(0.5, 0.31, 0.29), roughness: 0.45 }))
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14).scale(0.55, 0.42, 0.72), new THREE.MeshStandardMaterial({ color: srgb(...this.profile.colors.nose), roughness: 0.45 }))
     nose.position.set(6.25, -0.55, 0)
     head.add(nose)
     head.add(whiskers())
@@ -191,11 +192,11 @@ export class CatModel {
     parent.add(upper)
     // 后大腿是一块饱满的肌肉，和身体连成一片
     const thigh = hind ? ellipsoid(2.6, 4.8, 2.4).translate(0.4, -4.2, 0) : bone(lengths[0], 2.1)
-    this.part(upper, hind ? 'hindUpper' : 'frontUpper', thigh, [0, 0, 0], hind ? 2 : 1.4, [0, -1, 0], 2.8)
+    this.part(upper, hind ? 'hindUpper' : 'frontUpper', thigh, [0, 0, 0], [0, -1, 0], 2.8)
     const lower = new THREE.Group()
     lower.position.y = -lengths[0]
     upper.add(lower)
-    this.part(lower, hind ? 'hindLower' : 'frontLower', bone(lengths[1], hind ? 1.5 : 1.4), [0, 0, 0], hind ? 1.5 : 0.9, [0, -1, 0], 3.2, lengths[0])
+    this.part(lower, hind ? 'hindLower' : 'frontLower', bone(lengths[1], hind ? 1.5 : 1.4), [0, 0, 0], [0, -1, 0], 3.2, lengths[0])
     let foot: THREE.Group | undefined
     let end: THREE.Group = lower
     let endLength = lengths[1]
@@ -203,26 +204,27 @@ export class CatModel {
       foot = new THREE.Group()
       foot.position.y = -lengths[1]
       lower.add(foot)
-      this.part(foot, 'hindFoot', bone(lengths[2], 1.1), [0, 0, 0], 0.7, [0, -1, 0], 3.5, lengths[0] + lengths[1])
+      this.part(foot, 'hindFoot', bone(lengths[2], 1.1), [0, 0, 0], [0, -1, 0], 3.5, lengths[0] + lengths[1])
       end = foot
       endLength = lengths[2]
     }
     const paw = new THREE.Group()
     paw.position.y = -endLength
     end.add(paw)
-    this.part(paw, 'paw', ellipsoid(1.9, 1.05, 1.55), [0.8, 0, 0], 0.6, [1, 0.3, 0], 3.5)
+    this.part(paw, 'paw', ellipsoid(1.9, 1.05, 1.55), [0.8, 0, 0], [1, 0.3, 0], 3.5)
     const name: LegName = `${side === 1 ? 'left' : 'right'}${hind ? 'Hind' : 'Front'}`
     return { name, pivot: new THREE.Vector3(...pivot), upper, lower, foot, paw, lengths, hind, side }
   }
 
   private buildTail() {
     let parent: THREE.Object3D = this.hips
-    for (let index = 0; index < tailSegments; index++) {
+    const { segments, thickness } = this.profile.shape.tail
+    for (let index = 0; index < segments; index++) {
       const segment = new THREE.Group()
       segment.position.set(index === 0 ? -6 : -tailLength, index === 0 ? 3 : 0, 0)
       parent.add(segment)
-      const radius = 2 - (index / tailSegments) * 0.9
-      this.part(segment, 'tail', new THREE.CapsuleGeometry(radius, tailLength, 4, 14).rotateZ(Math.PI / 2).translate(-tailLength / 2, 0, 0), [0, 0, 0], 3.8 - index * 0.06, [-1, -0.15, 0], 2.3, index * tailLength)
+      const radius = (2 - (index / segments) * 0.9) * thickness
+      this.part(segment, 'tail', new THREE.CapsuleGeometry(radius, tailLength, 4, 14).rotateZ(Math.PI / 2).translate(-tailLength / 2, 0, 0), [0, 0, 0], [-1, -0.15, 0], 2.3, index * tailLength)
       this.tail.push(segment)
       parent = segment
     }
@@ -230,9 +232,13 @@ export class CatModel {
 
   // 按站立时的位置给每个顶点上色、定毛长
   private paint() {
+    const painter = coatPainter(this.profile)
     const headCenter = this.head.getWorldPosition(new THREE.Vector3())
-    const eyeCenters = this.eyes.map(eye => eye.getWorldPosition(new THREE.Vector3()))
-    const noseTip = headCenter.clone().add(new THREE.Vector3(6.3, -0.6, 0))
+    const headScale = this.profile.shape.head
+    const eyeCenters = this.eyes.map((eye) => eye.getWorldPosition(new THREE.Vector3()))
+    const eyeRadius = 1.3 * headScale
+    const noseTip = headCenter.clone().add(new THREE.Vector3(6.3, -0.6, 0).multiplyScalar(headScale))
+    const fullTail = this.profile.shape.tail.segments * tailLength
     const world = new THREE.Vector3()
     const normal = new THREE.Vector3()
     const normalMatrix = new THREE.Matrix3()
@@ -246,14 +252,12 @@ export class CatModel {
       for (let index = 0; index < positions.count; index++) {
         world.fromBufferAttribute(positions, index).applyMatrix4(mesh.matrixWorld)
         normal.fromBufferAttribute(normals, index).applyMatrix3(normalMatrix).normalize()
-        const along = region === 'tail' ? -positions.getX(index) : -positions.getY(index)
-        const head = world.clone().sub(headCenter)
-        const { color, fur } = coat(region, world, normal, head, ring + along)
-        let scale = fur
-        for (const eye of eyeCenters) {
-          scale *= smoothstep(1.6, 2.9, world.distanceTo(eye))
-        }
-        scale *= smoothstep(0.6, 1.6, world.distanceTo(noseTip))
+        const along = ring + (region === 'tail' ? -positions.getX(index) : -positions.getY(index))
+        const eye = Math.min(...eyeCenters.map((center) => world.distanceTo(center))) / eyeRadius
+        const face = world.clone().sub(headCenter).divideScalar(headScale)
+        const { color, length } = painter({ region, world, normal, face, along, eye, tailLength: fullTail })
+        // 眼睛和鼻头上不长毛
+        const scale = length * smoothstep(1.1, 1.8, eye) * smoothstep(0.6, 1.6, world.distanceTo(noseTip))
         colors.setXYZ(index, color.r, color.g, color.b)
         scales.setX(index, scale)
       }
@@ -282,7 +286,8 @@ export class CatModel {
       ear.rotation.z = -0.12 + Math.sin(time * 0.7 + ear.position.z) * 0.03
     }
     for (const eye of this.eyes) {
-      eye.scale.y = Math.max(0.06, pose.eyes)
+      // 上眼皮盖住一点，眼睛是杏仁形
+      eye.scale.y = Math.max(0.06, pose.eyes) * 0.8
     }
     this.placeTail(pose, body, dt)
   }
@@ -308,7 +313,8 @@ export class CatModel {
 
   twitchEar(side: number, amount: number) {
     const ear = this.ears[side < 0 ? 1 : 0]
-    ear.rotation.x = (side < 0 ? 0.32 : -0.32) - amount * Math.sign(side) * 0.5
+    const tilt = this.profile.shape.ear.tilt
+    ear.rotation.x = Math.sign(side) * (tilt + amount * 0.5)
   }
 
   private placeLeg(leg: Leg, target: LegTarget, pose: Pose) {
@@ -403,76 +409,6 @@ export class CatModel {
       part.base.dispose()
     }
   }
-}
-
-// 毛色：棕色虎斑，胸口、下巴、肚子浅奶油色，尾巴一圈圈深色环纹
-function coat(region: Region, world: THREE.Vector3, normal: THREE.Vector3, head: THREE.Vector3, ring: number) {
-  const color = new THREE.Color()
-  const mottle = fbm(world.x * 0.2, world.y * 0.2, world.z * 0.2)
-  color.copy(palette.base).lerp(palette.warm, mottle)
-  let fur = 1
-  const fine = 0.85 + 0.3 * fbm(world.x * 0.9 + 3, world.y * 0.9, world.z * 0.9)
-  switch (region) {
-    case 'torso':
-    case 'chest':
-    case 'neck': {
-      const warp = (fbm(world.x * 0.08, world.y * 0.08, world.z * 0.08 + 5) - 0.5) * 16
-      const stripe = smoothstep(0.2, 0.85, Math.sin((world.x + warp) * 0.9 + Math.abs(world.z) * 0.2)) * smoothstep(-0.3, 0.35, normal.y + 0.25)
-      const dorsal = smoothstep(0.5, 0.95, normal.y) * 0.55
-      color.lerp(palette.dark, Math.max(stripe * 0.78, dorsal))
-      const underside = smoothstep(-0.05, -0.65, normal.y)
-      const bib = region === 'torso' ? 0 : smoothstep(0.1, 0.7, normal.x) * smoothstep(30, 22, world.y)
-      color.lerp(palette.cream, Math.min(1, underside * 0.8 + bib * 0.9))
-      fur = 1 + underside * 0.35 + (region === 'neck' ? bib * 0.2 : 0)
-      break
-    }
-    case 'head':
-    case 'cheek':
-    case 'muzzle': {
-      const top = smoothstep(0.5, 2.2, head.y)
-      const forehead = top * smoothstep(-2, 1.5, head.x) * smoothstep(3, 1.5, Math.abs(head.z)) * smoothstep(0.1, 0.8, Math.sin(head.z * 2.4 + 1.57))
-      const cheekLine = smoothstep(2.6, 3.2, Math.abs(head.z)) * smoothstep(0.5, 0.15, Math.abs(head.y + 0.1 - (head.x - 3) * 0.18)) * smoothstep(4.5, 2.5, head.x)
-      const crown = top * smoothstep(-0.5, -3, head.x) * 0.6
-      color.lerp(palette.dark, Math.max(forehead * 0.85, cheekLine * 0.75, crown))
-      const muzzle = region === 'muzzle' ? smoothstep(-1.4, -0.4, head.y - 0.6 * (head.x - 4)) * 0.2 + 0.75 : 0
-      const chin = smoothstep(-1.8, -3, head.y) * smoothstep(1, 3, head.x)
-      color.lerp(palette.cream, Math.min(1, muzzle + chin))
-      fur = region === 'cheek' ? 1 + smoothstep(-0.5, -2.5, head.y) * 0.4 : 1
-      break
-    }
-    case 'ear': {
-      const inner = smoothstep(-0.1, 0.5, normal.x)
-      color.lerp(palette.dark, 0.45).lerp(palette.ear, inner * 0.5).lerp(palette.cream, inner * 0.35)
-      fur = 1 + inner * smoothstep(5, 8.5, head.y) * 2.5
-      break
-    }
-    case 'frontUpper':
-    case 'frontLower':
-    case 'hindUpper':
-    case 'hindLower':
-    case 'hindFoot': {
-      const bands = smoothstep(0.35, 0.9, Math.sin(ring * 1.05 + mottle * 3)) * 0.65
-      color.lerp(palette.dark, bands * (region === 'hindUpper' ? 0.6 : 1))
-      if (region === 'hindFoot') {
-        color.lerp(palette.dark, smoothstep(0, -0.6, normal.x) * 0.8)
-      }
-      if (region === 'frontLower' || region === 'hindLower') {
-        color.lerp(palette.cream, smoothstep(0, 0.8, normal.x) * 0.15)
-      }
-      fur = region === 'hindUpper' ? 1 + smoothstep(0, -0.7, normal.x) * 0.3 : 1
-      break
-    }
-    case 'paw':
-      color.lerp(palette.cream, 0.25)
-      break
-    case 'tail': {
-      const bands = smoothstep(0.1, 0.75, Math.sin(ring * 0.5 + mottle * 2.5))
-      color.lerp(palette.dark, Math.max(bands * 0.8, smoothstep(27, 32, ring)))
-      break
-    }
-  }
-  color.multiplyScalar(fine)
-  return { color, fur }
 }
 
 function whiskers() {
